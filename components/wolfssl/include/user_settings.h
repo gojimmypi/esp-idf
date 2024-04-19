@@ -25,8 +25,12 @@
 
 #include "sdkconfig.h"
 
-#define OPENSSL_EXTRA
-
+#if defined(CONFIG_TLS_STACK_WOLFSSL) && (CONFIG_TLS_STACK_WOLFSSL)
+    /* When using ESP-TLS, some old algoritms such as SHA1 are no longer
+     * enabled in wolfSSL, except for the OpenSSL compatibility. So enable
+     * that here: */
+    #define OPENSSL_EXTRA
+#endif
 /* #define DEBUG_WOLFSSL */
 /* #define DEBUG_WOLFSSL_VERBOSE */
 
