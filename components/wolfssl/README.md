@@ -24,7 +24,7 @@ If the wolfSSL source is not included here, the `CMakeLists.txt` will search for
 - Any parent directories, up to the root (if this directory is in the ESP-IDF components)
 - Any parent directories, up to the root (if this directory is a project component)
 
-While recurring up the directory tree, the following names of wolfSSL directories will be considered:
+While recursing up the directory tree, the following names of wolfSSL directories will be considered:
 
 - `wolfssl-[current user name]`
 - `wolfssl-master`
