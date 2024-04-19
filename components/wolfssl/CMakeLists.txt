@@ -175,7 +175,7 @@ function(FIND_WOLFSSL_DIRECTORY OUTPUT_FOUND_WOLFSSL_DIRECTORY)
                 get_filename_component(CURRENT_SEARCH_DIR "${CURRENT_SEARCH_DIR}" ABSOLUTE)
                 message(STATUS "WOLFSSL_ROOT found in sdkconfig/KConfig: ${CONFIG_CUSTOM_SETTING_WOLFSSL_ROOT}")
             else()
-                message(STATUS "wolfSSL not selected for [Component Config] [ESP-TLS]. Features and performance will be limited. Continuing search...")
+                message(STATUS "wolfSSL not defined in [Component Config] [wolfssl]. Continuing search...")
                 # If not specified as a search hint in OUTPUT_FOUND_WOLFSSL_DIRECTORY:
                 # This wolfSSL component CMakeLists.txt may be found EITHER in:
                 #   1) local project component
@@ -763,6 +763,12 @@ endif()
 
 if(WOLFSSL_ROOT)
     message(STATUS "Using wolfSSL in ${WOLFSSL_ROOT}")
+    if(CONFIG_ESP_TLS_USING_WOLFSSL_SPECIFIED)
+        message(STATUS "wolfSSL will be used for ESP-TLS")
+    else()
+        message(STATUS "WARNING: wolfSSL NOT selected for ESP-TLS. Features and performance will be limited.")
+    endif()
+
 else()
     message(STATUS "")
     message(STATUS "Consider setting WOLFSSL_ROOT environment variable, use Kconfig setting, or set manually in this cmake file, above.")
