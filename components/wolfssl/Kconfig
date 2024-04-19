@@ -25,12 +25,12 @@ menu "wolfSSL"
         help
             Includes wolfSSL from specified directory (not using esp-wolfssl).
 
-    config MY_CONFIG_WOLFSSL_ROOT
+    config CUSTOM_SETTING_WOLFSSL_ROOT
         string "Enter a custom string"
         depends on ESP_TLS_USING_WOLFSSL_SPECIFIED
         default "~/workspace/wolfssl"
         help
-            This option lets you specify a directory for the wolfSSL source code (typically a git clone).
+            This option lets you specify a directory for the wolfSSL source code (typically a git clone). Enter the path using forward slashes (e.g., C:/myfolder/mysubfolder) or double backslashes (e.g., C:\\myfolder\\mysubfolder).
 
     config WOLFSSL_HAVE_ALPN
         bool "Enable ALPN (Application Layer Protocol Negotiation) in wolfSSL"
