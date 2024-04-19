@@ -19,6 +19,19 @@ menu "wolfSSL"
         help
             Includes wolfSSL in ESP-TLS so that it can be compiled with wolfSSL as its SSL/TLS library.
 
+    config ESP_TLS_USING_WOLFSSL_SPECIFIED
+        bool "Use the specified wolfssl for ESP-TLS"
+        default Y
+        help
+            Includes wolfSSL from specified directory (not using esp-wolfssl).
+
+    config MY_CONFIG_WOLFSSL_ROOT
+        string "Enter a custom string"
+        depends on ESP_TLS_USING_WOLFSSL_SPECIFIED
+        default "~/workspace/wolfssl"
+        help
+            This option lets you specify a directory for the wolfSSL source code (typically a git clone).
+
     config WOLFSSL_HAVE_ALPN
         bool "Enable ALPN (Application Layer Protocol Negotiation) in wolfSSL"
         default n

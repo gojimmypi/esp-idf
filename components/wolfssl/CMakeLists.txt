@@ -35,11 +35,23 @@ set(CMAKE_CURRENT_SOURCE_DIR ".")
 # set(COMPONENT_REQUIRES lwip) # we typically don't need lwip directly in wolfssl component
 
 # Optionally set your source to wolfSSL in your project CMakeLists.txt like this:
-set(WOLFSSL_ROOT "C:/workspace/wolfssl-gojimmypi-pr" )
+# set(WOLFSSL_ROOT "C:/workspace/wolfssl-gojimmypi-pr" )
 
+# First, see if there's an envioronment variable
 if ( "${WOLFSSL_ROOT}" STREQUAL "")
     set(WOLFSSL_ROOT "$ENV{WOLFSSL_ROOT}" )
 endif()
+
+# Next, if not found, see if it was configured via Kconfig
+if ( "${WOLFSSL_ROOT}" STREQUAL "")
+    if(CONFIG_ESP_TLS_USING_WOLFSSL_SPECIFIED)
+        set(WOLFSSL_ROOT ${CONFIG_MY_CONFIG_WOLFSSL_ROOT})
+        message(STATUS "WOLFSSL_ROOT Custom string from KConfig: ${CONFIG_MY_CONFIG_WOLFSSL_ROOT}")
+    else()
+        message(STATUS "WOLFSSL_ROOT Custom wolfSSL is not specified in menuconfig, custom string not used.")
+    endif()
+endif()
+
 # Optional compiler definitions to help with system name detection (typically printed by app diagnostics)
 if(VERBOSE_COMPONENT_MESSAGES)
     if(WIN32)
@@ -166,7 +178,7 @@ function(FIND_WOLFSSL_DIRECTORY OUTPUT_FOUND_WOLFSSL_DIRECTORY)
             get_filename_component(CURRENT_SEARCH_DIR "$ENV{WOLFSSL_ROOT}" ABSOLUTE)
             IS_WOLFSSL_SOURCE("${CURRENT_SEARCH_DIR}" FOUND_WOLFSSL)
             if( FOUND_WOLFSSL )
-                message(STATUS "Found WOLFSSL_ROOT via Environment Variable:")
+                message(STATUS "Found WOLFSSL_ROOT via Environment Variable: $ENV{WOLFSSL_ROOT}")
             else()
                 message(FATAL_ERROR "WOLFSSL_ROOT Environment Variable defined, but path not found:")
                 message(STATUS "$ENV{WOLFSSL_ROOT}")
