@@ -34,23 +34,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
 set(CMAKE_CURRENT_SOURCE_DIR ".")
 # set(COMPONENT_REQUIRES lwip) # we typically don't need lwip directly in wolfssl component
 
-# Optionally set your source to wolfSSL in your project CMakeLists.txt like this:
+# Optionally hard-code your source to wolfSSL in your project CMakeLists.txt like this:
 # set(WOLFSSL_ROOT "C:/workspace/wolfssl-gojimmypi-pr" )
-
-# First, see if there's an envioronment variable
-if ( "${WOLFSSL_ROOT}" STREQUAL "")
-    set(WOLFSSL_ROOT "$ENV{WOLFSSL_ROOT}" )
-endif()
-
-# Next, if not found, see if it was configured via Kconfig
-if ( "${WOLFSSL_ROOT}" STREQUAL "")
-    if(CONFIG_ESP_TLS_USING_WOLFSSL_SPECIFIED)
-        set(WOLFSSL_ROOT ${CONFIG_MY_CONFIG_WOLFSSL_ROOT})
-        message(STATUS "WOLFSSL_ROOT Custom string from KConfig: ${CONFIG_MY_CONFIG_WOLFSSL_ROOT}")
-    else()
-        message(STATUS "WOLFSSL_ROOT Custom wolfSSL is not specified in menuconfig, custom string not used.")
-    endif()
-endif()
 
 # Optional compiler definitions to help with system name detection (typically printed by app diagnostics)
 if(VERBOSE_COMPONENT_MESSAGES)
@@ -171,24 +156,46 @@ function(FIND_WOLFSSL_DIRECTORY OUTPUT_FOUND_WOLFSSL_DIRECTORY)
     message(STATUS "Starting FIND_WOLFSSL_DIRECTORY: ${${OUTPUT_FOUND_WOLFSSL_DIRECTORY}}")
 
     if ( "${${OUTPUT_FOUND_WOLFSSL_DIRECTORY}}" STREQUAL "" )
+        # First, see if there's an environment variable. This takes highest priority (unless already found as hard-coded, above)
         set(CURRENT_SEARCH_DIR "$ENV{WOLFSSL_ROOT}")
         if( "${CURRENT_SEARCH_DIR}" STREQUAL "" )
             message(STATUS "The WOLFSSL_ROOT environment variable is not set. Searching...")
+            # Next, if not found, see if it was configured via Kconfig
+            if ( "${CURRENT_SEARCH_DIR}" STREQUAL "")
+                if(CONFIG_ESP_TLS_USING_WOLFSSL_SPECIFIED)
+                    set(CURRENT_SEARCH_DIR ${CONFIG_MY_CONFIG_WOLFSSL_ROOT})
+                    get_filename_component(CURRENT_SEARCH_DIR "${CURRENT_SEARCH_DIR}" ABSOLUTE)
+                    message(STATUS "WOLFSSL_ROOT found in sdkconfig/KConfig: ${CONFIG_MY_CONFIG_WOLFSSL_ROOT}")
+                else()
+                    message(STATUS "WOLFSSL_ROOT not specified in menuconfig.  Continuing search...")
+                endif()
+            endif()
         else()
-            get_filename_component(CURRENT_SEARCH_DIR "$ENV{WOLFSSL_ROOT}" ABSOLUTE)
+            # Setting found! Does it contain a valid path?
+            get_filename_component(CURRENT_SEARCH_DIR "${CURRENT_SEARCH_DIR}" ABSOLUTE)
+        endif()
+
+        # Check to see if we found a path in environment or config settings
+        if( "${CURRENT_SEARCH_DIR}" STREQUAL "" )
+            message(STATUS "Source for wolfSSL not specified in path nor config.")
+            # We'll continue the search by recursing up the directory tree, below.
+        else()
             IS_WOLFSSL_SOURCE("${CURRENT_SEARCH_DIR}" FOUND_WOLFSSL)
             if( FOUND_WOLFSSL )
-                message(STATUS "Found WOLFSSL_ROOT via Environment Variable: $ENV{WOLFSSL_ROOT}")
+                message(STATUS "Found wolfSSL source code via setting: ${CURRENT_SEARCH_DIR}")
+                set(${OUTPUT_FOUND_WOLFSSL_DIRECTORY} ${CURRENT_SEARCH_DIR} PARENT_SCOPE)
+                return()
             else()
-                message(FATAL_ERROR "WOLFSSL_ROOT Environment Variable defined, but path not found:")
+                message(FATAL_ERROR "WOLFSSL_ROOT setting defined, but path not found:")
                 message(STATUS "$ENV{WOLFSSL_ROOT}")
             endif()
         endif()
     else()
+        # We already have a non-blank OUTPUT_FOUND_WOLFSSL_DIRECTORY
         get_filename_component(CURRENT_SEARCH_DIR "${${OUTPUT_FOUND_WOLFSSL_DIRECTORY}}" ABSOLUTE)
         IS_WOLFSSL_SOURCE("${CURRENT_SEARCH_DIR}" FOUND_WOLFSSL)
         if( FOUND_WOLFSSL )
-            message(STATUS "Found WOLFSSL_ROOT via Environment Variable: ${CURRENT_SEARCH_DIR}")
+            message(STATUS "Found WOLFSSL_ROOT via setting: ${CURRENT_SEARCH_DIR}")
             set(${OUTPUT_FOUND_WOLFSSL_DIRECTORY} ${CURRENT_SEARCH_DIR} PARENT_SCOPE)
             return()
         else()
@@ -319,7 +326,7 @@ else()
     if(WOLFSSL_ROOT)
         IS_WOLFSSL_SOURCE("${WOLFSSL_ROOT}" FOUND_WOLFSSL)
         if(FOUND_WOLFSSL)
-            message(STATUS "Found WOLFSSL_ROOT via CMake specification.")
+            message(STATUS "Found WOLFSSL_ROOT during CMake processing.")
         else()
             # WOLFSSL_ROOT Path specified in CMakeLists.txt is not a valid path
             message(FATAL_ERROR "WOLFSSL_ROOT CMake Variable defined, but path not found: ${WOLFSSL_ROOT}\n"
@@ -378,8 +385,8 @@ else()
     set(WOLFSSL_PROJECT_DIR "${CMAKE_HOME_DIRECTORY}/components/wolfssl")
 
     string(REPLACE "/" "//" STR_WOLFSSL_PROJECT_DIR "${WOLFSSL_PROJECT_DIR}")
-    add_definitions(-DWOLFSSL_USER_SETTINGS_DIR="${STR_WOLFSSL_PROJECT_DIR}//include//user_settings.h")
-
+    add_definitions(-DWOLFSSL_USER_SETTINGS_DIR="${STR_WOLFSSL_PROJECT_DIR}/include/user_settings.h")
+    message(STATUS "Added definition for user_settings.h: -DWOLFSSL_USER_SETTINGS_DIR=\"${STR_WOLFSSL_PROJECT_DIR}//include//user_settings.h\"")
     # Espressif may take several passes through this makefile. Check to see if we found IDF
     string(COMPARE EQUAL "${PROJECT_SOURCE_DIR}" "" WOLFSSL_FOUND_IDF)
 
