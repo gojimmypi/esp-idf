@@ -27,6 +27,7 @@ menu "wolfSSL"
 
     config CUSTOM_SETTING_WOLFSSL_ROOT
         string "Enter a path for wolfSSL source code"
+        depends on ESP_TLS_USING_WOLFSSL_SPECIFIED
         default "~/workspace/wolfssl"
         help
             This option lets you specify a directory for the wolfSSL source code (typically a git clone). Enter the path using forward slashes (e.g., C:/myfolder/mysubfolder) or double backslashes (e.g., C:\\myfolder\\mysubfolder).
