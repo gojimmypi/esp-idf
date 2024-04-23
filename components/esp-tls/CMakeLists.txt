@@ -28,6 +28,9 @@ idf_component_register(SRCS "${srcs}"
 #   2) The esp-wolfssl
 if(CONFIG_ESP_TLS_USING_WOLFSSL)
     # See https://github.com/wolfSSL/wolfssl/
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_ESPIDF")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
+
     if (CONFIG_ESP_TLS_USING_WOLFSSL_SPECIFIED)
         get_filename_component(CUSTOM_SETTING_WOLFSSL_ROOT_PATH "${CUSTOM_SETTING_WOLFSSL_ROOT}" ABSOLUTE)
         if (EXISTS "${CUSTOM_SETTING_WOLFSSL_ROOT_PATH}/wolfcrypt/src")
@@ -35,16 +38,17 @@ if(CONFIG_ESP_TLS_USING_WOLFSSL)
         else()
             message(STATUS "ESP-TLS specified directory does not contain wolfSSL: ${CUSTOM_SETTING_WOLFSSL_ROOT_PATH}")
         endif()
+        idf_component_get_property(wolfssl wolfssl COMPONENT_LIB)
+        target_link_libraries(${COMPONENT_LIB} PUBLIC ${wolfssl})
     else()
-        message(STATUS "ESP-TLS wolfSSL directory not specified in menuconfig / sdkconfig, will search. See components/wolfssl/README.md")
+        message(STATUS "ESP-TLS wolfSSL directory not specified in menuconfig / sdkconfig. Using legacy esp-wolfssl, instead.")
+        # See https://github.com/espressif/esp-idf
+        message(STATUS "ESP-TLS Using esp-wolfssl")
+        idf_component_get_property(wolfssl esp-wolfssl COMPONENT_LIB)
+        target_link_libraries(${COMPONENT_LIB} PUBLIC ${wolfssl})
     endif()
-    idf_component_get_property(wolfssl wolfssl COMPONENT_LIB)
-    target_link_libraries(${COMPONENT_LIB} PUBLIC ${wolfssl})
 else()
-    # See https://github.com/espressif/esp-idf
-    message(STATUS "ESP-TLS Using esp-wolfssl")
-    idf_component_get_property(wolfssl esp-wolfssl COMPONENT_LIB)
-    target_link_libraries(${COMPONENT_LIB} PUBLIC ${wolfssl})
+    message(STATUS "ESP-TLS is not configured to use wolfSSL.")
 endif()
 
 if(NOT ${IDF_TARGET} STREQUAL "linux")
