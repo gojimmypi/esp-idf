@@ -31,7 +31,7 @@ rcUpdateTxDone = 0x4000177c;
 wDevCheckBlockError = 0x400017b4;
 /* wDev_IndicateFrame = 0x400017c8;*/
 wDev_ProcessFiq = 0x400017f0;
-wDev_ProcessRxSucData = 0x400017f4;
+/*wDev_ProcessRxSucData = 0x400017f4;*/
 /*ppProcTxDone = 0x40001804;*/
 pm_tx_data_done_process = 0x40001808;
 ppMapWaitTxq = 0x40001810;
@@ -116,7 +116,6 @@ r_lld_con_start_eco = 0x40001d10;
 r_lld_con_frm_isr_eco = 0x40001d14;
 r_lld_con_tx_eco = 0x40001d18;
 r_lld_scan_evt_start_cbk_eco = 0x40001d20;
-r_lld_scan_start_eco = 0x40001d24;
 r_lld_ext_scan_dynamic_pti_process_eco = 0x40001d28;
 r_lld_scan_frm_eof_isr_eco = 0x40001d2c;
 r_lld_sync_start_eco = 0x40001d30;
@@ -166,9 +165,7 @@ r_lld_cca_lbt_handle = 0x40001df8;
 r_lld_cca_scst_timeout_check = 0x40001dfc;
 r_lld_cca_chan_avl_timeout_check = 0x40001e00;
 
-r_lld_scan_start_hook = 0x40001c74;
 r_lld_con_start_hook = 0x40001ca8;
-r_lld_init_start_hook = 0x40001cb8;
 
 /* ble Functions eco */
 r_bt_bb_isr = 0x40000b9c;
@@ -214,6 +211,10 @@ r_lld_adv_ext_chain_none_construct = 0x40001b50;
 r_llc_llcp_send_eco = 0x40001cf4;
 r_llc_llcp_channel_map_ind_ack = 0x40001d68;
 r_rwble_isr = 0x40001464;
+r_lld_scan_start_eco = 0x40001d24;
+r_lld_scan_try_sched_eco = 0x40001dac;
+r_lld_scan_start_hook = 0x40001c74;
+r_lld_init_start_hook = 0x40001cb8;
 */
 
 

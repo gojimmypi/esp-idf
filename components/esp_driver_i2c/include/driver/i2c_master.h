@@ -19,10 +19,15 @@ extern "C" {
  * @brief I2C master bus specific configurations
  */
 typedef struct {
-    i2c_port_num_t i2c_port;              /*!< I2C port number, `-1` for auto selecting */
+    i2c_port_num_t i2c_port;              /*!< I2C port number, `-1` for auto selecting, (not include LP I2C instance) */
     gpio_num_t sda_io_num;                /*!< GPIO number of I2C SDA signal, pulled-up internally */
     gpio_num_t scl_io_num;                /*!< GPIO number of I2C SCL signal, pulled-up internally */
-    i2c_clock_source_t clk_source;        /*!< Clock source of I2C master bus, channels in the same group must use the same clock source */
+    union {
+        i2c_clock_source_t clk_source;        /*!< Clock source of I2C master bus */
+#if SOC_LP_I2C_SUPPORTED
+        lp_i2c_clock_source_t lp_source_clk;       /*!< LP_UART source clock selection */
+#endif
+    };
     uint8_t glitch_ignore_cnt;            /*!< If the glitch period on the line is less than this value, it can be filtered out, typically value is 7 (unit: I2C module clock cycle)*/
     int intr_priority;                    /*!< I2C interrupt priority, if set to 0, driver will select the default priority (1,2,3). */
     size_t trans_queue_depth;             /*!< Depth of internal transfer queue, increase this value can support more transfers pending in the background, only valid in asynchronous transaction. (Typically max_device_num * per_transaction)*/
@@ -43,6 +48,14 @@ typedef struct {
         uint32_t disable_ack_check:      1;     /*!< Disable ACK check. If this is set false, that means ack check is enabled, the transaction will be stopped and API returns error when nack is detected. */
     } flags;                                    /*!< I2C device config flags */
 } i2c_device_config_t;
+
+/**
+ * @brief I2C master transmit buffer information structure
+ */
+typedef struct {
+    uint8_t *write_buffer;               /*!< Pointer to buffer to be written. */
+    size_t buffer_size;                  /*!< Size of data to be written. */
+} i2c_master_transmit_multi_buffer_info_t;
 
 /**
  * @brief Group of I2C master callbacks, can be used to get status during transaction or doing other small things. But take care potential concurrency issues.
@@ -117,6 +130,24 @@ esp_err_t i2c_master_bus_rm_device(i2c_master_dev_handle_t handle);
  *      - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
  */
 esp_err_t i2c_master_transmit(i2c_master_dev_handle_t i2c_dev, const uint8_t *write_buffer, size_t write_size, int xfer_timeout_ms);
+
+/**
+ * @brief Transmit multiple buffers of data over an I2C bus.
+ *
+ * This function transmits multiple buffers of data over an I2C bus using the specified I2C master device handle.
+ * It takes in an array of buffer information structures along with the size of the array and a transfer timeout value in milliseconds.
+ *
+ * @param i2c_dev I2C master device handle that created by `i2c_master_bus_add_device`.
+ * @param buffer_info_array Pointer to buffer information array.
+ * @param array_size size of buffer information array.
+ * @param xfer_timeout_ms Wait timeout, in ms. Note: -1 means wait forever.
+ *
+ * @return
+ *      - ESP_OK: I2C master transmit success
+ *      - ESP_ERR_INVALID_ARG: I2C master transmit parameter invalid.
+ *      - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
+ */
+esp_err_t i2c_master_multi_buffer_transmit(i2c_master_dev_handle_t i2c_dev, i2c_master_transmit_multi_buffer_info_t *buffer_info_array, size_t array_size, int xfer_timeout_ms);
 
 /**
  * @brief Perform a write-read transaction on the I2C bus.

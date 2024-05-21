@@ -21,7 +21,7 @@ extern "C" {
  *
  * 2) External 40MHz Crystal Clock: XTAL
  *
- * 3) Internal 136kHz RC Oscillator: RC_SLOW (may also referrred as SOSC in TRM or reg. description)
+ * 3) Internal 136kHz RC Oscillator: RC_SLOW (may also referred as SOSC in TRM or reg. description)
  *
  *    This RC oscillator generates a ~136kHz clock signal output as the RC_SLOW_CLK. The exact frequency of this clock
  *    can be computed in runtime through calibration.
@@ -342,6 +342,20 @@ typedef enum {
     I2S_CLK_SRC_EXTERNAL = -1,                          /*!< Select external clock as source clock */
 } soc_periph_i2s_clk_src_t;
 
+/**
+ * @brief Array initializer for all supported clock sources of LP I2S
+ */
+#define SOC_LP_I2S_CLKS {SOC_MOD_CLK_LP_PERI, SOC_MOD_CLK_XTAL_D2}
+
+/**
+ * @brief LP I2S clock source enum
+ */
+typedef enum {
+    LP_I2S_CLK_SRC_DEFAULT = SOC_MOD_CLK_LP_PERI,          /*!< Select LP_PERI as the default source clock */
+    LP_I2S_CLK_SRC_LP_PERI = SOC_MOD_CLK_LP_PERI,          /*!< Select LP_PERI as the source clock */
+    LP_I2S_CLK_SRC_XTAL_D2 = SOC_MOD_CLK_XTAL_D2,          /*!< LP_I2S source clock is XTAL_D2 */
+} soc_periph_lp_i2s_clk_src_t;
+
 //////////////////////////////////////////////////LCD///////////////////////////////////////////////////////////////////
 
 /**
@@ -621,8 +635,8 @@ typedef enum {
  */
 typedef enum {
     PARLIO_CLK_SRC_XTAL = SOC_MOD_CLK_XTAL,           /*!< Select XTAL as the source clock */
-    PARLIO_CLK_SRC_PLL_F160M = SOC_MOD_CLK_PLL_F160M, /*!< Select PLL_F160M as the source clock */
     PARLIO_CLK_SRC_RC_FAST = SOC_MOD_CLK_RC_FAST,     /*!< Select RC_FAST as the source clock */
+    PARLIO_CLK_SRC_PLL_F160M = SOC_MOD_CLK_PLL_F160M, /*!< Select PLL_F160M as the source clock */
     PARLIO_CLK_SRC_EXTERNAL = -1,                     /*!< Select EXTERNAL clock as the source clock */
     PARLIO_CLK_SRC_DEFAULT = SOC_MOD_CLK_PLL_F160M,   /*!< Select PLL_F160M as the default clock choice */
 } soc_periph_parlio_clk_src_t;
@@ -657,6 +671,27 @@ typedef enum {
     TEMPERATURE_SENSOR_CLK_SRC_LP_PERI = SOC_MOD_CLK_LP_PERI,     /*!< Select LP_PERI as the source clock */
     TEMPERATURE_SENSOR_CLK_SRC_DEFAULT = SOC_MOD_CLK_LP_PERI,    /*!< Select LP_PERI as the default choice */
 } soc_periph_temperature_sensor_clk_src_t;
+
+//////////////////////////////////////////////CLOCK OUTPUT///////////////////////////////////////////////////////////
+typedef enum {
+    CLKOUT_SIG_MPLL     = 0,    /*!< MPLL is from 40MHz XTAL oscillator frequency multipliers */
+    CLKOUT_SIG_SPLL     = 1,    /*!< SPLL is from 40MHz XTAL oscillator frequency multipliers, it has a "fixed" frequency of 480MHz */
+    CLKOUT_SIG_CPLL     = 2,    /*!< CPLL_CLK is the output of 40MHz crystal oscillator frequency multiplier, can be 320/360/400MHz */
+    CLKOUT_SIG_XTAL     = 3,    /*!< External 40MHz crystal */
+    CLKOUT_SIG_RC_FAST  = 4,    /*!< Internal 17.5MHz RC oscillator */
+    CLKOUT_SIG_RC_SLOW  = 5,    /*!< Internal 136kHz RC oscillator */
+    CLKOUT_SIG_RC_32K   = 6,    /*!< Internal 32kHz RC oscillator */
+    CLKOUT_SIG_XTAL32K  = 7,    /*!< External 32kHz crystal clock */
+    CLKOUT_SIG_I2S0     = 16,   /*!< I2S0 clock, depends on the i2s driver configuration */
+    CLKOUT_SIG_I2S1     = 17,   /*!< I2S1 clock, depends on the i2s driver configuration */
+    CLKOUT_SIG_I2S2     = 18,   /*!< I2S2 clock, depends on the i2s driver configuration */
+    CLKOUT_SIG_CPU      = 26,   /*!< CPU clock */
+    CLKOUT_SIG_MEM      = 27,   /*!< MEM clock */
+    CLKOUT_SIG_SYS      = 28,   /*!< SYS clock */
+    CLKOUT_SIG_APB      = 29,   /*!< APB clock */
+    CLKOUT_SIG_PLL_F80M = 105,  /*!< From PLL, usually be 80MHz */
+    CLKOUT_SIG_INVALID  = 0xFF,
+} soc_clkout_sig_id_t;
 
 #ifdef __cplusplus
 }

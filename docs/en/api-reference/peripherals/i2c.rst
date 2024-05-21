@@ -6,7 +6,13 @@ Introduction
 
 I2C is a serial, synchronous, multi-device, half-duplex communication protocol that allows co-existence of multiple masters and slaves on the same bus. I2C uses two bidirectional open-drain lines: serial data line (SDA) and serial clock line (SCL), pulled up by resistors.
 
-{IDF_TARGET_NAME} has {IDF_TARGET_SOC_I2C_NUM} I2C controller (also called port), responsible for handling communication on the I2C bus. A single I2C controller can be a master or a slave.
+{IDF_TARGET_NAME} has {IDF_TARGET_SOC_HP_I2C_NUM} I2C controller (also called port), responsible for handling communication on the I2C bus. A single I2C controller can be a master or a slave.
+
+.. only:: SOC_LP_I2C_SUPPORTED
+
+    Additionally, the {IDF_TARGET_NAME} chip has 1 low-power (LP) I2C controller. It is the cut-down version of regular I2C. Usually, the LP I2C controller only support basic I2C functionality with a much smaller RAM size, and does not support slave mode. For a full list of difference between HP I2C and LP I2C, please refer to the *{IDF_TARGET_NAME} Technical Reference Manual* > *I2C Controller (I2C)* > *Features* [`PDF <{IDF_TARGET_TRM_EN_URL}#i2c>`__].
+
+    You can use LP I2C peripheral when HP I2C is not sufficient for users' usage. But please note again the LP I2C does not support all HP I2C functions. Please read docs before you use it.
 
 Typically, an I2C slave device has a 7-bit address or 10-bit address. {IDF_TARGET_NAME} supports both I2C Standard-mode (Sm) and Fast-mode (Fm) which can go up to 100KHz and 400KHz respectively.
 
@@ -134,6 +140,38 @@ Once the :cpp:type:`i2c_device_config_t` structure is populated with mandatory p
     i2c_master_dev_handle_t dev_handle;
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
 
+.. only:: SOC_LP_I2C_SUPPORTED
+
+    Install I2C master bus with LP I2C Peripheral
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Install I2C master bus with LP I2C peripheral is almost as same as how HP I2C peripheral is installed. However, there are still some difference user should take focus on including IOs, clock sources, i2c port number, etc. Following code will show you how to install I2C master bus with LP_I2C.
+
+    .. code:: c
+
+        #include "driver/i2c_master.h"
+
+        i2c_master_bus_config_t i2c_mst_config = {
+            .clk_source = LP_I2C_SCLK_DEFAULT,    // clock source for LP i2c, might different from HP I2C
+            .i2c_port = LP_I2C_NUM_0,             // Assign to LP I2C port
+            .scl_io_num = 7,                      // SCL IO number. Please refer to technical reference manual
+            .sda_io_num = 6,                      // SDA IO number. Please refer to technical reference manual
+            .glitch_ignore_cnt = 7,
+            .flags.enable_internal_pullup = true,
+        };
+
+        i2c_master_bus_handle_t bus_handle;
+        ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
+
+        i2c_device_config_t dev_cfg = {
+            .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+            .device_address = 0x58,
+            .scl_speed_hz = 100000,
+        };
+
+        i2c_master_dev_handle_t dev_handle;
+        ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
+
 Uninstall I2C master bus and device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -229,6 +267,42 @@ Simple example for writing data to slave:
 
     ESP_ERROR_CHECK(i2c_master_transmit(dev_handle, data_wr, DATA_LENGTH, -1));
 
+
+I2C master write also supports transmit multi buffer in one transaction. Take following transaction as a simple example:
+
+.. code:: c
+
+    uint8_t control_phase_byte = 0;
+    size_t control_phase_size = 0;
+    if (/*condition*/) {
+        control_phase_byte = 1;
+        control_phase_size = 1;
+    }
+
+    uint8_t *cmd_buffer = NULL;
+    size_t cmd_buffer_size = 0;
+    if (/*condition*/) {
+        uint8_t cmds[4] = {BYTESHIFT(lcd_cmd, 3), BYTESHIFT(lcd_cmd, 2), BYTESHIFT(lcd_cmd, 1), BYTESHIFT(lcd_cmd, 0)};
+        cmd_buffer = cmds;
+        cmd_buffer_size = 4;
+    }
+
+    uint8_t *lcd_buffer = NULL;
+    size_t lcd_buffer_size = 0;
+    if (buffer) {
+        lcd_buffer = (uint8_t*)buffer;
+        lcd_buffer_size = buffer_size;
+    }
+
+    i2c_master_transmit_multi_buffer_info_t lcd_i2c_buffer[3] = {
+        {.write_buffer = &control_phase_byte, .buffer_size = control_phase_size},
+        {.write_buffer = cmd_buffer, .buffer_size = cmd_buffer_size},
+        {.write_buffer = lcd_buffer, .buffer_size = lcd_buffer_size},
+    };
+
+    i2c_master_multi_buffer_transmit(handle, lcd_i2c_buffer, sizeof(lcd_i2c_buffer) / sizeof(i2c_master_transmit_multi_buffer_info_t), -1);
+
+
 I2C Master Read
 ~~~~~~~~~~~~~~~
 
@@ -292,7 +366,7 @@ Simple example for writing and reading from slave:
     ESP_ERROR_CHECK(i2c_master_bus_add_device(I2C_PORT_NUM_0, &dev_cfg, &dev_handle));
     uint8_t buf[20] = {0x20};
     uint8_t buffer[2];
-    ESP_ERROR_CHECK(i2c_master_transmit_receive(i2c_bus_handle, buf, sizeof(buf), buffer, 2, -1));
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(dev_handle, buf, sizeof(buf), buffer, 2, -1));
 
 I2C Master Probe
 ~~~~~~~~~~~~~~~~

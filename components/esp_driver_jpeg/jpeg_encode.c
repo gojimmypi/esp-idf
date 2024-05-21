@@ -142,6 +142,9 @@ esp_err_t jpeg_encoder_process(jpeg_encoder_handle_t encoder_engine, const jpeg_
     ESP_RETURN_ON_FALSE(encode_inbuf, ESP_ERR_INVALID_ARG, TAG, "jpeg encode picture buffer is null");
     ESP_RETURN_ON_FALSE(out_size, ESP_ERR_INVALID_ARG, TAG, "jpeg encode picture out_size is null");
     ESP_RETURN_ON_FALSE(((uintptr_t)bit_stream % cache_hal_get_cache_line_size(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_DATA)) == 0, ESP_ERR_INVALID_ARG, TAG, "jpeg encode bit stream is not aligned, please use jpeg_alloc_encoder_mem to malloc your buffer");
+    if (encode_cfg->src_type == JPEG_ENCODE_IN_FORMAT_YUV422) {
+        ESP_RETURN_ON_FALSE(encode_cfg->sub_sample == JPEG_DOWN_SAMPLING_YUV422, ESP_ERR_INVALID_ARG, TAG, "Sub sampling is not supported under this source type");
+    }
 
     esp_err_t ret = ESP_OK;
 
@@ -176,6 +179,10 @@ esp_err_t jpeg_encoder_process(jpeg_encoder_handle_t encoder_engine, const jpeg_
         encoder_engine->color_space = JPEG_ENC_SRC_GRAY;
         best_hb_idx = JPEG_ENC_SRC_GRAY_HB;
         break;
+    case JPEG_ENCODE_IN_FORMAT_YUV422:
+        encoder_engine->color_space = JPEG_ENC_SRC_YUV422;
+        best_hb_idx = JPEG_ENC_SRC_YUV422_HB;
+        break;
     default:
         ESP_LOGE(TAG, "wrong, we don't support encode from such format.");
         ret = ESP_ERR_NOT_SUPPORTED;
@@ -198,7 +205,26 @@ esp_err_t jpeg_encoder_process(jpeg_encoder_handle_t encoder_engine, const jpeg_
     ESP_GOTO_ON_ERROR(s_jpeg_set_header_info(encoder_engine), err, TAG, "set header failed");
     jpeg_hal_set_quantization_coefficient(hal, encoder_engine->header_info->m_quantization_tables[0], encoder_engine->header_info->m_quantization_tables[1]);
 
-    uint32_t dma_hb = enc_hb_tbl[best_hb_idx][encoder_engine->header_info->sub_sample];
+    uint8_t sample_method_idx = 0;
+    switch (encoder_engine->header_info->sub_sample) {
+    case JPEG_DOWN_SAMPLING_YUV444:
+        sample_method_idx = 0;
+        break;
+    case JPEG_DOWN_SAMPLING_YUV422:
+        sample_method_idx = 1;
+        break;
+    case JPEG_DOWN_SAMPLING_YUV420:
+        sample_method_idx = 2;
+        break;
+    case JPEG_DOWN_SAMPLING_GRAY:
+        sample_method_idx = 3;
+        break;
+    default:
+        ESP_LOGE(TAG, "wrong, we don't support such sampling mode.");
+        return ESP_ERR_NOT_SUPPORTED;
+    }
+
+    uint32_t dma_hb = enc_hb_tbl[best_hb_idx][sample_method_idx];
     uint32_t dma_vb = encoder_engine->mcuy;
 
     ESP_GOTO_ON_FALSE((encoder_engine->header_info->header_len % cache_hal_get_cache_line_size(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_DATA)) == 0, ESP_ERR_INVALID_STATE, err, TAG, "The header is not cache line aligned, please check");
@@ -236,9 +262,10 @@ esp_err_t jpeg_encoder_process(jpeg_encoder_handle_t encoder_engine, const jpeg_
         }
 
         if (s_rcv_event.dma_evt & JPEG_DMA2D_RX_EOF) {
+            ESP_GOTO_ON_ERROR(esp_cache_msync((void*)encoder_engine->rxlink, encoder_engine->dma_desc_size, ESP_CACHE_MSYNC_FLAG_DIR_M2C), err, TAG, "sync memory to cache failed");
             compressed_size = s_dma_desc_get_len(encoder_engine->rxlink);
-            compressed_size = JPEG_ALIGN_UP(compressed_size, cache_hal_get_cache_line_size(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_DATA));
-            ESP_GOTO_ON_ERROR(esp_cache_msync((void*)(bit_stream + encoder_engine->header_info->header_len), compressed_size, ESP_CACHE_MSYNC_FLAG_DIR_M2C), err, TAG, "sync memory to cache failed");
+            uint32_t _compressed_size = JPEG_ALIGN_UP(compressed_size, cache_hal_get_cache_line_size(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_DATA));
+            ESP_GOTO_ON_ERROR(esp_cache_msync((void*)(bit_stream + encoder_engine->header_info->header_len), _compressed_size, ESP_CACHE_MSYNC_FLAG_DIR_M2C), err, TAG, "sync memory to cache failed");
             break;
         }
     }
@@ -257,7 +284,6 @@ err:
 esp_err_t jpeg_del_encoder_engine(jpeg_encoder_handle_t encoder_engine)
 {
     ESP_RETURN_ON_FALSE(encoder_engine, ESP_ERR_INVALID_ARG, TAG, "jpeg encoder handle is null");
-    ESP_RETURN_ON_ERROR(jpeg_release_codec_handle(encoder_engine->codec_base), TAG, "release codec failed");
 
     if (encoder_engine) {
         if (encoder_engine->rxlink) {
@@ -281,6 +307,7 @@ esp_err_t jpeg_del_encoder_engine(jpeg_encoder_handle_t encoder_engine)
         if (encoder_engine->intr_handle) {
             jpeg_isr_deregister(encoder_engine->codec_base, encoder_engine->intr_handle);
         }
+        ESP_RETURN_ON_ERROR(jpeg_release_codec_handle(encoder_engine->codec_base), TAG, "release codec failed");
         free(encoder_engine);
     }
     return ESP_OK;
@@ -294,7 +321,7 @@ void *jpeg_alloc_encoder_mem(size_t size, const jpeg_encode_memory_alloc_cfg_t *
        For input buffer(for decoder is PSRAM write to 2DDMA), no restriction for any align (both cache writeback and requirement from 2DDMA).
     */
     size_t cache_align = 0;
-    esp_cache_get_alignment(ESP_CACHE_MALLOC_FLAG_PSRAM, &cache_align);
+    esp_cache_get_alignment(MALLOC_CAP_SPIRAM, &cache_align);
     if (mem_cfg->buffer_direction == JPEG_ENC_ALLOC_OUTPUT_BUFFER) {
         size = JPEG_ALIGN_UP(size, cache_align);
         *allocated_size = size;
@@ -441,7 +468,7 @@ static void s_jpeg_enc_config_picture_color_space(jpeg_encoder_handle_t encoder_
 {
     jpeg_hal_context_t *hal = &encoder_engine->codec_base->hal;
     color_space_pixel_format_t picture_format;
-    jpeg_ll_config_picture_color_space(hal->dev, encoder_engine->color_space);
+    jpeg_ll_config_picture_pixel_format(hal->dev, encoder_engine->color_space);
     picture_format.color_type_id = encoder_engine->picture_format;
     encoder_engine->bytes_per_pixel = color_hal_pixel_format_get_bit_depth(picture_format);
     if (encoder_engine->color_space == JPEG_ENC_SRC_GRAY) {

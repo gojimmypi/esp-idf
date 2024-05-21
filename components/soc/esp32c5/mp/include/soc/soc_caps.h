@@ -20,15 +20,15 @@
 // #define SOC_ADC_SUPPORTED               1  // TODO: [ESP32C5] IDF-8701
 // #define SOC_DEDICATED_GPIO_SUPPORTED    1  // TODO: [ESP32C5] IDF-8725
 #define SOC_UART_SUPPORTED              1     // TODO: [ESP32C5] IDF-8722
-// #define SOC_GDMA_SUPPORTED              1  // TODO: [ESP32C5] IDF-8710
-// #define SOC_AHB_GDMA_SUPPORTED          1  // TODO: [ESP32C5] IDF-8710
-// #define SOC_GPTIMER_SUPPORTED           1  // TODO: [ESP32C5] IDF-8705
+#define SOC_GDMA_SUPPORTED              1
+#define SOC_AHB_GDMA_SUPPORTED          1
+#define SOC_GPTIMER_SUPPORTED           1
 // #define SOC_PCNT_SUPPORTED              1  // TODO: [ESP32C5] IDF-8683
 // #define SOC_MCPWM_SUPPORTED             1  // TODO: [ESP32C5] IDF-8709
 // #define SOC_TWAI_SUPPORTED              1  // TODO: [ESP32C5] IDF-8691
 // #define SOC_ETM_SUPPORTED               1  // TODO: [ESP32C5] IDF-8693
 // #define SOC_PARLIO_SUPPORTED            1  // TODO: [ESP32C5] IDF-8685, IDF-8686
-// #define SOC_ASYNC_MEMCPY_SUPPORTED      1  // TODO: [ESP32C5] IDF-8716
+#define SOC_ASYNC_MEMCPY_SUPPORTED      1
 // #define SOC_USB_SERIAL_JTAG_SUPPORTED   1  // TODO: [ESP32C5] IDF-8721
 // #define SOC_TEMP_SENSOR_SUPPORTED       1  // TODO: [ESP32C5] IDF-8727
 // #define SOC_WIFI_SUPPORTED              1  // TODO: [ESP32C5] IDF-8851
@@ -51,15 +51,16 @@
 // #define SOC_RSA_SUPPORTED               1  // TODO: [ESP32C5] IDF-8620
 // #define SOC_HMAC_SUPPORTED              1  // TODO: [ESP32C5] IDF-8616
 // #define SOC_DIG_SIGN_SUPPORTED          1  // TODO: [ESP32C5] IDF-8619
-// #define SOC_ECC_SUPPORTED               1  // TODO: [ESP32C5] IDF-8625
+#define SOC_ECC_SUPPORTED               1
+#define SOC_ECC_EXTENDED_MODES_SUPPORTED   1
 #define SOC_FLASH_ENC_SUPPORTED         1     // TODO: [ESP32C5] IDF-8622
 // #define SOC_SECURE_BOOT_SUPPORTED       1  // TODO: [ESP32C5] IDF-8623
 // #define SOC_BOD_SUPPORTED               1  // TODO: [ESP32C5] IDF-8647
-// #define SOC_APM_SUPPORTED               1  // TODO: [ESP32C5] IDF-8614
+// #define SOC_APM_SUPPORTED               1  // TODO: [ESP32C5] IDF-8614, IDF-8615
 // #define SOC_PMU_SUPPORTED               1  // TODO: [ESP32C5] IDF-8667
-// #define SOC_PAU_SUPPORTED               1  // TODO: [ESP32C5] IDF-8638, IDF-8640
+// #define SOC_PAU_SUPPORTED               1  // TODO: [ESP32C5] IDF-8638
 // #define SOC_LP_TIMER_SUPPORTED          1  // TODO: [ESP32C5] IDF-8636
-// #define SOC_LP_AON_SUPPORTED            1  // TODO: [ESP32C5] IDF-8638, IDF-8640
+// #define SOC_LP_AON_SUPPORTED            1  // TODO: [ESP32C5] IDF-8638
 // #define SOC_LP_PERIPHERALS_SUPPORTED    1  // TODO: [ESP32C5] IDF-8695, IDF-8723, IDF-8719
 // #define SOC_LP_I2C_SUPPORTED            1  // TODO: [ESP32C5] IDF-8634
 // #define SOC_ULP_LP_UART_SUPPORTED       1  // TODO: [ESP32C5] IDF-8633
@@ -72,6 +73,7 @@
 // #define SOC_KEY_MANAGER_SUPPORTED       1  // TODO: [ESP32C5] IDF-8621
 // #define SOC_HUK_SUPPORTED               1  // TODO: [ESP32C5] IDF-8617
 // #define SOC_MODEM_CLOCK_SUPPORTED       1  // TODO: [ESP32C5] IDF-8845
+// #define SOC_PM_SUPPORTED                1  // TODO: [ESP32C5] IDF-8643
 
 /*-------------------------- XTAL CAPS ---------------------------------------*/
 #define SOC_XTAL_SUPPORT_40M            1
@@ -163,53 +165,56 @@
     See TRM DS chapter for more details */
 // #define SOC_DS_KEY_CHECK_MAX_WAIT_US (1100)
 
+/*-------------------------- DMA Common CAPS ----------------------------------------*/
+#define SOC_DMA_CAN_ACCESS_MSPI_MEM 1 /*!< DMA can access MSPI memory (e.g. Flash, PSRAM) */
+
 /*-------------------------- GDMA CAPS -------------------------------------*/
-// #define SOC_AHB_GDMA_VERSION            1U
-// #define SOC_GDMA_NUM_GROUPS_MAX         1U
-// #define SOC_GDMA_PAIRS_PER_GROUP_MAX    3
-// #define SOC_GDMA_SUPPORT_ETM            1  // Support ETM submodule
+#define SOC_AHB_GDMA_VERSION            2
+#define SOC_GDMA_NUM_GROUPS_MAX         1U
+#define SOC_GDMA_PAIRS_PER_GROUP_MAX    3
+// #define SOC_GDMA_SUPPORT_ETM            1  // Support ETM submodule TODO: IDF-9224
+// #define SOC_GDMA_SUPPORT_SLEEP_RETENTION    1  // TODO: IDF-9225
 
 /*-------------------------- ETM CAPS --------------------------------------*/
 // #define SOC_ETM_GROUPS                  1U  // Number of ETM groups
 // #define SOC_ETM_CHANNELS_PER_GROUP      50  // Number of ETM channels in the group
 
 /*-------------------------- GPIO CAPS ---------------------------------------*/
-// TODO: [ESP32C5] IDF-8717
 // ESP32-C5 has 1 GPIO peripheral
-// #define SOC_GPIO_PORT                      1U
+#define SOC_GPIO_PORT                      1U
 #define SOC_GPIO_PIN_COUNT                 29
 // #define SOC_GPIO_SUPPORT_PIN_GLITCH_FILTER 1
 // #define SOC_GPIO_FLEX_GLITCH_FILTER_NUM    8
+#define SOC_GPIO_SUPPORT_PIN_HYS_FILTER      1
 
 // GPIO peripheral has the ETM extension
 // #define SOC_GPIO_SUPPORT_ETM          1
-// #define SOC_GPIO_ETM_EVENTS_PER_GROUP 8
-// #define SOC_GPIO_ETM_TASKS_PER_GROUP  8
 
 // Target has the full LP IO subsystem
 // On ESP32-C5, Digital IOs have their own registers to control pullup/down capability, independent of LP registers.
-// #define SOC_GPIO_SUPPORT_RTC_INDEPENDENT    (1)
+#define SOC_GPIO_SUPPORT_RTC_INDEPENDENT    (1)
 // GPIO0~7 on ESP32C5 can support chip deep sleep wakeup
-// #define SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP   (1)
+// #define SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP   (1)  // TODO: [ESP32C5] IDF-8719
 
 #define SOC_GPIO_VALID_GPIO_MASK        ((1U<<SOC_GPIO_PIN_COUNT) - 1)
 #define SOC_GPIO_VALID_OUTPUT_GPIO_MASK SOC_GPIO_VALID_GPIO_MASK
 
-#define SOC_GPIO_IN_RANGE_MAX           30
-#define SOC_GPIO_OUT_RANGE_MAX          30
+#define SOC_GPIO_IN_RANGE_MAX           28
+#define SOC_GPIO_OUT_RANGE_MAX          28
 
-// #define SOC_GPIO_DEEP_SLEEP_WAKE_VALID_GPIO_MASK        (0ULL | BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7)
+#define SOC_GPIO_DEEP_SLEEP_WAKE_VALID_GPIO_MASK        (0ULL | BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7)
 
-// digital I/O pad powered by VDD3P3_CPU or VDD_SPI(GPIO_NUM_8~GPIO_NUM_30)
-// #define SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK 0x000000007FFFFF00ULL
+// digital I/O pad powered by VDD3P3_CPU or VDD_SPI(GPIO_NUM_8~GPIO_NUM_28)
+#define SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK 0x0000000001FFFF00ULL
 
 // Support to force hold all IOs
-// #define SOC_GPIO_SUPPORT_FORCE_HOLD              (1)
+#define SOC_GPIO_SUPPORT_FORCE_HOLD              (1)
 // Support to hold a single digital I/O when the digital domain is powered off
 #define SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP  (1)
 
-// The Clock Out singnal is route to the pin by GPIO matrix
+// The Clock Out signal is route to the pin by GPIO matrix
 // #define SOC_GPIO_CLOCKOUT_BY_GPIO_MATRIX    (1)
+#define SOC_GPIO_CLOCKOUT_CHANNEL_NUM           (3)
 
 /*-------------------------- RTCIO CAPS --------------------------------------*/
 #define SOC_RTCIO_PIN_COUNT                 0UL
@@ -227,7 +232,8 @@
 
 /*-------------------------- I2C CAPS ----------------------------------------*/
 // ESP32-C5 has 1 I2C
-#define SOC_I2C_NUM                 (1UL)
+#define SOC_I2C_NUM                 (1U)
+#define SOC_HP_I2C_NUM              (1U)
 
 // #define SOC_I2C_FIFO_LEN            (32) /*!< I2C hardware FIFO depth */
 // #define SOC_I2C_CMD_REG_NUM         (8)  /*!< Number of I2C command registers */
@@ -243,6 +249,8 @@
 // #define SOC_I2C_SLAVE_CAN_GET_STRETCH_CAUSE    (1)
 // #define SOC_I2C_SLAVE_SUPPORT_I2CRAM_ACCESS   (1)
 // #define SOC_I2C_SLAVE_SUPPORT_SLAVE_UNMATCH    (1)
+
+// #define SOC_I2C_SUPPORT_SLEEP_RETENTION (1) // TODO: IDF-9693
 
 /*-------------------------- LP_I2C CAPS -------------------------------------*/
 // ESP32-C5 has 1 LP_I2C
@@ -427,10 +435,10 @@
 /*--------------------------- TIMER GROUP CAPS ---------------------------------------*/
 #define SOC_TIMER_GROUPS                  (2)
 #define SOC_TIMER_GROUP_TIMERS_PER_GROUP  (1U)
-// #define SOC_TIMER_GROUP_COUNTER_BIT_WIDTH (54)
-// #define SOC_TIMER_GROUP_SUPPORT_XTAL      (1)
+#define SOC_TIMER_GROUP_COUNTER_BIT_WIDTH (54)
+#define SOC_TIMER_GROUP_SUPPORT_XTAL      (1)
 // #define SOC_TIMER_GROUP_SUPPORT_RC_FAST   (1)
-// #define SOC_TIMER_GROUP_TOTAL_TIMERS      (2)
+#define SOC_TIMER_GROUP_TOTAL_TIMERS      (2)
 // #define SOC_TIMER_SUPPORT_ETM             (1)
 
 /*--------------------------- WATCHDOG CAPS ---------------------------------------*/
@@ -450,7 +458,7 @@
 // #define SOC_EFUSE_DIS_DIRECT_BOOT 1
 // #define SOC_EFUSE_SOFT_DIS_JTAG 1
 // #define SOC_EFUSE_DIS_ICACHE 1
-// #define SOC_EFUSE_BLOCK9_KEY_PURPOSE_QUIRK 1  // XTS-AES key purpose not supported for this block
+#define SOC_EFUSE_ECDSA_KEY 1
 
 /*-------------------------- Secure Boot CAPS----------------------------*/
 // #define SOC_SECURE_BOOT_V2_RSA              1
@@ -501,8 +509,8 @@
 // #define SOC_PM_SUPPORT_BEACON_WAKEUP    (1)
 // #define SOC_PM_SUPPORT_BT_WAKEUP        (1)
 // #define SOC_PM_SUPPORT_EXT1_WAKEUP      (1)
-// #define SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN   (1) /*!<Supports one bit per pin to configue the EXT1 trigger level */
-#define SOC_PM_SUPPORT_CPU_PD           (1)
+// #define SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN   (1) /*!<Supports one bit per pin to configure the EXT1 trigger level */
+// #define SOC_PM_SUPPORT_CPU_PD           (1)
 #define SOC_PM_SUPPORT_MODEM_PD         (1)
 #define SOC_PM_SUPPORT_XTAL32K_PD       (1)
 #define SOC_PM_SUPPORT_RC32K_PD         (1)

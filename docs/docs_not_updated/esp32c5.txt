@@ -6,7 +6,6 @@ contribute/style-guide.rst
 contribute/copyright-guide.rst
 contribute/install-pre-commit-hook.rst
 contribute/index.rst
-api-guides/core_dump_internals.rst
 api-guides/performance/speed.rst
 api-guides/performance/size.rst
 api-guides/performance/ram-usage.rst
@@ -22,7 +21,6 @@ api-guides/jtag-debugging/building-openocd-windows.rst
 api-guides/jtag-debugging/index.rst
 api-guides/jtag-debugging/configure-builtin-jtag.rst
 api-guides/partition-tables.rst
-api-guides/app_trace.rst
 api-guides/thread-local-storage.rst
 api-guides/error-handling.rst
 api-guides/tools/idf-tools.rst
@@ -111,9 +109,9 @@ api-reference/peripherals/usb_host/usb_host_notes_arch.rst
 api-reference/peripherals/usb_host/usb_host_notes_index.rst
 api-reference/peripherals/usb_host/usb_host_notes_dwc_otg.rst
 api-reference/peripherals/usb_host/usb_host_notes_design.rst
+api-reference/peripherals/usb_host/usb_host_notes_usbh.rst
 api-reference/peripherals/hmac.rst
 api-reference/peripherals/usb_device.rst
-api-reference/peripherals/gpio.rst
 api-reference/peripherals/sdspi_host.rst
 api-reference/peripherals/spi_slave.rst
 api-reference/peripherals/etm.rst
@@ -162,7 +160,6 @@ api-reference/network/esp_netif.rst
 api-reference/system/sleep_modes.rst
 api-reference/system/mm_sync.rst
 api-reference/system/ota.rst
-api-reference/system/app_trace.rst
 api-reference/system/perfmon.rst
 api-reference/system/esp_function_with_shared_stack.rst
 api-reference/system/efuse.rst
@@ -249,7 +246,6 @@ security/secure-boot-v1.rst
 security/index.rst
 about.rst
 resources.rst
-migration-guides/release-5.x/5.2/bluetooth-classic.rst
 migration-guides/release-5.x/5.2/ieee802154.rst
 migration-guides/release-5.x/5.2/gcc.rst
 migration-guides/release-5.x/5.2/protocols.rst

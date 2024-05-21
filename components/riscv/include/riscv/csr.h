@@ -78,7 +78,7 @@ extern "C" {
     do {                                                                           \
         ESP_STATIC_ASSERT(__builtin_popcount((SIZE)) == 1, "Size must be a power of 2"); \
         ESP_STATIC_ASSERT((ADDR) % ((SIZE)) == 0, "Addr must be aligned to size"); \
-        RV_WRITE_CSR((CSR_PMAADDR0) + (ENTRY), ((ADDR) | ((SIZE >> 1) - 1)) >> 2); \
+        RV_WRITE_CSR((CSR_PMAADDR0) + (ENTRY), ((ADDR) | (((SIZE) >> 1) - 1)) >> 2); \
         RV_WRITE_CSR((CSR_PMACFG0) + (ENTRY), CFG);                                \
     } while (0)
 
@@ -119,7 +119,7 @@ extern "C" {
      generate specific assembly instructions.
    - ADDR is the address to write to the PMPADDRx register. Note this is the unshifted address.
    - CFG is the configuration value to write to the correct CFG entry register. Note that
-     the macro only sets bits in the CFG register, so it sould be zeroed already.
+     the macro only sets bits in the CFG register, so it should be zeroed already.
 */
 #define PMP_ENTRY_SET(ENTRY, ADDR, CFG) do {  \
     RV_WRITE_CSR((CSR_PMPADDR0) + (ENTRY), (ADDR) >> (PMP_SHIFT));    \
@@ -154,6 +154,20 @@ extern "C" {
 #define TDATA1_MATCH_S   (7)
 #define TDATA1_HIT_S     (20)
 
+
+/********************************************************
+   Espressif's bus error exceptions registers and fields
+ ********************************************************/
+
+#define MEXSTATUS   0x7E1
+#define MHINT       0x7C5
+
+#define LDPC0       0xBE0
+#define LDPC1       0xBE1
+
+#define STPC0       0xBF0
+#define STPC1       0xBF1
+#define STPC2       0xBF2
 
 /* RISC-V CSR macros
  * Adapted from https://github.com/michaeljclark/riscv-probe/blob/master/libfemto/include/arch/riscv/machine.h

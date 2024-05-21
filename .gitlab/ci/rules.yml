@@ -86,6 +86,7 @@
   - "tools/test_idf_py/**/*"
 
   - "tools/idf_size.py"
+  - "tools/test_idf_size/**/*"
 
   - "tools/tools.json"
   - "tools/tools_schema.json"
@@ -141,6 +142,7 @@
   - "components/unity/unity"
   - "components/heap/tlsf"
   - "components/bt/controller/lib_esp32c6/esp32c6-bt-lib"
+  - "components/bt/controller/lib_esp32c5/esp32c5-bt-lib"
   - "components/bt/esp_ble_mesh/lib/lib"
   - ".gitmodules"
 

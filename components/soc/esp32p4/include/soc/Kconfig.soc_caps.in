@@ -63,6 +63,10 @@ config SOC_ETM_SUPPORTED
     bool
     default y
 
+config SOC_PARLIO_SUPPORTED
+    bool
+    default y
+
 config SOC_ASYNC_MEMCPY_SUPPORTED
     bool
     default y
@@ -76,6 +80,10 @@ config SOC_USB_OTG_SUPPORTED
     default y
 
 config SOC_WIRELESS_HOST_SUPPORTED
+    bool
+    default y
+
+config SOC_USB_SERIAL_JTAG_SUPPORTED
     bool
     default y
 
@@ -263,6 +271,10 @@ config SOC_DEEP_SLEEP_SUPPORTED
     bool
     default y
 
+config SOC_PM_SUPPORTED
+    bool
+    default y
+
 config SOC_XTAL_SUPPORT_40M
     bool
     default y
@@ -435,6 +447,10 @@ config SOC_CPU_IDRAM_SPLIT_USING_PMP
     bool
     default y
 
+config SOC_CPU_PMP_REGION_GRANULARITY
+    int
+    default 128
+
 config SOC_DS_SIGNATURE_MAX_BIT_LEN
     int
     default 4096
@@ -446,6 +462,10 @@ config SOC_DS_KEY_PARAM_MD_IV_LENGTH
 config SOC_DS_KEY_CHECK_MAX_WAIT_US
     int
     default 1100
+
+config SOC_DMA_CAN_ACCESS_MSPI_MEM
+    bool
+    default y
 
 config SOC_AHB_GDMA_VERSION
     int
@@ -470,6 +490,10 @@ config SOC_AXI_GDMA_SUPPORT_PSRAM
 config SOC_GDMA_SUPPORT_ETM
     bool
     default y
+
+config SOC_AXI_DMA_EXT_MEM_ENC_ALIGNMENT
+    int
+    default 16
 
 config SOC_DMA2D_GROUPS
     int
@@ -515,14 +539,6 @@ config SOC_GPIO_SUPPORT_ETM
     bool
     default y
 
-config SOC_GPIO_ETM_EVENTS_PER_GROUP
-    int
-    default 8
-
-config SOC_GPIO_ETM_TASKS_PER_GROUP
-    int
-    default 8
-
 config SOC_GPIO_SUPPORT_RTC_INDEPENDENT
     bool
     default y
@@ -550,6 +566,18 @@ config SOC_GPIO_DEEP_SLEEP_WAKE_VALID_GPIO_MASK
 config SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK
     hex
     default 0x007FFFFFFFFF0000
+
+config SOC_GPIO_CLOCKOUT_BY_GPIO_MATRIX
+    bool
+    default y
+
+config SOC_GPIO_CLOCKOUT_CHANNEL_NUM
+    int
+    default 2
+
+config SOC_CLOCKOUT_SUPPORT_CHANNEL_DIVIDER
+    bool
+    default y
 
 config SOC_GPIO_SUPPORT_FORCE_HOLD
     bool
@@ -600,6 +628,10 @@ config SOC_ANA_CMPR_SUPPORT_ETM
     default y
 
 config SOC_I2C_NUM
+    int
+    default 3
+
+config SOC_HP_I2C_NUM
     int
     default 2
 
@@ -971,6 +1003,10 @@ config SOC_PARLIO_RX_UNIT_MAX_DATA_WIDTH
     int
     default 16
 
+config SOC_PARLIO_RX_CLK_SUPPORT_OUTPUT
+    bool
+    default y
+
 config SOC_PARLIO_TX_SIZE_BY_DMA
     bool
     default y
@@ -1004,6 +1040,10 @@ config SOC_SDMMC_DELAY_PHASE_NUM
     default 4
 
 config SOC_SDMMC_IO_POWER_EXTERNAL
+    bool
+    default y
+
+config SOC_SDMMC_PSRAM_DMA_CAPABLE
     bool
     default y
 
@@ -1152,10 +1192,6 @@ config SOC_SPI_MEM_SUPPORT_SW_SUSPEND
     default y
 
 config SOC_SPI_MEM_SUPPORT_CHECK_SUS
-    bool
-    default y
-
-config SOC_SPI_MEM_SUPPORT_WRAP
     bool
     default y
 
@@ -1315,6 +1351,10 @@ config SOC_EFUSE_DIS_DOWNLOAD_MSPI
     bool
     default y
 
+config SOC_EFUSE_ECDSA_KEY
+    bool
+    default y
+
 config SOC_SECURE_BOOT_V2_RSA
     bool
     default y
@@ -1471,6 +1511,10 @@ config SOC_PAU_IN_TOP_DOMAIN
     bool
     default y
 
+config SOC_CPU_IN_TOP_DOMAIN
+    bool
+    default y
+
 config SOC_PSRAM_VDD_POWER_MPLL
     bool
     default y
@@ -1527,7 +1571,19 @@ config SOC_MEM_NON_CONTIGUOUS_SRAM
     bool
     default y
 
-config SOC_EMAC_USE_IO_MUX
+config SOC_ASYNCHRONOUS_BUS_ERROR_MODE
+    bool
+    default y
+
+config SOC_EMAC_IEEE_1588_SUPPORT
+    bool
+    default y
+
+config SOC_EMAC_USE_MULTI_IO_MUX
+    bool
+    default y
+
+config SOC_EMAC_MII_USE_GPIO_MATRIX
     bool
     default y
 

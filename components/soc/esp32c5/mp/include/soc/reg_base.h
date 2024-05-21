@@ -63,6 +63,7 @@
 #define DR_REG_PCR_BASE                           0x60096000
 #define DR_REG_TEE_BASE                           0x60098000
 #define DR_REG_HP_APM_BASE                        0x60099000
+#define DR_REG_LP_APM0_BASE                       0x60099800
 #define DR_REG_MISC_BASE                          0x6009F000
 
 /**
@@ -107,3 +108,4 @@
 #define DR_REG_ASSIST_DEBUG_BASE                  0x600C2000
 #define DR_REG_INTPRI_BASE                        0x600C5000
 #define DR_REG_CACHE_BASE                         0x600C8000  // CACHE_CONFIG/EXTMEM
+#define DR_REG_CLINT_M_BASE                       0x20000000
