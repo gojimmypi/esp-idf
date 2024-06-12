@@ -242,6 +242,12 @@ extern wifi_osi_funcs_t g_wifi_osi_funcs;
 #define WIFI_FTM_RESPONDER 0
 #endif
 
+#if CONFIG_GCMP
+#define WIFI_ENABLE_GCMP (1<<4)
+#else
+#define WIFI_ENABLE_GCMP 0
+#endif
+
 #if CONFIG_ESP_WIFI_ENABLE_DUMP_HESIGB && !WIFI_CSI_ENABLED
 #define WIFI_DUMP_HESIGB_ENABLED  true
 #else
@@ -258,12 +264,14 @@ extern wifi_osi_funcs_t g_wifi_osi_funcs;
 #define CONFIG_FEATURE_CACHE_TX_BUF_BIT (1<<1)
 #define CONFIG_FEATURE_FTM_INITIATOR_BIT (1<<2)
 #define CONFIG_FEATURE_FTM_RESPONDER_BIT (1<<3)
+#define CONFIG_FEATURE_GCMP_BIT (1<<4)
 
 /* Set additional WiFi features and capabilities */
 #define WIFI_FEATURE_CAPS (WIFI_ENABLE_WPA3_SAE | \
                            WIFI_ENABLE_SPIRAM  | \
                            WIFI_FTM_INITIATOR | \
-                           WIFI_FTM_RESPONDER)
+                           WIFI_FTM_RESPONDER | \
+                           WIFI_ENABLE_GCMP)
 
 #define WIFI_INIT_CONFIG_DEFAULT() { \
     .osi_funcs = &g_wifi_osi_funcs, \
@@ -365,7 +373,7 @@ esp_err_t esp_wifi_get_mode(wifi_mode_t *mode);
   * @return
   *    - ESP_OK: succeed
   *    - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by esp_wifi_init
-  *    - ESP_ERR_INVALID_ARG: invalid argument
+  *    - ESP_ERR_INVALID_ARG: It doesn't normally happen, the function called inside the API was passed invalid argument, user should check if the wifi related config is correct
   *    - ESP_ERR_NO_MEM: out of memory
   *    - ESP_ERR_WIFI_CONN: WiFi internal error, station or soft-AP control block wrong
   *    - ESP_FAIL: other WiFi internal errors
@@ -598,7 +606,7 @@ esp_err_t esp_wifi_scan_get_ap_record(wifi_ap_record_t *ap_record);
   *    - ESP_ERR_WIFI_NOT_INIT: WiFi is not initialized by esp_wifi_init
   *    - ESP_ERR_WIFI_NOT_STARTED: WiFi is not started by esp_wifi_start
   *    - ESP_ERR_WIFI_MODE: WiFi mode is wrong
-  *    - ESP_ERR_INVALID_ARG: invalid argument
+  *    - ESP_ERR_INVALID_ARG: It doesn't normally happen, the function called inside the API was passed invalid argument, user should check if the wifi related config is correct
   */
 esp_err_t esp_wifi_clear_ap_list(void);
 
@@ -1595,6 +1603,21 @@ esp_err_t esp_wifi_set_band(wifi_band_t band);
   */
 esp_err_t esp_wifi_get_band(wifi_band_t* band);
 #endif /* SOC_WIFI_HE_SUPPORT_5G */
+
+#if CONFIG_ESP_COEX_POWER_MANAGEMENT
+/**
+  * @brief      Enable Wi-Fi coexistence power management
+  *
+  * @attention  This API should be called after esp_wifi_init().
+  *
+  * @param      enabled Wi-Fi coexistence power management is enabled or not.
+  *
+  * @return
+  *    - ESP_OK: succeed
+  *    - others: failed
+  */
+esp_err_t esp_wifi_coex_pwr_configure(bool enabled);
+#endif
 
 #ifdef __cplusplus
 }

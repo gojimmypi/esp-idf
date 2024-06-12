@@ -244,6 +244,7 @@ static inline void gpio_ll_input_disable(gpio_dev_t *hw, uint32_t gpio_num)
   * @param hw Peripheral GPIO hardware instance address.
   * @param gpio_num GPIO number
   */
+__attribute__((always_inline))
 static inline void gpio_ll_input_enable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     IO_MUX.gpio[gpio_num].fun_ie = 1;
@@ -472,6 +473,7 @@ static inline void gpio_ll_get_drive_capability(gpio_dev_t *hw, uint32_t gpio_nu
   * @param hw Peripheral GPIO hardware instance address.
   * @param gpio_num GPIO number, only support output GPIOs
   */
+__attribute__((always_inline))
 static inline void gpio_ll_hold_en(gpio_dev_t *hw, uint32_t gpio_num)
 {
     uint64_t bit_mask = 1ULL << gpio_num;
@@ -497,6 +499,7 @@ static inline void gpio_ll_hold_en(gpio_dev_t *hw, uint32_t gpio_num)
   * @param hw Peripheral GPIO hardware instance address.
   * @param gpio_num GPIO number, only support output GPIOs
   */
+__attribute__((always_inline))
 static inline void gpio_ll_hold_dis(gpio_dev_t *hw, uint32_t gpio_num)
 {
     uint64_t bit_mask = 1ULL << gpio_num;

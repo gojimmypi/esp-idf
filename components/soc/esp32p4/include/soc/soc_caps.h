@@ -67,8 +67,8 @@
 #define SOC_KEY_MANAGER_SUPPORTED       1
 #define SOC_FLASH_ENC_SUPPORTED         1
 #define SOC_SECURE_BOOT_SUPPORTED       1
-// #define SOC_BOD_SUPPORTED               1  //TODO: IDF-7519
-// #define SOC_APM_SUPPORTED               1  //TODO: IDF-7542
+#define SOC_BOD_SUPPORTED               1
+#define SOC_APM_SUPPORTED               1
 #define SOC_PMU_SUPPORTED               1
 #define SOC_DCDC_SUPPORTED              1
 #define SOC_PAU_SUPPORTED               1     //TODO: IDF-7531
@@ -88,7 +88,7 @@
 // #define SOC_TOUCH_SENSOR_SUPPORTED      1  //TODO: IDF-7477
 #define SOC_RNG_SUPPORTED               1
 #define SOC_GP_LDO_SUPPORTED            1 // General purpose LDO
-// #define SOC_PPA_SUPPORTED               1  //TODO: IDF-6878
+#define SOC_PPA_SUPPORTED               1
 #define SOC_LIGHT_SLEEP_SUPPORTED       1
 #define SOC_DEEP_SLEEP_SUPPORTED        1
 #define SOC_PM_SUPPORTED                1
@@ -158,9 +158,15 @@
 #define SOC_INT_CLIC_SUPPORTED          1
 #define SOC_INT_HW_NESTED_SUPPORTED     1       // Support for hardware interrupts nesting
 #define SOC_BRANCH_PREDICTOR_SUPPORTED  1
+#define SOC_CPU_COPROC_NUM              3
 #define SOC_CPU_HAS_FPU                 1
 #define SOC_CPU_HAS_FPU_EXT_ILL_BUG     1       // EXT_ILL CSR doesn't support FLW/FSW
-#define SOC_CPU_COPROC_NUM              2
+#define SOC_CPU_HAS_HWLOOP              1
+/* PIE coprocessor assembly is only supported with GCC compiler  */
+#ifndef __clang__
+#define SOC_CPU_HAS_PIE                 1
+#endif
+
 #define SOC_HP_CPU_HAS_MULTIPLE_CORES   1   // Convenience boolean macro used to determine if a target has multiple cores.
 
 #define SOC_CPU_BREAKPOINTS_NUM             3
@@ -183,7 +189,7 @@
 #define SOC_DS_KEY_CHECK_MAX_WAIT_US (1100)
 
 /*-------------------------- DMA Common CAPS ----------------------------------------*/
-#define SOC_DMA_CAN_ACCESS_MSPI_MEM 1 /*!< DMA can access MSPI memory (e.g. Flash, PSRAM) */
+#define SOC_DMA_CAN_ACCESS_FLASH 1 /*!< DMA can access Flash memory */
 
 /*-------------------------- GDMA CAPS -------------------------------------*/
 #define SOC_AHB_GDMA_VERSION                2
@@ -306,10 +312,17 @@
 #define SOC_I2S_TDM_FULL_DATA_WIDTH (1)  /*!< No limitation to data bit width when using multiple slots */
 
 /*-------------------------- ISP CAPS ----------------------------------------*/
+#define SOC_ISP_BF_SUPPORTED            1
+#define SOC_ISP_DVP_SUPPORTED           1
+
 #define SOC_ISP_NUMS                    1U
+#define SOC_ISP_DVP_CTLR_NUMS           1U
 #define SOC_ISP_AF_CTLR_NUMS            1U
 #define SOC_ISP_AF_WINDOW_NUMS          3
 #define SOC_ISP_SHARE_CSI_BRG           1
+#define SOC_ISP_BF_TEMPLATE_X_NUMS      3
+#define SOC_ISP_BF_TEMPLATE_Y_NUMS      3
+#define SOC_ISP_DVP_DATA_WIDTH_MAX      16
 
 /*-------------------------- LEDC CAPS ---------------------------------------*/
 #define SOC_LEDC_SUPPORT_PLL_DIV_CLOCK      (1)
@@ -326,6 +339,7 @@
 #define SOC_MMU_PERIPH_NUM                    (2U)
 #define SOC_MMU_LINEAR_ADDRESS_REGION_NUM     (2U)
 #define SOC_MMU_DI_VADDR_SHARED               (1) /*!< D/I vaddr are shared */
+#define SOC_MMU_PER_EXT_MEM_TARGET            (1) /*!< MMU is per physical external memory target (flash, psram) */
 
 /*-------------------------- MPU CAPS ----------------------------------------*/
 #define SOC_MPU_CONFIGURABLE_REGIONS_SUPPORTED    0
@@ -481,7 +495,7 @@
 
 /*-------------------------- SPI MEM CAPS ---------------------------------------*/
 #define SOC_SPI_MEM_SUPPORT_AUTO_WAIT_IDLE                (1)
-//#define SOC_SPI_MEM_SUPPORT_AUTO_SUSPEND                (1) //TODO: IDF-7518
+#define SOC_SPI_MEM_SUPPORT_AUTO_SUSPEND                  (1)
 #define SOC_SPI_MEM_SUPPORT_AUTO_RESUME                   (1)
 #define SOC_SPI_MEM_SUPPORT_IDLE_INTR                     (1)
 #define SOC_SPI_MEM_SUPPORT_SW_SUSPEND                    (1)
@@ -489,6 +503,9 @@
 // #define SOC_SPI_MEM_SUPPORT_WRAP                          (1) // IDFCI-2073 The feature cannot be treated as supported on P4
 #define SOC_SPI_MEM_SUPPORT_TIMING_TUNING                 (1)
 #define SOC_MEMSPI_TIMING_TUNING_BY_DQS                   (1)
+#define SOC_SPI_MEM_SUPPORT_CACHE_32BIT_ADDR_MAP          (1)
+
+#define SOC_SPI_PERIPH_SUPPORT_CONTROL_DUMMY_OUT (1)
 
 #define SOC_MEMSPI_SRC_FREQ_80M_SUPPORTED         1
 #define SOC_MEMSPI_SRC_FREQ_40M_SUPPORTED         1
@@ -517,6 +534,7 @@
 #define SOC_TIMER_GROUP_SUPPORT_RC_FAST   1
 #define SOC_TIMER_GROUP_TOTAL_TIMERS      4
 #define SOC_TIMER_SUPPORT_ETM             1
+#define SOC_TIMER_SUPPORT_SLEEP_RETENTION 1
 
 /*--------------------------- WATCHDOG CAPS ---------------------------------------*/
 #define SOC_MWDT_SUPPORT_XTAL              (1)
@@ -573,6 +591,7 @@
 #define SOC_UART_SUPPORT_XTAL_CLK       (1)         /*!< Support XTAL clock as the clock source */
 #define SOC_UART_SUPPORT_WAKEUP_INT     (1)         /*!< Support UART wakeup interrupt */
 #define SOC_UART_HAS_LP_UART            (1)         /*!< Support LP UART */
+#define SOC_UART_SUPPORT_SLEEP_RETENTION   (1)         /*!< Support back up registers before sleep */
 
 // UART has an extra TX_WAIT_SEND state when the FIFO is not empty and XOFF is enabled
 #define SOC_UART_SUPPORT_FSM_TX_WAIT_SEND   (1)

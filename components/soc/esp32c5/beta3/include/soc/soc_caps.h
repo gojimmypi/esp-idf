@@ -23,7 +23,7 @@
 #define SOC_GDMA_SUPPORTED              1
 #define SOC_AHB_GDMA_SUPPORTED          1
 #define SOC_GPTIMER_SUPPORTED           1
-// #define SOC_PCNT_SUPPORTED              1  // TODO: [ESP32C5] IDF-8683
+#define SOC_PCNT_SUPPORTED              1
 // #define SOC_MCPWM_SUPPORTED             1  // TODO: [ESP32C5] IDF-8709
 // #define SOC_TWAI_SUPPORTED              1  // TODO: [ESP32C5] IDF-8691
 // #define SOC_ETM_SUPPORTED               1  // TODO: [ESP32C5] IDF-8693
@@ -51,12 +51,12 @@
 #define SOC_MPI_SUPPORTED               1
 #define SOC_SHA_SUPPORTED               1
 #define SOC_RSA_SUPPORTED               1
-// #define SOC_HMAC_SUPPORTED              1  // TODO: [ESP32C5] IDF-8616
-// #define SOC_DIG_SIGN_SUPPORTED          1  // TODO: [ESP32C5] IDF-8619
+#define SOC_HMAC_SUPPORTED              1
+#define SOC_DIG_SIGN_SUPPORTED          1
 #define SOC_ECC_SUPPORTED               1
 #define SOC_ECC_EXTENDED_MODES_SUPPORTED   1
 #define SOC_FLASH_ENC_SUPPORTED         1     // TODO: [ESP32C5] IDF-8622
-// #define SOC_SECURE_BOOT_SUPPORTED       1  // TODO: [ESP32C5] IDF-8623
+#define SOC_SECURE_BOOT_SUPPORTED       1
 // #define SOC_BOD_SUPPORTED               1  // TODO: [ESP32C5] IDF-8647
 // #define SOC_APM_SUPPORTED               1  // TODO: [ESP32C5] IDF-8614, IDF-8615
 #define SOC_PMU_SUPPORTED               1  // TODO: [ESP32C5] IDF-8667
@@ -73,7 +73,7 @@
 // #define SOC_WDT_SUPPORTED               1  // TODO: [ESP32C5] IDF-8650
 #define SOC_SPI_FLASH_SUPPORTED         1     // TODO: [ESP32C5] IDF-8715
 // #define SOC_BITSCRAMBLER_SUPPORTED      1  // TODO: [ESP32C5] IDF-8711
-// #define SOC_ECDSA_SUPPORTED             1  // TODO: [ESP32C5] IDF-8618
+#define SOC_ECDSA_SUPPORTED             1
 // #define SOC_KEY_MANAGER_SUPPORTED       1  // TODO: [ESP32C5] IDF-8621
 // #define SOC_HUK_SUPPORTED               1  // TODO: [ESP32C5] IDF-8617
 #define SOC_LIGHT_SLEEP_SUPPORTED       1
@@ -164,14 +164,14 @@
 
 /*-------------------------- DIGITAL SIGNATURE CAPS ----------------------------------------*/
 /** The maximum length of a Digital Signature in bits. */
-// #define SOC_DS_SIGNATURE_MAX_BIT_LEN (3072)
+#define SOC_DS_SIGNATURE_MAX_BIT_LEN (3072)
 
 /** Initialization vector (IV) length for the RSA key parameter message digest (MD) in bytes. */
-// #define SOC_DS_KEY_PARAM_MD_IV_LENGTH (16)
+#define SOC_DS_KEY_PARAM_MD_IV_LENGTH (16)
 
 /** Maximum wait time for DS parameter decryption key. If overdue, then key error.
     See TRM DS chapter for more details */
-// #define SOC_DS_KEY_CHECK_MAX_WAIT_US (1100)
+#define SOC_DS_KEY_CHECK_MAX_WAIT_US (1100)
 
 /*-------------------------- GDMA CAPS -------------------------------------*/
 #define SOC_AHB_GDMA_VERSION                1U
@@ -299,11 +299,12 @@
 // #define SOC_MPU_REGION_WO_SUPPORTED               0
 
 /*-------------------------- PCNT CAPS ---------------------------------------*/
-// #define SOC_PCNT_GROUPS                       1U
-// #define SOC_PCNT_UNITS_PER_GROUP              4
-// #define SOC_PCNT_CHANNELS_PER_UNIT            2
-// #define SOC_PCNT_THRES_POINT_PER_UNIT         2
-// #define SOC_PCNT_SUPPORT_RUNTIME_THRES_UPDATE 1
+#define SOC_PCNT_GROUPS                       1U
+#define SOC_PCNT_UNITS_PER_GROUP              4
+#define SOC_PCNT_CHANNELS_PER_UNIT            2
+#define SOC_PCNT_THRES_POINT_PER_UNIT         2
+#define SOC_PCNT_SUPPORT_RUNTIME_THRES_UPDATE 1
+#define SOC_PCNT_SUPPORT_CLEAR_SIGNAL         1
 
 /*--------------------------- RMT CAPS ---------------------------------------*/
 #define SOC_RMT_GROUPS                        1U /*!< One RMT group */
@@ -375,7 +376,7 @@
 #define SOC_SHA_SUPPORT_SHA256          (1)
 
 /*--------------------------- ECDSA CAPS ---------------------------------------*/
-// #define SOC_ECDSA_SUPPORT_EXPORT_PUBKEY     (1)
+#define SOC_ECDSA_SUPPORT_EXPORT_PUBKEY     (1)
 
 /*-------------------------- Sigma Delta Modulator CAPS -----------------*/
 // #define SOC_SDM_GROUPS               1U
@@ -444,6 +445,7 @@
 // #define SOC_TIMER_GROUP_SUPPORT_RC_FAST   (1)
 #define SOC_TIMER_GROUP_TOTAL_TIMERS      (2)
 // #define SOC_TIMER_SUPPORT_ETM             (1)
+// #define SOC_TIMER_SUPPORT_SLEEP_RETENTION (1)
 
 /*--------------------------- WATCHDOG CAPS ---------------------------------------*/
 // #define SOC_MWDT_SUPPORT_XTAL              (1)
@@ -465,11 +467,11 @@
 #define SOC_EFUSE_ECDSA_KEY 1
 
 /*-------------------------- Secure Boot CAPS----------------------------*/
-// #define SOC_SECURE_BOOT_V2_RSA              1
-// #define SOC_SECURE_BOOT_V2_ECC              1
+#define SOC_SECURE_BOOT_V2_RSA              1
+#define SOC_SECURE_BOOT_V2_ECC              1
 #define SOC_EFUSE_SECURE_BOOT_KEY_DIGESTS   3
-// #define SOC_EFUSE_REVOKE_BOOT_KEY_DIGESTS   1
-// #define SOC_SUPPORT_SECURE_BOOT_REVOKE_KEY  1
+#define SOC_EFUSE_REVOKE_BOOT_KEY_DIGESTS   1
+#define SOC_SUPPORT_SECURE_BOOT_REVOKE_KEY  1
 
 /*-------------------------- Flash Encryption CAPS----------------------------*/
 #define SOC_FLASH_ENCRYPTED_XTS_AES_BLOCK_MAX   (64)  // TODO: [ESP32C5] IDF-8622
@@ -495,6 +497,8 @@
 
 // UART has an extra TX_WAIT_SEND state when the FIFO is not empty and XOFF is enabled
 #define SOC_UART_SUPPORT_FSM_TX_WAIT_SEND   (1)
+
+#define SOC_UART_SUPPORT_SLEEP_RETENTION   (1)         /*!< Support back up registers before sleep */
 
 /*-------------------------- COEXISTENCE HARDWARE PTI CAPS -------------------------------*/
 #define SOC_COEX_HW_PTI                 (1)

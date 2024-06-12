@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -184,7 +184,6 @@ esp_err_t esp_lcd_new_i80_bus(const esp_lcd_i80_bus_config_t *bus_config, esp_lc
     // enable I2S LCD master mode (refer to I2S TRM)
     i2s_ll_enable_lcd(bus->hal.dev, true);
     i2s_ll_tx_stop_on_fifo_empty(bus->hal.dev, true);
-    i2s_ll_tx_bypass_pcm(bus->hal.dev, true);
     i2s_ll_tx_set_slave_mod(bus->hal.dev, false);
     i2s_ll_tx_set_bits_mod(bus->hal.dev, bus_config->bus_width);
     i2s_ll_tx_select_std_slot(bus->hal.dev, I2S_STD_SLOT_BOTH, true); // copy mono
@@ -319,6 +318,14 @@ err:
         free(i80_device);
     }
     return ret;
+}
+
+void *esp_lcd_i80_alloc_draw_buffer(esp_lcd_panel_io_handle_t io, size_t size, uint32_t caps)
+{
+    ESP_RETURN_ON_FALSE(io, NULL, TAG, "invalid argument");
+    ESP_RETURN_ON_FALSE((caps & MALLOC_CAP_SPIRAM) == 0, NULL, TAG, "external memory is not supported");
+    // DMA can only carry internal memory
+    return heap_caps_aligned_calloc(4, 1, size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT | MALLOC_CAP_DMA);
 }
 
 static esp_err_t panel_io_i80_del(esp_lcd_panel_io_t *io)

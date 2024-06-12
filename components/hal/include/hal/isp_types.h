@@ -46,6 +46,15 @@ typedef enum {
 } isp_color_t;
 
 /*---------------------------------------------------------------
+                      DVP
+---------------------------------------------------------------*/
+#if SOC_ISP_DVP_DATA_WIDTH_MAX
+#define ISP_DVP_DATA_SIG_NUM   SOC_ISP_DVP_DATA_WIDTH_MAX // The ISP DVP data signal number
+#else
+#define ISP_DVP_DATA_SIG_NUM   0
+#endif
+
+/*---------------------------------------------------------------
                       AF
 ---------------------------------------------------------------*/
 #if SOC_ISP_AF_WINDOW_NUMS
@@ -71,6 +80,25 @@ typedef struct {
     int definition[ISP_AF_WINDOW_NUM];    ///< Definition, it refers how clear and sharp an image is
     int luminance[ISP_AF_WINDOW_NUM];     ///< Luminance, it refers how luminant an image is
 } isp_af_result_t;
+
+/*---------------------------------------------------------------
+                      BF
+---------------------------------------------------------------*/
+#if SOC_ISP_BF_SUPPORTED
+#define ISP_BF_TEMPLATE_X_NUMS    SOC_ISP_BF_TEMPLATE_X_NUMS    // BF template x field nums
+#define ISP_BF_TEMPLATE_Y_NUMS    SOC_ISP_BF_TEMPLATE_Y_NUMS    // BF template y field nums
+#else
+#define ISP_BF_TEMPLATE_X_NUMS    0
+#define ISP_BF_TEMPLATE_Y_NUMS    0
+#endif
+
+/**
+ * @brief ISP BF edge padding mode
+ */
+typedef enum {
+    ISP_BF_EDGE_PADDING_MODE_SRND_DATA,      ///< Fill BF edge padding data with surrounding pixel data
+    ISP_BF_EDGE_PADDING_MODE_CUSTOM_DATA,    ///< Fill BF edge padding data with custom pixel data
+} isp_bf_edge_padding_mode_t;
 
 #ifdef __cplusplus
 }

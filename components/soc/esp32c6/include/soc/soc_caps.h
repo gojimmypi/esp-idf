@@ -61,6 +61,7 @@
 #define SOC_SDIO_SLAVE_SUPPORTED        1
 #define SOC_BOD_SUPPORTED               1
 #define SOC_APM_SUPPORTED               1
+#define SOC_APM_CTRL_FILTER_SUPPORTED   1
 #define SOC_PMU_SUPPORTED               1
 #define SOC_PAU_SUPPORTED               1
 #define SOC_LP_TIMER_SUPPORTED          1
@@ -251,6 +252,7 @@
 #define SOC_I2C_SLAVE_CAN_GET_STRETCH_CAUSE    (1)
 #define SOC_I2C_SLAVE_SUPPORT_I2CRAM_ACCESS   (1)
 #define SOC_I2C_SLAVE_SUPPORT_SLAVE_UNMATCH    (1)
+#define SOC_I2C_SUPPORT_SLEEP_RETENTION           (1)
 
 /*-------------------------- LP_I2C CAPS -------------------------------------*/
 // ESP32-C6 has 1 LP_I2C
@@ -314,7 +316,7 @@
 #define SOC_RMT_SUPPORT_TX_CARRIER_DATA_ONLY  1  /*!< TX carrier can be modulated to data phase only */
 #define SOC_RMT_SUPPORT_XTAL                  1  /*!< Support set XTAL clock as the RMT clock source */
 #define SOC_RMT_SUPPORT_RC_FAST               1  /*!< Support set RC_FAST as the RMT clock source */
-#define SOC_RMT_SUPPORT_SLEEP_BACKUP          1  /*!< Support back up registers before sleep */
+#define SOC_RMT_SUPPORT_SLEEP_RETENTION       1  /*!< The sleep retention feature can help back up RMT registers before sleep */
 
 /*-------------------------- MCPWM CAPS --------------------------------------*/
 #define SOC_MCPWM_GROUPS                     (1U)   ///< 1 MCPWM groups on the chip (i.e., the number of independent MCPWM peripherals)
@@ -441,6 +443,7 @@
 #define SOC_TIMER_GROUP_SUPPORT_RC_FAST   (1)
 #define SOC_TIMER_GROUP_TOTAL_TIMERS      (2)
 #define SOC_TIMER_SUPPORT_ETM             (1)
+#define SOC_TIMER_SUPPORT_SLEEP_RETENTION (1)
 
 /*--------------------------- WATCHDOG CAPS ---------------------------------------*/
 #define SOC_MWDT_SUPPORT_XTAL              (1)
@@ -489,6 +492,7 @@
 #define SOC_UART_SUPPORT_XTAL_CLK       (1)         /*!< Support XTAL clock as the clock source */
 #define SOC_UART_SUPPORT_WAKEUP_INT     (1)         /*!< Support UART wakeup interrupt */
 #define SOC_UART_HAS_LP_UART            (1)         /*!< Support LP UART */
+#define SOC_UART_SUPPORT_SLEEP_RETENTION   (1)         /*!< Support back up registers before sleep */
 
 // UART has an extra TX_WAIT_SEND state when the FIFO is not empty and XOFF is enabled
 #define SOC_UART_SUPPORT_FSM_TX_WAIT_SEND   (1)
@@ -585,3 +589,7 @@
 
 /*------------------------------------- No Reset CAPS -------------------------------------*/
 #define SOC_CAPS_NO_RESET_BY_ANA_BOD           (1)
+
+
+/*------------------------------------- ULP CAPS -------------------------------------*/
+#define SOC_LP_CORE_SINGLE_INTERRUPT_VECTOR   (1) /*!< LP Core interrupts all map to a single entry in vector table */

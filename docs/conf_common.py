@@ -118,7 +118,8 @@ USB_DOCS = ['api-reference/peripherals/usb_device.rst',
             'api-reference/peripherals/usb_host/usb_host_notes_design.rst',
             'api-reference/peripherals/usb_host/usb_host_notes_dwc_otg.rst',
             'api-reference/peripherals/usb_host/usb_host_notes_index.rst',
-            'api-reference/peripherals/usb_host/usb_host_notes_usbh.rst']
+            'api-reference/peripherals/usb_host/usb_host_notes_usbh.rst',
+            'api-reference/peripherals/usb_host/usb_host_notes_enum.rst']
 
 I80_LCD_DOCS = ['api-reference/peripherals/lcd/i80_lcd.rst']
 RGB_LCD_DOCS = ['api-reference/peripherals/lcd/rgb_lcd.rst']
@@ -175,6 +176,8 @@ ANA_CMPR_DOCS = ['api-reference/peripherals/ana_cmpr.rst']
 SPI_SLAVE_HD_DOCS = ['api-reference/peripherals/spi_slave_hd.rst']
 
 JPEG_DOCS = ['api-reference/peripherals/jpeg.rst']
+
+PPA_DOCS = ['api-reference/peripherals/ppa.rst']
 
 QEMU_DOCS = ['api-guides/tools/qemu.rst']
 
@@ -278,6 +281,7 @@ conditional_include_dict = {'SOC_BT_SUPPORTED':BT_DOCS,
                             'SOC_SPI_SUPPORT_SLAVE_HD_VER2':SPI_SLAVE_HD_DOCS,
                             'SOC_WIFI_NAN_SUPPORT':NAN_DOCS,
                             'SOC_JPEG_CODEC_SUPPORTED':JPEG_DOCS,
+                            'SOC_PPA_SUPPORTED':PPA_DOCS,
                             'SOC_GP_LDO_SUPPORTED':LDO_DOCS,
                             'esp32':ESP32_DOCS,
                             'esp32s2':ESP32S2_DOCS,
