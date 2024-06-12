@@ -19,7 +19,7 @@
 #
 # cmake for wolfssl Espressif projects
 #
-# Version 5.7.0 Espressif ESP-IDF compatible.
+# Version 5.7.1 Espressif ESP-IDF preview
 #
 # See https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html
 #
@@ -80,8 +80,18 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
 set(CMAKE_CURRENT_SOURCE_DIR ".")
 # set(COMPONENT_REQUIRES lwip) # we typically don't need lwip directly in wolfssl component
 
-# Optionally hard-code your source to wolfSSL in your project CMakeLists.txt like this:
-# set(WOLFSSL_ROOT "C:/workspace/wolfssl-gojimmypi-pr" )
+# Optionally set your source to wolfSSL in your project CMakeLists.txt like this:
+# set(WOLFSSL_ROOT "c:/test/my_wolfssl" )
+
+if ( "${WOLFSSL_ROOT}" STREQUAL "")
+    set(WOLFSSL_ROOT "$ENV{WOLFSSL_ROOT}" )
+endif()
+
+if(  "$ENV{IDF_PATH}" STREQUAL "" )
+    message(FATAL_ERROR "IDF_PATH Environment variable not set!")
+else()
+    string(REPLACE "\\" "/" THIS_IDF_PATH "$ENV{IDF_PATH}")
+endif()
 
 # Optional compiler definitions to help with system name detection (typically printed by app diagnostics)
 if(VERBOSE_COMPONENT_MESSAGES)
@@ -166,6 +176,25 @@ else()
     string(REPLACE "\\" "/" THIS_IDF_PATH "$ENV{IDF_PATH}")
 endif()
 
+# ENVIRONMENT_VAR_TO_MACRO
+# Check environment variable name EVARPARAM as [name]
+# If defined, and has a value of EVARVALUE as [value],
+# then assign a compiler definition "-D[name]=[value]"
+function(ENVIRONMENT_VAR_TO_MACRO EVARPARAM EVARVALUE)
+    # If the EVARPARAM environment variable name is set to EVARVALUE,
+    # set the compiler flag definition to enable CSV output.
+    if ( "$ENV{${EVARPARAM}}" STREQUAL "${EVARVALUE}")
+        message(STATUS "Appending compile definition: -D${EVARPARAM}=${EVARVALUE}")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${EVARPARAM}=${EVARVALUE}")
+    else()
+        if(DEFINED ENV{${EVARPARAM}})
+            message(STATUS "Environment variable ${EVARPARAM} detected but set to $ENV{${EVARPARAM}}, not appending compile definition.")
+        else()
+            message(STATUS "Environment variable ${EVARPARAM} not detected, not appending compile definition.")
+        endif()
+    endif()
+endfunction()
+
 # COMPONENT_NAME = wolfssl
 # The component name is the directory name. "No feature to change this".
 # See https://github.com/espressif/esp-idf/issues/8978#issuecomment-1129892685
@@ -183,7 +212,7 @@ endif()
 # function: IS_WOLFSSL_SOURCE
 #  parameter: DIRECTORY_PARAMETER - the directory to test
 #  output:    RESULT = contains contents of DIRECTORY_PARAMETER for wolfssl directory, otherwise blank.
-function( IS_WOLFSSL_SOURCE DIRECTORY_PARAMETER
+function( IS_WOLFSSL_SOURCE  DIRECTORY_PARAMETER
           RESULT )
     if (EXISTS "${DIRECTORY_PARAMETER}/wolfcrypt/src")
         set(${RESULT} "${DIRECTORY_PARAMETER}" PARENT_SCOPE)
@@ -256,7 +285,14 @@ function(FIND_WOLFSSL_DIRECTORY OUTPUT_FOUND_WOLFSSL_DIRECTORY)
         endif()
     endif()
 
-    # loop through all the parents, looking for wolfssl, stopping when we find a result or reach the root of file system.
+
+    # we'll start in the CMAKE_CURRENT_SOURCE_DIR, typically [something]/projectname/components/wolfssl
+    message(STATUS "CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
+    get_filename_component(CURRENT_SEARCH_DIR "${CMAKE_CURRENT_SOURCE_DIR}" ABSOLUTE)
+    message(STATUS "CURRENT_SEARCH_DIR = ${CURRENT_SEARCH_DIR}")
+    string(LENGTH ${CURRENT_SEARCH_DIR} CURRENT_SEARCH_DIR_LENGTH)
+
+    # loop through all the parents, looking for wolfssl
     while(NOT CURRENT_SEARCH_DIR STREQUAL "/" AND NOT CURRENT_SEARCH_DIR STREQUAL "" )
         string(LENGTH ${CURRENT_SEARCH_DIR} CURRENT_SEARCH_DIR_LENGTH)
         # wolfSSL may simply be in a parent directory, such as for local examples in wolfssl repo
@@ -344,6 +380,40 @@ endfunction()
 #   FIND_WOLFSSL_DIRECTORY(WOLFSSL_ROOT)
 #
 
+message(STATUS "CONFIG_TARGET_PLATFORM = ${CONFIG_TARGET_PLATFORM}")
+
+# Check for environment variable that may be assigned to macros
+ENVIRONMENT_VAR_TO_MACRO("GENERATE_MACHINE_PARSEABLE_REPORT" "1")
+ENVIRONMENT_VAR_TO_MACRO("WOLFSSL_BENCHMARK_FIXED_CSV"       "1")
+
+# Optional variable inspection
+if (0)
+    get_cmake_property(_variableNames VARIABLES)
+    list (SORT _variableNames)
+    message(STATUS "")
+    message(STATUS "ALL VARIABLES BEGIN")
+    message(STATUS "")
+    foreach (_variableName ${_variableNames})
+        message(STATUS "${_variableName}=${${_variableName}}")
+    endforeach()
+    message(STATUS "")
+    message(STATUS "ALL VARIABLES END")
+    message(STATUS "")
+endif()
+
+if ( ("${CONFIG_TARGET_PLATFORM}" STREQUAL "esp8266") OR ("${IDF_TARGET}" STREQUAL "esp8266") )
+    # There's no esp_timer, no driver components for the ESP8266
+    message(STATUS "Early expansion EXCLUDES esp_timer: ${THIS_INCLUDE_TIMER}")
+    message(STATUS "Early expansion EXCLUDES driver: ${THIS_INCLUDE_DRIVER}")
+    set(THIS_INCLUDE_TIMER "")
+    set(THIS_INCLUDE_DRIVER "")
+else()
+    message(STATUS "Early expansion includes esp_timer: ${THIS_INCLUDE_TIMER}")
+    message(STATUS "Early expansion includes driver: ${THIS_INCLUDE_DRIVER}")
+    set(THIS_INCLUDE_TIMER "esp_timer")
+    set(THIS_INCLUDE_DRIVER "driver")
+endif()
+
 if(CMAKE_BUILD_EARLY_EXPANSION)
     message(STATUS "wolfssl component CMAKE_BUILD_EARLY_EXPANSION:")
     idf_component_register(
@@ -373,7 +443,7 @@ else()
     if(WOLFSSL_ROOT)
         IS_WOLFSSL_SOURCE("${WOLFSSL_ROOT}" FOUND_WOLFSSL)
         if(FOUND_WOLFSSL)
-            message(STATUS "Found WOLFSSL_ROOT during CMake processing.")
+            message(STATUS "Found WOLFSSL_ROOT via CMake specification.")
         else()
             # WOLFSSL_ROOT Path specified in CMakeLists.txt is not a valid path
             message(FATAL_ERROR "WOLFSSL_ROOT CMake Variable defined, but path not found: ${WOLFSSL_ROOT}\n"
@@ -476,8 +546,7 @@ else()
         message(STATUS "**************************************************************************************")
         message(STATUS "")
 
-        # message(FATAL_ERROR "Please use wolfSSL in either local project or Espressif components, but not both.")
-        # Abort CMake after fatal error.
+        message(STATUS "Please use wolfSSL in either local project or Espressif components, but not both.")
 
         # Optional: if you change the above FATAL_ERROR to STATUS you can warn at runtime with this macro definition:
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_MULTI_INSTALL_WARNING")
@@ -585,9 +654,10 @@ else()
     # depending on the environment, we may need to swap backslashes with forward slashes
     string(REPLACE "\\" "/" RTOS_IDF_PATH "$ENV{IDF_PATH}/components/freertos/FreeRTOS-Kernel/include/freertos")
 
-# TODO check if WOLFSSL_ROOT is empty
-#    string(REPLACE "\\" "/" WOLFSSL_ROOT ${WOLFSSL_ROOT})
-
+	if(WOLFSSL_ROOT)
+	    string(REPLACE "\\" "/" WOLFSSL_ROOT ${WOLFSSL_ROOT})
+	endif()
+	
     if(IS_DIRECTORY "${RTOS_IDF_PATH}")
         message(STATUS "Found current RTOS path: ${RTOS_IDF_PATH}")
     else()
@@ -599,7 +669,7 @@ else()
             message(STATUS "Could not find RTOS path")
         endif()
     endif()
-
+    message(STATUS "THIS_IDF_PATH = $THIS_IDF_PATH")
     # wolfSSL-specific include directories
     set(COMPONENT_ADD_INCLUDEDIRS
         "./include" # this is the location of local project wolfssl user_settings.h
@@ -609,9 +679,9 @@ else()
         "\"${WOLFSSL_ROOT}/wolfssl/wolfcrypt/port/Espressif\""
         "\"${RTOS_IDF_PATH}/\""
         # wolfSSL release after v5.7 includes WiFi, time, and mem/debug helpers
-        ${THIS_IDF_PATH}/components/esp_event/include
-        ${THIS_IDF_PATH}/components/esp_netif/include
-        ${THIS_IDF_PATH}/components/esp_wifi/include
+        "${THIS_IDF_PATH}/components/esp_event/include"
+        "${THIS_IDF_PATH}/components/esp_netif/include"
+        "${THIS_IDF_PATH}/components/esp_wifi/include"
         )
 
     # Optionally include cryptoauthlib if present
@@ -633,11 +703,14 @@ else()
         "\"${WOLFSSL_ROOT}/src/ssl_bn.c\""      # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_certman.c\"" # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_crypto.c\""  # included by ssl.c
+        "\"${WOLFSSL_ROOT}/src/ssl_load.c\""    # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_misc.c\""    # included by ssl.c
+        "\"${WOLFSSL_ROOT}/src/ssl_p7p12.c\""   # included by ssl.c
+        "\"${WOLFSSL_ROOT}/src/ssl_sess.c\""    # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/x509.c\""
         "\"${WOLFSSL_ROOT}/src/x509_str.c\""
-        "\"${WOLFSSL_ROOT}/wolfcrypt/src/ext_kyber.c\""     # external Kyber disabled by default
-        "\"${WOLFSSL_ROOT}/wolfssl/wolfcrypt/ext_kyber.h\"" # external Kyber disabled by default
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/ext_kyber.c\""     # external non-wolfssl Kyber disabled by default
+        "\"${WOLFSSL_ROOT}/wolfssl/wolfcrypt/ext_kyber.h\"" # external non-wolfssl Kyber disabled by default
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/evp.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/misc.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_arm32.c\""
@@ -825,7 +898,7 @@ else()
     message(STATUS "")
     message(STATUS "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     message(STATUS "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    message(STATUS "ERROR: Could not find wolfSS Source Code")
+    message(STATUS "ERROR: Could not find wolfSSL Source Code")
     message(STATUS "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     message(STATUS "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 endif()
