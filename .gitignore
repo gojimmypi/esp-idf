@@ -111,3 +111,4 @@ XUNIT_RESULT*.xml
 /.vs
 *.bak
 /components/wolfssl.notused
+/components/wolfssl/Kconfig.new
