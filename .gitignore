@@ -108,3 +108,7 @@ XUNIT_RESULT*.xml
 
 # Vale
 .vale/styles/*
+/.vs
+*.bak
+/components/wolfssl.notused
+/components/wolfssl/Kconfig.new
