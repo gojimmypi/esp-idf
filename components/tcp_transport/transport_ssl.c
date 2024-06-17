@@ -451,7 +451,12 @@ void esp_transport_ssl_use_secure_element(esp_transport_handle_t t)
 void esp_transport_ssl_crt_bundle_attach(esp_transport_handle_t t, esp_err_t ((*crt_bundle_attach)(void *conf)))
 {
     GET_SSL_FROM_TRANSPORT_OR_RETURN(ssl, t);
-    ssl->cfg.crt_bundle_attach = crt_bundle_attach;
+    #ifdef CONFIG_ESP_TLS_USING_WOLFSSL
+        ssl->cfg.crt_bundle_attach = crt_bundle_attach;
+        ESP_LOGI(TAG, "crt_bundle_attach not supported with wolfSSL");
+    #else
+        ssl->cfg.crt_bundle_attach = crt_bundle_attach;
+    #endif
 }
 #endif
 

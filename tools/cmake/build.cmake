@@ -358,7 +358,7 @@ function(__build_check_python)
     if(check)
         idf_build_get_property(python PYTHON)
         idf_build_get_property(idf_path IDF_PATH)
-        message(STATUS "Checking Python dependencies...")
+        message(STATUS "Checking Python dependencies...${idf_path}")
         execute_process(COMMAND "${python}" "${idf_path}/tools/idf_tools.py" "check-python-dependencies"
             RESULT_VARIABLE result)
         if(result EQUAL 1)

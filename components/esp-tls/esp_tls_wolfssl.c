@@ -13,6 +13,11 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/ssl.h>
+#define OPENSSL_EXTRA
+#include <wolfssl/openssl/x509.h>
+
 #include <http_parser.h>
 #include "esp_tls_wolfssl.h"
 #include "esp_tls_error_capture_internal.h"
