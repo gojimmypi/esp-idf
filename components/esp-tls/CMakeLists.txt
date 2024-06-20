@@ -26,10 +26,30 @@ idf_component_register(SRCS "${srcs}"
 # There are two options:
 #   1) A specified source directory, typically a wolfssl git clone
 #   2) The esp-wolfssl
+message(STATUS "esp-tls config begin")
 if(CONFIG_ESP_TLS_USING_WOLFSSL)
+    message(STATUS "found CONFIG_ESP_TLS_USING_WOLFSSL")
     # See https://github.com/wolfSSL/wolfssl/
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_ESPIDF")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
+
+    # The published wolfSSL 5.7.0 user_settings.h does not include some features that
+    # might be enabled in Kconfig, so enable them here:
+    # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_ALPN")
+    # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_SNI")
+    # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DOPENSSL_EXTRA_X509_SMALL")
+    # this only works for VisualGDB, not idf.py from command-line
+
+    message(STATUS "CMAKE_HOME_DIRECTORY = ${CMAKE_HOME_DIRECTORY}")
+    message(STATUS "CMAKE_PARENT_LIST_FILE = ${CMAKE_PARENT_LIST_FILE}")
+    message(STATUS "CMAKE_SOURCE_DIR = ${CMAKE_SOURCE_DIR}")
+    message(STATUS "COMPONENT_DIR = ${CMAKE_HOME_DIRECTORY}")
+    message(STATUS "COMPONENT_LIB = ${COMPONENT_LIB}")
+    message(STATUS "FOUND_WOLFSSL = ${FOUND_WOLFSSL}")
+    message(STATUS "PROJECT_DIR = ${PROJECT_DIR}")
+    message(STATUS "WOLFSSL_PROJECT_DIR = ${WOLFSSL_PROJECT_DIR}")
+    message(STATUS "CMAKE_HOME_DIRECTORY = ${CMAKE_HOME_DIRECTORY}")
+    message(STATUS "WOLFSSL_ROOT = ${WOLFSSL_ROOT}")
 
     if (CONFIG_ESP_TLS_USING_WOLFSSL_SPECIFIED)
         get_filename_component(CUSTOM_SETTING_WOLFSSL_ROOT_PATH "${CUSTOM_SETTING_WOLFSSL_ROOT}" ABSOLUTE)
@@ -41,11 +61,35 @@ if(CONFIG_ESP_TLS_USING_WOLFSSL)
         idf_component_get_property(wolfssl wolfssl COMPONENT_LIB)
         target_link_libraries(${COMPONENT_LIB} PUBLIC ${wolfssl})
     else()
-        message(STATUS "ESP-TLS wolfSSL directory not specified in menuconfig / sdkconfig. Using legacy esp-wolfssl, instead.")
-        # See https://github.com/espressif/esp-idf
-        message(STATUS "ESP-TLS Using esp-wolfssl")
-
- #      idf_component_get_property(wolfssl esp-wolfssl COMPONENT_LIB)
+        # Is wolfSSL installed in the local project as a Managed Component?
+        set(WOLFSSL_COMPONENT_SEARCH "${PROJECT_DIR}/managed_components/wolfssl__wolfssl")
+        message(STATUS "Searching for wolfSSL in ${WOLFSSL_COMPONENT_SEARCH}")
+        if (EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
+            message(STATUS "Configuring ESP-IDF to use wolfssl in Managed Component: ${WOLFSSL_COMPONENT_SEARCH}")
+            idf_component_get_property(wolfssl wolfssl__wolfssl COMPONENT_LIB)
+        else()
+            # Is wolfSSL installed in the local project as a Managed Component comverted to regular project component?
+            set(WOLFSSL_COMPONENT_SEARCH "${PROJECT_DIR}/components/wolfssl__wolfssl")
+            message(STATUS "Searching for wolfSSL in ${WOLFSSL_COMPONENT_SEARCH}")
+            if (EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
+                message(STATUS "Configuring ESP-IDF to use wolfssl in Converted Managed Component: ${WOLFSSL_COMPONENT_SEARCH}")
+                idf_component_get_property(wolfssl wolfssl__wolfssl COMPONENT_LIB)
+            else()
+                # Is wolfSSL installed in the local project as a non-maged, regular component?
+                set(WOLFSSL_COMPONENT_SEARCH "${PROJECT_DIR}/components/wolfssl")
+                message(STATUS "Searching for wolfSSL in ${WOLFSSL_COMPONENT_SEARCH}")
+                if (EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
+                    message(STATUS "Configuring ESP-IDF to use wolfssl in Component: ${WOLFSSL_COMPONENT_SEARCH}")
+                    idf_component_get_property(wolfssl wolfssl COMPONENT_LIB)
+                else()
+                    set(WOLFSSL_COMPONENT_SEARCH "${THIS_IDF_PATH}/components/esp-wolfssl")
+                    message(STATUS "Configuring ESP-IDF to use wolfssl in from Managed Component: ${WOLFSSL_COMPONENT_SEARCH}")
+                    message(STATUS "ESP-TLS wolfSSL directory not specified in menuconfig / sdkconfig. Using legacy esp-wolfssl, instead.")
+                    # See https://github.com/espressif/esp-idf
+                    message(STATUS "ESP-TLS Using esp-wolfssl")
+                endif()
+            endif()
+        endif()
         idf_component_get_property(wolfssl wolfssl__wolfssl COMPONENT_LIB)
         target_link_libraries(${COMPONENT_LIB} PUBLIC ${wolfssl})
     endif()
