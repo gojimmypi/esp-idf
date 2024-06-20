@@ -51,9 +51,9 @@ if(CONFIG_ESP_TLS_USING_WOLFSSL)
     message(STATUS "CMAKE_HOME_DIRECTORY = ${CMAKE_HOME_DIRECTORY}")
     message(STATUS "WOLFSSL_ROOT = ${WOLFSSL_ROOT}")
 
-    if (CONFIG_ESP_TLS_USING_WOLFSSL_SPECIFIED)
+    if(CONFIG_ESP_TLS_USING_WOLFSSL_SPECIFIED)
         get_filename_component(CUSTOM_SETTING_WOLFSSL_ROOT_PATH "${CUSTOM_SETTING_WOLFSSL_ROOT}" ABSOLUTE)
-        if (EXISTS "${CUSTOM_SETTING_WOLFSSL_ROOT_PATH}/wolfcrypt/src")
+        if(EXISTS "${CUSTOM_SETTING_WOLFSSL_ROOT_PATH}/wolfcrypt/src")
             message(STATUS "ESP-TLS using wolfSSL in: ${CUSTOM_SETTING_WOLFSSL_ROOT_PATH}")
         else()
             message(STATUS "ESP-TLS specified directory does not contain wolfSSL: ${CUSTOM_SETTING_WOLFSSL_ROOT_PATH}")
@@ -64,32 +64,42 @@ if(CONFIG_ESP_TLS_USING_WOLFSSL)
         # Is wolfSSL installed in the local project as a Managed Component?
         set(WOLFSSL_COMPONENT_SEARCH "${PROJECT_DIR}/managed_components/wolfssl__wolfssl")
         message(STATUS "Searching for wolfSSL in ${WOLFSSL_COMPONENT_SEARCH}")
-        if (EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
+        if(EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
             message(STATUS "Configuring ESP-IDF to use wolfssl in Managed Component: ${WOLFSSL_COMPONENT_SEARCH}")
             idf_component_get_property(wolfssl wolfssl__wolfssl COMPONENT_LIB)
         else()
-            # Is wolfSSL installed in the local project as a Managed Component comverted to regular project component?
+            # Is wolfSSL installed in the local project as a Managed Component
+            # converted to regular project component?
             set(WOLFSSL_COMPONENT_SEARCH "${PROJECT_DIR}/components/wolfssl__wolfssl")
             message(STATUS "Searching for wolfSSL in ${WOLFSSL_COMPONENT_SEARCH}")
-            if (EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
-                message(STATUS "Configuring ESP-IDF to use wolfssl in Converted Managed Component: ${WOLFSSL_COMPONENT_SEARCH}")
+            if(EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
+                message(STATUS
+                      "Configuring ESP-IDF to use wolfssl in Converted Managed Component: ${WOLFSSL_COMPONENT_SEARCH}")
                 idf_component_get_property(wolfssl wolfssl__wolfssl COMPONENT_LIB)
             else()
                 # Is wolfSSL installed in the local project as a non-maged, regular component?
                 set(WOLFSSL_COMPONENT_SEARCH "${PROJECT_DIR}/components/wolfssl")
                 message(STATUS "Searching for wolfSSL in ${WOLFSSL_COMPONENT_SEARCH}")
-                if (EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
+                if(EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
                     message(STATUS "Configuring ESP-IDF to use wolfssl in Component: ${WOLFSSL_COMPONENT_SEARCH}")
                     idf_component_get_property(wolfssl wolfssl COMPONENT_LIB)
                 else()
                     set(WOLFSSL_COMPONENT_SEARCH "${THIS_IDF_PATH}/components/esp-wolfssl")
-                    message(STATUS "Configuring ESP-IDF to use wolfssl in from Managed Component: ${WOLFSSL_COMPONENT_SEARCH}")
-                    message(STATUS "ESP-TLS wolfSSL directory not specified in menuconfig / sdkconfig. Using legacy esp-wolfssl, instead.")
-                    # See https://github.com/espressif/esp-idf
-                    message(STATUS "ESP-TLS Using esp-wolfssl")
-                endif()
-            endif()
-        endif()
+                    message(STATUS "Searching for wolfSSL in ${WOLFSSL_COMPONENT_SEARCH}")
+                    if(EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
+                        message(STATUS "Configuring ESP-IDF to use wolfssl from: ${WOLFSSL_COMPONENT_SEARCH}")
+                        message(STATUS "Warning: Using legacy esp-wolfssl. Consider using a Managed Component")
+                        # See https://github.com/espressif/esp-idf
+                        message(STATUS "Configuring ESP-TLS to use esp-wolfssl")
+                        idf_component_get_property(wolfssl esp-wolfssl COMPONENT_LIB)
+                    else()
+                        message(STATUS "Consider installing wolfSSL from "
+                                       "https://components.espressif.com/components/wolfssl/wolfssl")
+                        message(FATAL_ERROR "Component ${component} not found")
+                    endif() # esp-wolfssl
+                endif() # project wolfssl
+            endif() # project converted wolfssl__wolfssl
+        endif() # project managed component wolfssl__wolfssl
         idf_component_get_property(wolfssl wolfssl__wolfssl COMPONENT_LIB)
         target_link_libraries(${COMPONENT_LIB} PUBLIC ${wolfssl})
     endif()
