@@ -20,6 +20,9 @@
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
    // #include "esp_crt_bundle.h"
 #endif
+#ifndef WOLFSSL_ESPIDF
+    #warning "WOLFSSL_ESPIDF not defined! Check bukld system."
+#endif
 
 
 #include <http_parser.h>
@@ -130,6 +133,10 @@ void *esp_wolfssl_get_ssl_context(esp_tls_t *tls)
     }
     return (void*)tls->priv_ssl;
 }
+//void wolfSSL_DebuggingCallback(const int logLevel, const char* const logMessage) {
+//    printf("%s\n", logMessage);
+//}
+WOLFSSL_BIO *bio;
 static int _is_time_set = 0;
 esp_err_t esp_create_wolfssl_handle(const char *hostname, size_t hostlen, const void *cfg, esp_tls_t *tls, void *server_params)
 {
@@ -142,27 +149,23 @@ esp_err_t esp_create_wolfssl_handle(const char *hostname, size_t hostlen, const 
 
     esp_err_t esp_ret = ESP_FAIL;
     int ret;
-//    if (_is_time_set == 0) {
-//        esp_sdk_time_lib_init();
-//        set_fixed_default_time();
-//   //      esp_show_current_datetime();
-//        time_t now;
-//        struct tm timeinfo;
-//        time(&now);
-//        localtime_r(&now, &timeinfo);
-//
-////        esp_show_current_datetime();
-//        _is_time_set = 1;
-//    }
+    if (_is_time_set == 0) {
+        esp_sdk_time_lib_init();
+        set_fixed_default_time();
+        esp_show_current_datetime();
+        time_t now;
+        struct tm timeinfo;
+        time(&now);
+        localtime_r(&now, &timeinfo);
+
+//        esp_show_current_datetime();
+        _is_time_set = 1;
+    }
+    wolfSSL_Debugging_ON();
     ret = wolfSSL_Init();
-//    WOLFSSL_BIO *bio = wolfSSL_BIO_new_mem_buf(global_cacert, -1);
-//    if (!bio) {
-//        printf("Failed to create BIO\n");
-//    }
-//    else {
-//        // Print the certificate information
-//        wolfSSL_X509_print(bio,(WOLFSSL_X509*)global_cacert);
-//    }
+//    wolfSSL_SetLoggingCb(wolfSSL_DebuggingCallback);
+
+
 
 //    // Free resources
 //    wolfSSL_BIO_free(bio);
@@ -217,12 +220,18 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
 {
     int ret = WOLFSSL_FAILURE;
 
-#ifdef WOLFSSL_TLS13
+#if defined(CONFIG_WOLFSSL_ALLOW_TLS13) && defined(CONFIG_WOLFSSL_ALLOW_TLS12)
+    WOLFSSL_MSG("Set Client Config for any TLS version");
+    tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfSSLv23_client_method());
+//    tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+#elif defined(CONFIG_WOLFSSL_ALLOW_TLS13)
     WOLFSSL_MSG("Set Client Config for TLS1.3 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_3_client_method());
-#else
+#elif defined(CONFIG_WOLFSSL_ALLOW_TLS12)
     WOLFSSL_MSG("Set Client Config for TLS1.2 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+#else
+    #warning "No TLS enabled!"
 #endif
 
     if (!tls->priv_ctx) {
@@ -245,6 +254,16 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         }
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
     } else if (cfg->cacert_buf != NULL) {
+        bio = wolfSSL_BIO_new_mem_buf(cfg->cacert_buf, -1);
+        if (!bio) {
+            printf("Failed to create BIO\n");
+        }
+        else {
+            // Print the certificate information
+            wolfSSL_X509_print(bio,(WOLFSSL_X509*)cfg->cacert_buf);
+        }
+        wolfSSL_Debugging_ON();
+        wolfSSL_X509_print(bio,(WOLFSSL_X509*)cfg->cacert_buf);
         if ((esp_load_wolfssl_verify_buffer(tls, cfg->cacert_buf, cfg->cacert_bytes, FILE_TYPE_CA_CERT, &ret)) != ESP_OK) {
             int err = wolfSSL_get_error( (WOLFSSL *)tls->priv_ssl, ret);
             ESP_LOGE(TAG, "Error in loading certificate verify buffer, returned %d, error code: %d", ret, err);
@@ -389,11 +408,25 @@ static esp_err_t set_server_config(esp_tls_cfg_server_t *cfg, esp_tls_t *tls)
 {
     int ret = WOLFSSL_FAILURE;
 
-#ifdef WOLFSSL_TLS13
+//#ifdef WOLFSSL_TLS13
+//    tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+//#else
+//    tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+//#endif
+#if defined(CONFIG_WOLFSSL_ALLOW_TLS13) && defined(CONFIG_WOLFSSL_ALLOW_TLS12)
+    WOLFSSL_MSG("Set Server Config for any TLS version");
+    tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfSSLv23_server_method());
+//    tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+#elif defined(CONFIG_WOLFSSL_ALLOW_TLS13)
+    WOLFSSL_MSG("Set Server Config for TLS1.3 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_3_server_method());
-#else
+#elif defined(CONFIG_WOLFSSL_ALLOW_TLS12)
+    WOLFSSL_MSG("Set Server Config for TLS1.2 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+#else
+    #warning "No TLS enabled!"
 #endif
+
 
     if (!tls->priv_ctx) {
         ESP_LOGE(TAG, "Set wolfSSL ctx failed");
@@ -441,10 +474,43 @@ static esp_err_t set_server_config(esp_tls_cfg_server_t *cfg, esp_tls_t *tls)
     wolfSSL_set_fd((WOLFSSL *)tls->priv_ssl, tls->sockfd);
     return ESP_OK;
 }
+int ShowCiphers(WOLFSSL* ssl)
+{
+    #define CLIENT_TLS_MAX_CIPHER_LENGTH 4096
+    char ciphers[CLIENT_TLS_MAX_CIPHER_LENGTH];
+    const char* cipher_used;
+    int ret = 0;
 
+    if (ssl == NULL) {
+        ESP_LOGI(TAG, "WOLFSSL* ssl is NULL, so no cipher in use");
+        ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
+        if (ret == WOLFSSL_SUCCESS) {
+            for (int i = 0; i < CLIENT_TLS_MAX_CIPHER_LENGTH; i++) {
+                if (ciphers[i] == ':') {
+                    ciphers[i] = '\n';
+                }
+            }
+            ESP_LOGI(TAG, "Available Ciphers:\n%s\n", ciphers);
+        }
+        else {
+            ESP_LOGE(TAG, "Failed to call wolfSSL_get_ciphers. Error %d", ret);
+        }
+    }
+    else {
+        cipher_used = wolfSSL_get_cipher_name(ssl);
+        ESP_LOGI(TAG, "WOLFSSL* ssl using %s", cipher_used);
+    }
+
+    return ret;
+}
 int esp_wolfssl_handshake(esp_tls_t *tls, const esp_tls_cfg_t *cfg)
 {
     int ret;
+    wolfSSL_Debugging_ON();
+    const char* cipher;
+    int index = 0;
+    ShowCiphers((WOLFSSL *)tls->priv_ssl);
+
     ret = wolfSSL_connect( (WOLFSSL *)tls->priv_ssl);
     if (ret == WOLFSSL_SUCCESS) {
         tls->conn_state = ESP_TLS_DONE;
