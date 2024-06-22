@@ -17,6 +17,10 @@
 #include <wolfssl/ssl.h>
 #define OPENSSL_EXTRA
 #include <wolfssl/openssl/x509.h>
+#ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
+   // #include "esp_crt_bundle.h"
+#endif
+
 
 #include <http_parser.h>
 #include "esp_tls_wolfssl.h"
@@ -126,7 +130,7 @@ void *esp_wolfssl_get_ssl_context(esp_tls_t *tls)
     }
     return (void*)tls->priv_ssl;
 }
-
+static int _is_time_set = 0;
 esp_err_t esp_create_wolfssl_handle(const char *hostname, size_t hostlen, const void *cfg, esp_tls_t *tls, void *server_params)
 {
 #ifdef CONFIG_ESP_DEBUG_WOLFSSL
@@ -138,8 +142,31 @@ esp_err_t esp_create_wolfssl_handle(const char *hostname, size_t hostlen, const 
 
     esp_err_t esp_ret = ESP_FAIL;
     int ret;
-
+//    if (_is_time_set == 0) {
+//        esp_sdk_time_lib_init();
+//        set_fixed_default_time();
+//   //      esp_show_current_datetime();
+//        time_t now;
+//        struct tm timeinfo;
+//        time(&now);
+//        localtime_r(&now, &timeinfo);
+//
+////        esp_show_current_datetime();
+//        _is_time_set = 1;
+//    }
     ret = wolfSSL_Init();
+//    WOLFSSL_BIO *bio = wolfSSL_BIO_new_mem_buf(global_cacert, -1);
+//    if (!bio) {
+//        printf("Failed to create BIO\n");
+//    }
+//    else {
+//        // Print the certificate information
+//        wolfSSL_X509_print(bio,(WOLFSSL_X509*)global_cacert);
+//    }
+
+//    // Free resources
+//    wolfSSL_BIO_free(bio);
+
     if (ret != WOLFSSL_SUCCESS) {
         ESP_LOGE(TAG, "Init wolfSSL failed: 0x%04X", ret);
         wolfssl_print_error_msg(ret);
@@ -172,13 +199,29 @@ exit:
     return esp_ret;
 }
 
+esp_err_t esp_crt_bundle_attach_X(void *conf)
+{
+    esp_err_t ret = ESP_OK;
+    // If no bundle has been set by the user then use the bundle embedded in the binary
+//    if (s_crt_bundle.crts == NULL) {
+//        ret = esp_crt_bundle_init(x509_crt_imported_bundle_bin_start, x509_crt_imported_bundle_bin_end - x509_crt_imported_bundle_bin_start);
+//    }
+
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to attach bundle");
+        return ret;
+    }
+    return ret;
+}
 static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls_cfg_t *cfg, esp_tls_t *tls)
 {
     int ret = WOLFSSL_FAILURE;
 
 #ifdef WOLFSSL_TLS13
+    WOLFSSL_MSG("Set Client Config for TLS1.3 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_3_client_method());
 #else
+    WOLFSSL_MSG("Set Client Config for TLS1.2 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_client_method());
 #endif
 

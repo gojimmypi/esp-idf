@@ -100,7 +100,7 @@ if(CONFIG_ESP_TLS_USING_WOLFSSL)
                 endif() # project wolfssl
             endif() # project converted wolfssl__wolfssl
         endif() # project managed component wolfssl__wolfssl
-        idf_component_get_property(wolfssl wolfssl__wolfssl COMPONENT_LIB)
+        # idf_component_get_property(wolfssl wolfssl__wolfssl COMPONENT_LIB)
         target_link_libraries(${COMPONENT_LIB} PUBLIC ${wolfssl})
     endif()
 else()
