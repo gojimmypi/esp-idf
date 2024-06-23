@@ -21,7 +21,7 @@
    // #include "esp_crt_bundle.h"
 #endif
 #ifndef WOLFSSL_ESPIDF
-    #warning "WOLFSSL_ESPIDF not defined! Check bukld system."
+    #warning "WOLFSSL_ESPIDF not defined! Check build system."
 #endif
 
 
@@ -400,7 +400,14 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     }
 #endif /* CONFIG_WOLFSSL_HAVE_OCSP */
 
-    wolfSSL_set_fd((WOLFSSL *)tls->priv_ssl, tls->sockfd);
+    ret = wolfSSL_set_fd((WOLFSSL *)tls->priv_ssl, tls->sockfd);
+    if (ret == WOLFSSL_SUCCESS) {
+        ESP_LOGI(TAG, "Attach wolfSSL to the socket success!");
+    }
+    else {
+        ESP_LOGE(TAG, "ERROR: failed wolfSSL_set_fd. Error: %d\n", ret);
+        return ESP_FAIL;
+    }
     return ESP_OK;
 }
 
@@ -507,13 +514,11 @@ int esp_wolfssl_handshake(esp_tls_t *tls, const esp_tls_cfg_t *cfg)
 {
     int ret;
     wolfSSL_Debugging_ON();
-    const char* cipher;
-    int index = 0;
-    ShowCiphers((WOLFSSL *)tls->priv_ssl);
 
     ret = wolfSSL_connect( (WOLFSSL *)tls->priv_ssl);
     if (ret == WOLFSSL_SUCCESS) {
         tls->conn_state = ESP_TLS_DONE;
+        ShowCiphers((WOLFSSL *)tls->priv_ssl);
         return 1;
     } else {
         int err = wolfSSL_get_error( (WOLFSSL *)tls->priv_ssl, ret);

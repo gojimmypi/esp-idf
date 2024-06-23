@@ -206,7 +206,7 @@ static esp_err_t esp_tls_hostname_to_fd(const char *host, size_t hostlen, int po
         return ESP_ERR_NO_MEM;
     }
 
-    ESP_LOGD(TAG, "host:%s: strlen %lu", use_host, (unsigned long)hostlen);
+    ESP_LOGI(TAG, "host:%s: strlen %lu", use_host, (unsigned long)hostlen);
     int res = getaddrinfo(use_host, NULL, &hints, &address_info);
     if (res != 0 || address_info == NULL) {
         ESP_LOGE(TAG, "couldn't get hostname for :%s: "
@@ -375,7 +375,7 @@ static inline esp_err_t tcp_connect(const char *host, int hostlen, int port, con
     }
 
     ret = ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST;
-    ESP_LOGD(TAG, "[sock=%d] Connecting to server. HOST: %s, Port: %d", fd, host, port);
+    ESP_LOGI(TAG, "[sock=%d] Connecting to server. HOST: %s, Port: %d", fd, host, port);
     if (connect(fd, (struct sockaddr *)&address, sizeof(struct sockaddr)) < 0) {
         if (errno == EINPROGRESS) {
             fd_set fdset;
