@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/* Test v5.4.1e */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -18,7 +20,9 @@
 #define OPENSSL_EXTRA
 #include <wolfssl/openssl/x509.h>
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
-   // #include "esp_crt_bundle.h"
+    /* TODO Add bundle support */
+    /* see components\mbedtls\esp_crt_bundle\include */
+    /* #include "esp_crt_bundle.h" */
 #endif
 #ifndef WOLFSSL_ESPIDF
     #warning "WOLFSSL_ESPIDF not defined! Check build system."
