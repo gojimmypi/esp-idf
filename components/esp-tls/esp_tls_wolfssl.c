@@ -1,3 +1,4 @@
+oops
 /*
  * SPDX-FileCopyrightText: 2019-2023 Espressif Systems (Shanghai) CO LTD
  *
@@ -18,7 +19,9 @@
 #define OPENSSL_EXTRA
 #include <wolfssl/openssl/x509.h>
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
-   // #include "esp_crt_bundle.h"
+    /* TODO Add bundle support */
+    /* see components\mbedtls\esp_crt_bundle\include */
+    /* #include "esp_crt_bundle.h" */
 #endif
 #ifndef WOLFSSL_ESPIDF
     #warning "WOLFSSL_ESPIDF not defined! Check build system."
