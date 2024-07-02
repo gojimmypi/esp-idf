@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2019-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -128,14 +128,18 @@ static ssize_t tcp_write(esp_tls_t *tls, const char *data, size_t datalen)
 
 ssize_t esp_tls_conn_read(esp_tls_t *tls, void  *data, size_t datalen)
 {
+    if (!tls || !data) {
+        return -1;
+    }
     return tls->read(tls, (char *)data, datalen);
-
 }
 
 ssize_t esp_tls_conn_write(esp_tls_t *tls, const void  *data, size_t datalen)
 {
+    if (!tls || !data) {
+        return -1;
+    }
     return tls->write(tls, (char *)data, datalen);
-
 }
 
 /**
@@ -151,6 +155,7 @@ int esp_tls_conn_destroy(esp_tls_t *tls)
         }
         esp_tls_internal_event_tracker_destroy(tls->error_handle);
         free(tls);
+        tls = NULL;
         return ret;
     }
     return -1; // invalid argument
@@ -197,7 +202,7 @@ static esp_err_t esp_tls_hostname_to_fd(const char *host, size_t hostlen, int po
         return ESP_ERR_NO_MEM;
     }
 
-    ESP_LOGD(TAG, "host:%s: strlen %lu", use_host, (unsigned long)hostlen);
+    ESP_LOGI(TAG, "host:%s: strlen %lu", use_host, (unsigned long)hostlen);
     int res = getaddrinfo(use_host, NULL, &hints, &address_info);
     if (res != 0 || address_info == NULL) {
         ESP_LOGE(TAG, "couldn't get hostname for :%s: "
@@ -354,7 +359,7 @@ static inline esp_err_t tcp_connect(const char *host, int hostlen, int port, con
     }
 
     ret = ESP_ERR_ESP_TLS_FAILED_CONNECT_TO_HOST;
-    ESP_LOGD(TAG, "[sock=%d] Connecting to server. HOST: %s, Port: %d", fd, host, port);
+    ESP_LOGI(TAG, "[sock=%d] Connecting to server. HOST: %s, Port: %d", fd, host, port);
     if (connect(fd, (struct sockaddr *)&address, sizeof(struct sockaddr)) < 0) {
         if (errno == EINPROGRESS) {
             fd_set fdset;
