@@ -1,5 +1,7 @@
 # Espressif IoT Development Framework
 
+This is the gojimmypi experimental version for PlatformIO.
+
 * [中文版](./README_CN.md)
 
 ESP-IDF is the development framework for Espressif SoCs supported on Windows, Linux and macOS.
