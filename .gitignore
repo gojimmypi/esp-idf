@@ -109,3 +109,9 @@ size_info.txt
 
 # Vale
 .vale/styles/*
+
+# Ignore all backup files
+*.bak
+
+# Ignore Viasual Studio debris
+/**/.vs
