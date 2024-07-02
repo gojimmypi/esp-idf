@@ -2,6 +2,20 @@
 
 This is the gojimmypi experimental version for PlatformIO.
 
+See [platform-espressif32/issues/1398](https://github.com/platformio/platform-espressif32/issues/1398#issuecomment-2198553046):
+
+- [ ] Fork the IDF version you want to use. 
+- [ ] Do your changes. 
+- [ ] Add a valid `package.json` and `version.txt` in the root. 
+- [ ] Create a release. The github function release will NOT work since it does not include the git submodules. The generated release can be used with platform_packages
+
+See https://github.com/gojimmypi/esp-idf/releases and https://github.com/gojimmypi/github-actions/tree/master/release_zips
+
+Example can be seen here https://github.com/Jason2866/esp-idf and working PlatformIO releases https://github.com/Jason2866/esp-idf/releases
+
+Important! [Espressif Releases](https://github.com/espressif/esp-idf/releases) CANNOT be used directly!
+
+
 * [中文版](./README_CN.md)
 
 ESP-IDF is the development framework for Espressif SoCs supported on Windows, Linux and macOS.
