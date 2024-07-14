@@ -11,7 +11,11 @@
 /**
  * Internal Callback for creating ssl handle for wolfssl
  */
-int esp_create_wolfssl_handle(const char *hostname, size_t hostlen, const void *cfg, esp_tls_t *tls);
+#if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
+    int esp_create_wolfssl_handle(const char *hostname, size_t hostlen, const void *cfg, esp_tls_t *tls, void *server_params);
+#else
+    int esp_create_wolfssl_handle(const char *hostname, size_t hostlen, const void *cfg, esp_tls_t *tls);
+#endif
 
 /**
  * Internal Callback for wolfssl_handshake

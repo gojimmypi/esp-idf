@@ -110,3 +110,8 @@ size_info.txt
 # Vale
 .vale/styles/*
 /.vs
+
+*.bak
+/package.json.bak
+/package.json.ref
+/version.txt.ref

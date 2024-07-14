@@ -110,7 +110,11 @@ static const char *TAG = "esp-tls";
 
 static esp_err_t create_ssl_handle(const char *hostname, size_t hostlen, const void *cfg, esp_tls_t *tls)
 {
+#if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
+    return _esp_create_ssl_handle(hostname, hostlen, cfg, tls, NULL);
+#else
     return _esp_create_ssl_handle(hostname, hostlen, cfg, tls);
+#endif
 }
 
 static esp_err_t esp_tls_handshake(esp_tls_t *tls, const esp_tls_cfg_t *cfg)
@@ -130,14 +134,18 @@ static ssize_t tcp_write(esp_tls_t *tls, const char *data, size_t datalen)
 
 ssize_t esp_tls_conn_read(esp_tls_t *tls, void  *data, size_t datalen)
 {
+    if (!tls || !data) {
+        return -1;
+    }
     return tls->read(tls, (char *)data, datalen);
-
 }
 
 ssize_t esp_tls_conn_write(esp_tls_t *tls, const void  *data, size_t datalen)
 {
+    if (!tls || !data) {
+        return -1;
+    }
     return tls->write(tls, (char *)data, datalen);
-
 }
 
 /**
@@ -153,6 +161,7 @@ int esp_tls_conn_destroy(esp_tls_t *tls)
         }
         esp_tls_internal_event_tracker_destroy(tls->error_handle);
         free(tls);
+        tls = NULL;
         return ret;
     }
     return -1; // invalid argument
@@ -548,6 +557,9 @@ int esp_tls_conn_new_sync(const char *hostname, int hostlen, int port, const esp
  */
 int esp_tls_conn_new_async(const char *hostname, int hostlen, int port, const esp_tls_cfg_t *cfg, esp_tls_t *tls)
 {
+    if (!cfg || !tls || !hostname || hostlen < 0) {
+        return -1;
+    }
     return esp_tls_low_level_conn(hostname, hostlen, port, cfg, tls);
 }
 
@@ -567,6 +579,10 @@ static int get_port(const char *url, struct http_parser_url *u)
 
 esp_tls_t *esp_tls_conn_http_new(const char *url, const esp_tls_cfg_t *cfg)
 {
+    if (!url || !cfg) {
+        return NULL;
+    }
+
     /* Parse URI */
     struct http_parser_url u;
     http_parser_url_init(&u);
@@ -589,6 +605,10 @@ esp_tls_t *esp_tls_conn_http_new(const char *url, const esp_tls_cfg_t *cfg)
  */
 int esp_tls_conn_http_new_sync(const char *url, const esp_tls_cfg_t *cfg, esp_tls_t *tls)
 {
+    if (!url || !cfg || !tls) {
+        return -1;
+    }
+
     /* Parse URI */
     struct http_parser_url u;
     http_parser_url_init(&u);
