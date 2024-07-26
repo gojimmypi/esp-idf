@@ -69,8 +69,8 @@ extern "C" {
 #define ESP_TLS_ERR_SSL_WANT_WRITE                         MBEDTLS_ERR_SSL_WANT_WRITE
 #define ESP_TLS_ERR_SSL_TIMEOUT                            MBEDTLS_ERR_SSL_TIMEOUT
 #elif CONFIG_ESP_TLS_USING_WOLFSSL /* CONFIG_ESP_TLS_USING_MBEDTLS */
-#define ESP_TLS_ERR_SSL_WANT_READ                          -0x6900
-#define ESP_TLS_ERR_SSL_WANT_WRITE                         -0x6880
+#define ESP_TLS_ERR_SSL_WANT_READ                          -0x6900 /* TODO */
+#define ESP_TLS_ERR_SSL_WANT_WRITE                         -0x6880 /* TODO */
 #define ESP_TLS_ERR_SSL_TIMEOUT                            WOLFSSL_CBIO_ERR_TIMEOUT
 #endif /*CONFIG_ESP_TLS_USING_WOLFSSL */
 

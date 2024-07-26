@@ -68,7 +68,7 @@ static esp_err_t set_server_config(esp_tls_cfg_server_t *cfg, esp_tls_t *tls);
 /* This function shall return the error message when appropriate log level has been set otherwise this function shall do nothing */
 static void wolfssl_print_error_msg(int error)
 {
-#if (CONFIG_LOG_DEFAULT_LEVEL_DEBUG || CONFIG_LOG_DEFAULT_LEVEL_VERBOSE)
+#if defined(DEBUG_WOLFSSL) || (CONFIG_LOG_DEFAULT_LEVEL_DEBUG || CONFIG_LOG_DEFAULT_LEVEL_VERBOSE)
     static char error_buf[100];
     ESP_LOGE(TAG, "(%d) : %s", error, ERR_error_string(error, error_buf));
 #endif
@@ -143,8 +143,8 @@ void *esp_wolfssl_get_ssl_context(esp_tls_t *tls)
 //    printf("%s\n", logMessage);
 //}
 WOLFSSL_BIO *bio;
-static int _is_time_set = 0;
-
+static int _is_time_set = 1;
+static int _is_wolfssl_init = 0;
 #if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
     esp_err_t esp_create_wolfssl_handle(const char *hostname, size_t hostlen, const void *cfg, esp_tls_t *tls, void *server_params)
 #else
@@ -159,9 +159,11 @@ static int _is_time_set = 0;
     assert(tls != NULL);
 
     esp_err_t esp_ret = ESP_FAIL;
-    int ret;
+    int ret = WOLFSSL_SUCCESS;
     if (_is_time_set == 0) {
+#ifdef USE_WOLFSSL_ESP_SDK_TIME
         esp_sdk_time_lib_init();
+#endif
         set_fixed_default_time();
         esp_show_current_datetime();
         time_t now;
@@ -173,7 +175,16 @@ static int _is_time_set = 0;
         _is_time_set = 1;
     }
     wolfSSL_Debugging_ON();
-    ret = wolfSSL_Init();
+
+    if (_is_wolfssl_init == 0) {
+        ESP_LOGI(TAG, "wolfSSL_Init");
+        ret = wolfSSL_Init();
+        _is_wolfssl_init = 1;
+    }
+    else {
+        ESP_LOGI(TAG, "skipping wolfSSL_Init");
+    }
+    esp_show_current_datetime();
 //    wolfSSL_SetLoggingCb(wolfSSL_DebuggingCallback);
 
 
@@ -218,20 +229,6 @@ exit:
     return esp_ret;
 }
 
-esp_err_t esp_crt_bundle_attach_X(void *conf)
-{
-    esp_err_t ret = ESP_OK;
-    // If no bundle has been set by the user then use the bundle embedded in the binary
-//    if (s_crt_bundle.crts == NULL) {
-//        ret = esp_crt_bundle_init(x509_crt_imported_bundle_bin_start, x509_crt_imported_bundle_bin_end - x509_crt_imported_bundle_bin_start);
-//    }
-
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to attach bundle");
-        return ret;
-    }
-    return ret;
-}
 static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls_cfg_t *cfg, esp_tls_t *tls)
 {
     int ret = WOLFSSL_FAILURE;
@@ -257,8 +254,16 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     }
 
     if (cfg->crt_bundle_attach != NULL) {
-        ESP_LOGE(TAG,"use_crt_bundle not supported in wolfssl");
-        return ESP_FAIL;
+#ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
+        ESP_LOGD(TAG, "Use certificate bundle");
+        // mbedtls_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
+        // cfg->crt_bundle_attach(&tls->conf);
+        ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach");
+#else /* CONFIG_MBEDTLS_CERTIFICATE_BUNDLE */
+        ESP_LOGE(TAG, "use_crt_bundle configured but not enabled in menuconfig:"
+                      "Please enable CONFIG_WOLFSSL_CERTIFICATE_BUNDLE option");
+        return ESP_ERR_INVALID_STATE;
+#endif
     }
 
     if (cfg->use_global_ca_store == true) {
@@ -275,7 +280,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
             printf("Failed to create BIO\n");
         }
         else {
-            // Print the certificate information
+            /* Print the certificate information */
             wolfSSL_X509_print(bio,(WOLFSSL_X509*)cfg->cacert_buf);
         }
         wolfSSL_Debugging_ON();

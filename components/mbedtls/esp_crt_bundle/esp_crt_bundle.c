@@ -30,6 +30,42 @@ typedef struct crt_bundle_t {
 
 static crt_bundle_t s_crt_bundle;
 
+
+#ifdef CONFIG_ESP_TLS_USING_WOLFSSL
+
+static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_size)
+{
+    (void) s_crt_bundle;
+    (void) s_dummy_crt;
+
+    if (bundle_size < BUNDLE_HEADER_OFFSET + CRT_HEADER_OFFSET) {
+        ESP_LOGE(TAG, "Invalid certificate bundle");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    ESP_LOGE(TAG, "Not implemented: esp_crt_bundle_attach");
+    return ESP_FAIL;
+}
+
+esp_err_t esp_crt_bundle_attach(void *conf)
+{
+    ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach no bundle check");
+    /* If no bundle has been set by the user then use the bundle embedded in the binary */
+//    if (s_crt_bundle.crts == NULL) {
+//        ret = esp_crt_bundle_init(x509_crt_imported_bundle_bin_start, x509_crt_imported_bundle_bin_end - x509_crt_imported_bundle_bin_start);
+//    }
+
+    ESP_LOGE(TAG, "Not implemented: esp_crt_bundle_attach");
+    return ESP_FAIL;
+}
+
+void esp_crt_bundle_detach(mbedtls_ssl_config *conf)
+{
+    ESP_LOGE(TAG, "Not implemented: esp_crt_bundle_detach");
+}
+
+#elif CONFIG_ESP_TLS_USING_MBEDTLS
+
 static int esp_crt_check_signature(mbedtls_x509_crt *child, const uint8_t *pub_key_buf, size_t pub_key_len);
 
 
@@ -234,6 +270,9 @@ void esp_crt_bundle_detach(mbedtls_ssl_config *conf)
         mbedtls_ssl_conf_verify(conf, NULL, NULL);
     }
 }
+#else
+    #warning "No TLS library selected"
+#endif
 
 esp_err_t esp_crt_bundle_set(const uint8_t *x509_bundle, size_t bundle_size)
 {

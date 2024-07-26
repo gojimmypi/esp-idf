@@ -490,6 +490,7 @@ static int esp_tls_low_level_conn(const char *hostname, int hostlen, int port, c
             }
         }
         /* By now, the connection has been established */
+        ESP_LOGI(TAG, "\ncreate_ssl_handle for host: %s\n", hostname);
         esp_ret = create_ssl_handle(hostname, hostlen, cfg, tls);
         if (esp_ret != ESP_OK) {
             ESP_LOGE(TAG, "create_ssl_handle failed");
