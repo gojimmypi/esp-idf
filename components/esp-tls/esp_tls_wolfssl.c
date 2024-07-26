@@ -253,20 +253,26 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         return ESP_ERR_WOLFSSL_CTX_SETUP_FAILED;
     }
 
+    /* Optionally call crt_bundle_attach */
     if (cfg->crt_bundle_attach != NULL) {
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
         ESP_LOGD(TAG, "Use certificate bundle");
         // mbedtls_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
         // cfg->crt_bundle_attach(&tls->conf);
         ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach");
+
+     //cfg->cacert_buf = (first cert in bundle)
+
 #else /* CONFIG_MBEDTLS_CERTIFICATE_BUNDLE */
         ESP_LOGE(TAG, "use_crt_bundle configured but not enabled in menuconfig:"
                       "Please enable CONFIG_WOLFSSL_CERTIFICATE_BUNDLE option");
         return ESP_ERR_INVALID_STATE;
 #endif
-    }
+    } /* cfg->crt_bundle_attach != NULL */
 
+    /* */
     if (cfg->use_global_ca_store == true) {
+        WOLFSSL_MSG("Using Global CA Store in esp_tls_wolfssl");
         if ((esp_load_wolfssl_verify_buffer(tls, global_cacert, global_cacert_pem_bytes, FILE_TYPE_CA_CERT, &ret)) != ESP_OK) {
             int err = wolfSSL_get_error( (WOLFSSL *)tls->priv_ssl, ret);
             ESP_LOGE(TAG, "Error in loading certificate verify buffer, returned %d, error code: %d", ret, err);
@@ -275,6 +281,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         }
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
     } else if (cfg->cacert_buf != NULL) {
+        WOLFSSL_MSG("set_client_config found cert_buf");
         bio = wolfSSL_BIO_new_mem_buf(cfg->cacert_buf, -1);
         if (!bio) {
             printf("Failed to create BIO\n");
@@ -324,6 +331,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         return ESP_ERR_INVALID_STATE;
 #endif
     } else {
+        /* Not using Global CA Store, the cfg->cacert_buf is NULL, no PSK Hint Key */
 #ifdef CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_NONE, NULL);
 #else
