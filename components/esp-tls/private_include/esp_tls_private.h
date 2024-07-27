@@ -15,27 +15,27 @@
 #include <fcntl.h>
 #include "esp_err.h"
 #include "esp_tls_errors.h"
+
 #ifdef CONFIG_ESP_TLS_USING_MBEDTLS
-#include "mbedtls/platform.h"
-#include "mbedtls/net_sockets.h"
-#include "mbedtls/esp_debug.h"
-#include "mbedtls/ssl.h"
-#include "mbedtls/entropy.h"
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/error.h"
-#ifdef CONFIG_ESP_TLS_SERVER_SESSION_TICKETS
-#include "mbedtls/ssl_ticket.h"
-#endif
-#ifdef CONFIG_MBEDTLS_SSL_PROTO_TLS1_3
-#include "psa/crypto.h"
-#endif
+    #include "mbedtls/platform.h"
+    #include "mbedtls/net_sockets.h"
+    #include "mbedtls/esp_debug.h"
+    #include "mbedtls/ssl.h"
+    #include "mbedtls/entropy.h"
+    #include "mbedtls/ctr_drbg.h"
+    #include "mbedtls/error.h"
+    #ifdef CONFIG_ESP_TLS_SERVER_SESSION_TICKETS
+        #include "mbedtls/ssl_ticket.h"
+    #endif
+    #ifdef CONFIG_MBEDTLS_SSL_PROTO_TLS1_3
+        #include "psa/crypto.h"
+    #endif
 #elif CONFIG_ESP_TLS_USING_WOLFSSL
-#include "wolfssl/wolfcrypt/settings.h"
-#include "wolfssl/ssl.h"
-#include "wolfssl/openssl/x509.h" /* TODO not wolfssl internal WOLFSSL_X509 ? */
-#include "private_include/esp_tls_wolfssl.h"
-
-
+    #include "wolfssl/wolfcrypt/settings.h"
+    #include "wolfssl/ssl.h"
+    #include "wolfssl/openssl/x509.h" /* TODO not wolfssl internal WOLFSSL_X509 ? */
+    #include "wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle-wolfssl.h"
+    #include "private_include/esp_tls_wolfssl.h"
 #endif
 
 struct esp_tls {
@@ -75,7 +75,7 @@ struct esp_tls {
 #elif CONFIG_ESP_TLS_USING_WOLFSSL
     void *priv_ctx;
     void *priv_ssl;
-    // wolfssl_ssl_config conf;
+    wolfssl_ssl_config conf;
 #endif
     int sockfd;                                                                 /*!< Underlying socket file descriptor. */
 
