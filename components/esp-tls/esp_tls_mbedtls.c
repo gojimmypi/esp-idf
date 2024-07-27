@@ -901,7 +901,7 @@ esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls_cfg_t 
         mbedtls_ssl_conf_ciphersuites(&tls->conf, cfg->ciphersuites_list);
     }
     return ESP_OK;
-}
+} /* set_client_config */
 
 #ifdef CONFIG_ESP_TLS_SERVER
 /**
