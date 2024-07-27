@@ -32,6 +32,10 @@
 #elif CONFIG_ESP_TLS_USING_WOLFSSL
 #include "wolfssl/wolfcrypt/settings.h"
 #include "wolfssl/ssl.h"
+#include "wolfssl/openssl/x509.h" /* TODO not wolfssl internal WOLFSSL_X509 ? */
+#include "private_include/esp_tls_wolfssl.h"
+
+
 #endif
 
 struct esp_tls {
@@ -71,6 +75,7 @@ struct esp_tls {
 #elif CONFIG_ESP_TLS_USING_WOLFSSL
     void *priv_ctx;
     void *priv_ssl;
+    // wolfssl_ssl_config conf;
 #endif
     int sockfd;                                                                 /*!< Underlying socket file descriptor. */
 

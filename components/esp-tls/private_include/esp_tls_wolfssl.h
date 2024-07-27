@@ -7,6 +7,11 @@
 #pragma once
 #include "esp_tls.h"
 #include "esp_tls_private.h"
+/* wolfssl_ssl_config is ESP-IDF specific helper for Certificate Bundles */
+#include "wolfssl/wolfcrypt/settings.h"
+#include "wolfssl/ssl.h"
+#include "wolfssl/openssl/x509.h"
+
 
 /**
  * Internal Callback for creating ssl handle for wolfssl

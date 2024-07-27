@@ -35,8 +35,7 @@ static crt_bundle_t s_crt_bundle;
 static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_size);
 
 #ifdef CONFIG_ESP_TLS_USING_WOLFSSL
-#define WOLFSSL_X509 void
-int esp_crt_verify_callback(void *buf, WOLFSSL_X509 *crt, int depth, uint32_t *flags)
+int esp_crt_verify_callback(void *buf, void *crt, int depth, uint32_t *flags)
 {
     int *child = crt;
 
@@ -317,7 +316,7 @@ esp_err_t esp_crt_bundle_attach(void *conf)
         mbedtls_ssl_conf_ca_chain(ssl_conf, &s_dummy_crt, NULL);
         mbedtls_ssl_conf_verify(ssl_conf, esp_crt_verify_callback, NULL);
 #elif defined (CONFIG_ESP_TLS_USING_WOLFSSL)
-        // int ssl_conf;
+        // wolfssl_ssl_config *ssl_conf = (wolfssl_ssl_config *)conf;
         // wolfssl_ssl_conf_verify(ssl_conf, esp_crt_verify_callback, NULL);
         ESP_LOGE(TAG, "esp_crt_bundle_attach not implemented for wolfSS");
 #else

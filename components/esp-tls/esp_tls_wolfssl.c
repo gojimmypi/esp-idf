@@ -3,8 +3,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-
-/* Test v5.4.1j (from 5.4) */
+#if defined(CONFIG_ESP_TLS_USING_MBEDTLS) || (CONFIG_ESP_TLS_USING_MBEDTLS != 0)
+    #error  "mbedTLS enabled for wolfSSL file"
+#endif
+    /* Test v5.4.1j (from 5.4) */
 
 #include <stdio.h>
 #include <string.h>
@@ -17,7 +19,10 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
-#define OPENSSL_EXTRA
+/* TODO remove OpenSSL layer dependency */
+#ifndef OPENSSL_EXTRA
+    #warning "OPENSSL_EXTRA should be defined""
+#endif
 #include <wolfssl/openssl/x509.h>
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
     /* TODO Add bundle support */
@@ -38,7 +43,6 @@
 static unsigned char *global_cacert = NULL;
 static unsigned int global_cacert_pem_bytes = 0;
 static const char *TAG = "esp-tls-wolfssl";
-
 /* Prototypes for the static functions */
 static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls_cfg_t *cfg, esp_tls_t *tls);
 
@@ -79,6 +83,22 @@ typedef enum x509_file_type {
     FILE_TYPE_SELF_CERT, /* Self certificate of the entity */
     FILE_TYPE_SELF_KEY, /* Private key in the self cert-key pair */
 } x509_file_type_t;
+
+/* cert buffer compatilbility helper */
+void wolfssl_ssl_conf_ca_chain(int *conf,
+                               WOLFSSL_X509 *ca_chain,
+                               WOLFSSL_X509_CRL *ca_crl)
+{
+//    conf->ca_chain   = ca_chain;
+//    conf->ca_crl     = ca_crl;
+//
+//#if defined(MBEDTLS_X509_TRUSTED_CERTIFICATE_CALLBACK)
+//    /* mbedtls_ssl_conf_ca_chain() and mbedtls_ssl_conf_ca_cb()
+//     * cannot be used together. */
+//    conf->f_ca_cb = NULL;
+//    conf->p_ca_cb = NULL;
+//#endif /* MBEDTLS_X509_TRUSTED_CERTIFICATE_CALLBACK */
+}
 
 /* Error type conversion utility so that esp-tls read/write API to return negative number on error */
 static inline ssize_t esp_tls_convert_wolfssl_err_to_ssize(int wolfssl_error)
@@ -258,7 +278,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
         ESP_LOGD(TAG, "Use certificate bundle");
         // mbedtls_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
-        // cfg->crt_bundle_attach(&tls->conf);
+        //cfg->crt_bundle_attach(&tls->conf);
         ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach");
 
      //cfg->cacert_buf = (first cert in bundle)
