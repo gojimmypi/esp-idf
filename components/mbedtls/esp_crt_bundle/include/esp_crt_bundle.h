@@ -9,7 +9,14 @@
 #define _ESP_CRT_BUNDLE_H_
 
 #include "esp_err.h"
-#include "mbedtls/ssl.h"
+#if defined(CONFIG_ESP_TLS_USING_MBEDTLS)
+    #include "mbedtls/ssl.h"
+#elif defined(CONFIG_ESP_TLS_USING_WOLFSSL)
+    //#include <wolfssl/wolfcrypt/settings.h>
+    //#include "wolfssl/ssl.h"
+#else
+
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,8 +46,12 @@ esp_err_t esp_crt_bundle_attach(void *conf);
  *
  * @param[in]  conf      The config struct for the SSL connection.
  */
+#if CONFIG_ESP_TLS_USING_MBEDTLS
 void esp_crt_bundle_detach(mbedtls_ssl_config *conf);
-
+#elif CONFIG_ESP_TLS_USING_WOLFSSL
+void esp_crt_bundle_detach(void *conf);
+#else
+#endif
 
 /**
  * @brief      Set the default certificate bundle used for verification

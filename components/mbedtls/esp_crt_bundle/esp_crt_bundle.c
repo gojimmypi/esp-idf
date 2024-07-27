@@ -13,9 +13,11 @@
 
 static const char *TAG = "esp-x509-crt-bundle";
 
+#ifdef CONFIG_ESP_TLS_USING_MBEDTLS
 /* a dummy certificate so that
  * cacert_ptr passes non-NULL check during handshake */
 static mbedtls_x509_crt s_dummy_crt;
+#endif
 
 /* A "Certificate Bundle" is this array of x509 certs: */
 extern const uint8_t x509_crt_imported_bundle_bin_start[] asm("_binary_x509_crt_bundle_start");
@@ -30,58 +32,86 @@ typedef struct crt_bundle_t {
 
 static crt_bundle_t s_crt_bundle;
 
+static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_size);
 
 #ifdef CONFIG_ESP_TLS_USING_WOLFSSL
-
-static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_size)
+#define WOLFSSL_X509 void
+int esp_crt_verify_callback(void *buf, WOLFSSL_X509 *crt, int depth, uint32_t *flags)
 {
-    (void) s_crt_bundle;
-    (void) s_dummy_crt;
+    int *child = crt;
 
-    if (bundle_size < BUNDLE_HEADER_OFFSET + CRT_HEADER_OFFSET) {
-        ESP_LOGE(TAG, "Invalid certificate bundle");
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    ESP_LOGE(TAG, "Not implemented: esp_crt_bundle_attach");
-    return ESP_FAIL;
-}
-
-esp_err_t esp_crt_bundle_attach(void *conf)
-{
-    esp_err_t ret = ESP_OK;
-    ESP_LOGW(TAG, "Not fully implemented: esp_crt_bundle_attach");
-
-    // If no bundle has been set by the user then use the bundle embedded in the binary
-    if (s_crt_bundle.crts == NULL) {
-        ESP_LOGI(TAG, "No bundle set by user; use the bundle embedded in the binary.");
-        ret = esp_crt_bundle_init(x509_crt_imported_bundle_bin_start, x509_crt_imported_bundle_bin_end - x509_crt_imported_bundle_bin_start);
-    }
-
-    ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach no bundle check");
-    /* If no bundle has been set by the user then use the bundle embedded in the binary */
-//    if (s_crt_bundle.crts == NULL) {
-//        ret = esp_crt_bundle_init(x509_crt_imported_bundle_bin_start, x509_crt_imported_bundle_bin_end - x509_crt_imported_bundle_bin_start);
+    /* It's OK for a trusted cert to have a weak signature hash alg.
+       as we already trust this certificate */
+//    uint32_t flags_filtered = *flags & ~(MBEDTLS_X509_BADCERT_BAD_MD);
+//
+//    if (flags_filtered != MBEDTLS_X509_BADCERT_NOT_TRUSTED) {
+//        return 0;
 //    }
 
-    if (conf) {
-        /* point to a dummy certificate
-         * This is only required so that the
-         * cacert_ptr passes non-NULL check during handshake
-         */
-        mbedtls_ssl_config *ssl_conf = (mbedtls_ssl_config *)conf;
-        mbedtls_x509_crt_init(&s_dummy_crt);
-        mbedtls_ssl_conf_ca_chain(ssl_conf, &s_dummy_crt, NULL);
-        mbedtls_ssl_conf_verify(ssl_conf, esp_crt_verify_callback, NULL);
-    }
-    return ret;
-}
 
-void esp_crt_bundle_detach(mbedtls_ssl_config *conf)
+    if (s_crt_bundle.crts == NULL) {
+        ESP_LOGE(TAG, "No certificates in bundle");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGD(TAG, "%d certificates in bundle", s_crt_bundle.num_certs);
+
+    size_t name_len = 0;
+    const uint8_t *crt_name;
+
+    bool crt_found = false;
+    int start = 0;
+    int end = s_crt_bundle.num_certs - 1;
+    int middle = (end - start) / 2;
+
+    /* Look for the certificate using binary search on subject name */
+    while (start <= end) {
+        name_len = s_crt_bundle.crts[middle][0] << 8 | s_crt_bundle.crts[middle][1];
+        crt_name = s_crt_bundle.crts[middle] + CRT_HEADER_OFFSET;
+
+        int cmp_res = 0; // memcmp(child->issuer_raw.p, crt_name, name_len );
+        if (cmp_res == 0) {
+            crt_found = true;
+            break;
+        } else if (cmp_res < 0) {
+            end = middle - 1;
+        } else {
+            start = middle + 1;
+        }
+        middle = (start + end) / 2;
+    }
+
+    int ret = -1; /* TODO  MBEDTLS_ERR_X509_FATAL_ERROR; */
+    if (crt_found) {
+        size_t key_len = s_crt_bundle.crts[middle][2] << 8 | s_crt_bundle.crts[middle][3];
+        // ret = esp_crt_check_signature(child, s_crt_bundle.crts[middle] + CRT_HEADER_OFFSET + name_len, key_len);
+    }
+
+    if (ret == 0) {
+        ESP_LOGI(TAG, "Certificate validated");
+        *flags = 0;
+        return 0;
+    }
+
+    ESP_LOGE(TAG, "Failed to verify certificate");
+    return ESP_FAIL; /* TOSO wolfssl fail? */
+}
+void esp_crt_bundle_detach(void *conf)
 {
+    free(s_crt_bundle.crts);
+    s_crt_bundle.crts = NULL;
+    if (conf) {
+#if defined(CONFIG_ESP_TLS_USING_MBEDTLS)
+        mbedtls_ssl_conf_verify(conf, NULL, NULL);
+#elif defined (CONFIG_ESP_TLS_USING_WOLFSSL)
+        ESP_LOGE(TAG, "esp_crt_bundle_detach not implemented for wolfSSL");
+#else
+        #warning "No TLS library selected"
+        ESP_LOGE(TAG, "esp_crt_bundle_detach missing cryptographic provider");
+#endif
+    }
     ESP_LOGE(TAG, "Not implemented: esp_crt_bundle_detach");
 }
-
 #elif CONFIG_ESP_TLS_USING_MBEDTLS
 
 static int esp_crt_check_signature(mbedtls_x509_crt *child, const uint8_t *pub_key_buf, size_t pub_key_len);
@@ -287,6 +317,8 @@ esp_err_t esp_crt_bundle_attach(void *conf)
         mbedtls_ssl_conf_ca_chain(ssl_conf, &s_dummy_crt, NULL);
         mbedtls_ssl_conf_verify(ssl_conf, esp_crt_verify_callback, NULL);
 #elif defined (CONFIG_ESP_TLS_USING_WOLFSSL)
+        // int ssl_conf;
+        // wolfssl_ssl_conf_verify(ssl_conf, esp_crt_verify_callback, NULL);
         ESP_LOGE(TAG, "esp_crt_bundle_attach not implemented for wolfSS");
 #else
         ESP_LOGE(TAG, "esp_crt_bundle_attach missing cryptographic provider");
@@ -296,21 +328,6 @@ esp_err_t esp_crt_bundle_attach(void *conf)
     return ret;
 }
 
-void esp_crt_bundle_detach(mbedtls_ssl_config *conf)
-{
-    free(s_crt_bundle.crts);
-    s_crt_bundle.crts = NULL;
-    if (conf) {
-#if defined(CONFIG_ESP_TLS_USING_MBEDTLS)
-        mbedtls_ssl_conf_verify(conf, NULL, NULL);
-#elif defined (CONFIG_ESP_TLS_USING_WOLFSSL)
-        ESP_LOGE(TAG, "esp_crt_bundle_detach not implemented for wolfSSL");
-#else
-        #warning "No TLS library selected"
-        ESP_LOGE(TAG, "esp_crt_bundle_detach missing cryptographic provider");
-#endif
-    }
-}
 
 esp_err_t esp_crt_bundle_set(const uint8_t *x509_bundle, size_t bundle_size)
 {
