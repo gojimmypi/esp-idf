@@ -5,8 +5,12 @@ if(CONFIG_ESP_TLS_USING_MBEDTLS)
 endif()
 
 if(CONFIG_ESP_TLS_USING_WOLFSSL)
+    message(STATUS "esp-tls configured for wolfssl")
     list(APPEND srcs
         "esp_tls_wolfssl.c")
+    set(wolfssl_esp_tls_lib "wolfssl")
+else()
+    unset(wolfssl_esp_tls_lib)
 endif()
 
 set(priv_req http_parser esp_timer)
@@ -14,12 +18,14 @@ if(NOT ${IDF_TARGET} STREQUAL "linux")
     list(APPEND priv_req lwip)
 endif()
 
+message(STATUS "idf_component_register wolfssl_esp_tls_lib: ${wolfssl_esp_tls_lib}")
+
 idf_component_register(SRCS "${srcs}"
                     INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} esp-tls-crypto
                     PRIV_INCLUDE_DIRS "private_include"
                     # mbedtls is public requirements because esp_tls.h
                     # includes mbedtls header files.
-                    REQUIRES mbedtls
+                    REQUIRES mbedtls ${wolfssl_esp_tls_lib}
                     PRIV_REQUIRES ${priv_req})
 
 # When using wolfSSL for the ESP-TLS (see emnuconfig),

@@ -21,14 +21,6 @@
 #elif defined(CONFIG_ESP_TLS_USING_WOLFSSL)
 #include "wolfssl/wolfcrypt/settings.h"
 #include "wolfssl/ssl.h"
-//typedef struct wolfssl_ssl_config  wolfssl_ssl_config;
-
-struct wolfssl_ssl_config
-{
-    int i;
-    WOLFSSL_X509* ca_chain;
-    WOLFSSL_X509_CRL* ca_crl;
-};
 
 #endif
 

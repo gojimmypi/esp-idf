@@ -18,16 +18,17 @@
 #include <netdb.h>
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/ssl.h>
 /* TODO remove OpenSSL layer dependency */
 #ifndef OPENSSL_EXTRA
-    #warning "OPENSSL_EXTRA should be defined""
+    #warning "OPENSSL_EXTRA should be defined"
 #endif
+#include <wolfssl/ssl.h>
 #include <wolfssl/openssl/x509.h>
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
     /* TODO Add bundle support */
     /* see components\mbedtls\esp_crt_bundle\include */
     /* #include "esp_crt_bundle.h" */
+    #include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle-wolfssl.h>
 #endif
 #ifndef WOLFSSL_ESPIDF
     #warning "WOLFSSL_ESPIDF not defined! Check build system."
