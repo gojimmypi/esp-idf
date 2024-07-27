@@ -147,7 +147,10 @@ int esp_crt_verify_callback(void *buf, mbedtls_x509_crt *crt, int depth, uint32_
     ESP_LOGE(TAG, "Failed to verify certificate");
     return MBEDTLS_ERR_X509_FATAL_ERROR;
 }
-
+#elif defined(CONFIG_ESP_TLS_USING_WOLFSSL)
+    /* See wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle-wolfssl.h */
+#else
+    #error "Please pick a cryptographic provider: mbedTLS or wolfSSL"
 #endif
 
 /* Functions common to all cryptographic providers */
