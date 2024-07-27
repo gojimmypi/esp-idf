@@ -24,6 +24,9 @@
 #endif
 #include <wolfssl/ssl.h>
 #include <wolfssl/openssl/x509.h>
+
+#include <wolfssl/version.h>  /* TODO check for minimum version in component */
+
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
     /* TODO Add bundle support */
     /* see components\mbedtls\esp_crt_bundle\include */
@@ -86,12 +89,12 @@ typedef enum x509_file_type {
 } x509_file_type_t;
 
 /* cert buffer compatilbility helper */
-void wolfssl_ssl_conf_ca_chain(int *conf,
+void wolfssl_ssl_conf_ca_chain(wolfssl_ssl_config *conf,
                                WOLFSSL_X509 *ca_chain,
                                WOLFSSL_X509_CRL *ca_crl)
 {
-//    conf->ca_chain   = ca_chain;
-//    conf->ca_crl     = ca_crl;
+    conf->ca_chain   = ca_chain;
+    conf->ca_crl     = ca_crl;
 //
 //#if defined(MBEDTLS_X509_TRUSTED_CERTIFICATE_CALLBACK)
 //    /* mbedtls_ssl_conf_ca_chain() and mbedtls_ssl_conf_ca_cb()
@@ -160,12 +163,16 @@ void *esp_wolfssl_get_ssl_context(esp_tls_t *tls)
     }
     return (void*)tls->priv_ssl;
 }
+
 //void wolfSSL_DebuggingCallback(const int logLevel, const char* const logMessage) {
 //    printf("%s\n", logMessage);
 //}
+
 WOLFSSL_BIO *bio;
 static int _is_time_set = 1;
 static int _is_wolfssl_init = 0;
+
+/* ESP-IDF v5.3 introdused a new parameter: server_params */
 #if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
     esp_err_t esp_create_wolfssl_handle(const char *hostname, size_t hostlen, const void *cfg, esp_tls_t *tls, void *server_params)
 #else
@@ -181,6 +188,8 @@ static int _is_wolfssl_init = 0;
 
     esp_err_t esp_ret = ESP_FAIL;
     int ret = WOLFSSL_SUCCESS;
+
+    /* TODO the time does not belong here */
     if (_is_time_set == 0) {
 #ifdef USE_WOLFSSL_ESP_SDK_TIME
         esp_sdk_time_lib_init();
@@ -254,6 +263,9 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
 {
     int ret = WOLFSSL_FAILURE;
 
+    assert(cfg != NULL);
+    assert(tls != NULL);
+
 #if defined(CONFIG_WOLFSSL_ALLOW_TLS13) && defined(CONFIG_WOLFSSL_ALLOW_TLS12)
     WOLFSSL_MSG("Set Client Config for any TLS version");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfSSLv23_client_method());
@@ -278,13 +290,13 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     if (cfg->crt_bundle_attach != NULL) {
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
         ESP_LOGD(TAG, "Use certificate bundle");
-        // mbedtls_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
-        //cfg->crt_bundle_attach(&tls->conf);
+        // wolfssl_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
+        cfg->crt_bundle_attach(&tls->conf);
         ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach");
 
-     //cfg->cacert_buf = (first cert in bundle)
+        // cfg->cacert_buf = (first cert in bundle)
 
-#else /* CONFIG_MBEDTLS_CERTIFICATE_BUNDLE */
+#else /* CONFIG_WOLFSSL_CERTIFICATE_BUNDLE */
         ESP_LOGE(TAG, "use_crt_bundle configured but not enabled in menuconfig:"
                       "Please enable CONFIG_WOLFSSL_CERTIFICATE_BUNDLE option");
         return ESP_ERR_INVALID_STATE;
@@ -299,7 +311,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
             ESP_LOGE(TAG, "Error in loading certificate verify buffer, returned %d, error code: %d", ret, err);
             wolfssl_print_error_msg(err);
             return ESP_ERR_WOLFSSL_CERT_VERIFY_SETUP_FAILED;
-        }
+        } /* esp_load_wolfssl_verify_buffer */
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
     } else if (cfg->cacert_buf != NULL) {
         WOLFSSL_MSG("set_client_config found cert_buf");
@@ -320,6 +332,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
             return ESP_ERR_WOLFSSL_CERT_VERIFY_SETUP_FAILED;
         }
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
+        /* end  (cfg->cacert_buf != NULL) */
     } else if (cfg->psk_hint_key) {
 #if defined(CONFIG_ESP_TLS_PSK_VERIFICATION)
         /*** PSK encryption mode is configured only if no certificate supplied and psk pointer not null ***/
@@ -351,6 +364,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         ESP_LOGE(TAG, "psk_hint_key configured but not enabled in menuconfig: Please enable ESP_TLS_PSK_VERIFICATION option");
         return ESP_ERR_INVALID_STATE;
 #endif
+        /* end (cfg->psk_hint_key) */
     } else {
         /* Not using Global CA Store, the cfg->cacert_buf is NULL, no PSK Hint Key */
 #ifdef CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY
