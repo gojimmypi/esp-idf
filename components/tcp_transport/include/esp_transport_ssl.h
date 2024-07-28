@@ -53,6 +53,7 @@ void esp_transport_ssl_set_cert_data_der(esp_transport_handle_t t, const char *d
  * @param[in]  crt_bundle_attach    Function pointer to esp_crt_bundle_attach
  */
 void esp_transport_ssl_crt_bundle_attach(esp_transport_handle_t t, esp_err_t ((*crt_bundle_attach)(void *conf)));
+/* TODO wolfssl test esp_transport_ssl_crt_bundle_attach  */
 
 /**
  * @brief      Enable global CA store for SSL connection

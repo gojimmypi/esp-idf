@@ -1196,6 +1196,16 @@ esp_err_t esp_eap_client_use_default_cert_bundle(bool use_default_bundle)
         esp_crt_bundle_attach_fn = NULL;
     }
     return ESP_OK;
+#elif CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
+    /* TODO wolfssl */
+    ESP_LOGW(TAG, "esp_eap_client_use_default_cert_bundle not tested");
+    g_wpa_default_cert_bundle = use_default_bundle;
+    if (use_default_bundle) {
+        esp_crt_bundle_attach_fn = esp_crt_bundle_attach;
+    } else {
+        esp_crt_bundle_attach_fn = NULL;
+    }
+    return ESP_OK;
 #else
     return ESP_FAIL;
 #endif
