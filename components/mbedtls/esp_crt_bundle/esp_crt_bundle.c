@@ -239,10 +239,6 @@ esp_err_t esp_crt_bundle_attach(void *conf)
         mbedtls_x509_crt_init(&s_dummy_crt);
         mbedtls_ssl_conf_ca_chain(ssl_conf, &s_dummy_crt, NULL);
         mbedtls_ssl_conf_verify(ssl_conf, esp_crt_verify_callback, NULL);
-#elif defined (CONFIG_ESP_TLS_USING_WOLFSSL)
-    //    wolfssl_ssl_config *ssl_conf = (wolfssl_ssl_config *)conf;
-    //    wolfssl_ssl_conf_verify(ssl_conf, esp_crt_verify_callback, NULL);
-        ESP_LOGE(TAG, "esp_crt_bundle_attach not implemented for wolfSS");
 #else
         ESP_LOGE(TAG, "esp_crt_bundle_attach missing cryptographic provider");
 #endif
