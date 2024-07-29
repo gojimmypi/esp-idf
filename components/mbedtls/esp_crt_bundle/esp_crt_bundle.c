@@ -139,7 +139,7 @@ int esp_crt_verify_callback(void *buf, mbedtls_x509_crt *crt, int depth, uint32_
     }
 
     if (ret == 0) {
-        ESP_LOGI(TAG, "Certificate validated");
+        ESP_LOGI(TAG, "Certificate validated (1)");
         *flags = 0;
         return 0;
     }
