@@ -73,8 +73,6 @@ struct esp_tls {
                                                                                    certificate */
 #endif
 #elif CONFIG_ESP_TLS_USING_WOLFSSL
-    void *priv_ctx;
-    void *priv_ssl;
     wolfssl_ssl_config conf;
 #endif
     int sockfd;                                                                 /*!< Underlying socket file descriptor. */
