@@ -290,7 +290,8 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     if (cfg->crt_bundle_attach != NULL) {
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
         ESP_LOGD(TAG, "Use certificate bundle");
-        // wolfssl_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
+        wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
+        // wolfssl_ssl_conf_authmode(&tls->conf, WOLFSSL_VERIFY_PEER);
         cfg->crt_bundle_attach(&tls->conf);
         ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach");
 
@@ -368,7 +369,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     } else {
         /* Not using Global CA Store, the cfg->cacert_buf is NULL, no PSK Hint Key */
 #ifdef CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY
-        wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_NONE, NULL);
+        wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_NONE, NULL); /* */
 #else
         ESP_LOGE(TAG, "No server verification option set in esp_tls_cfg_t structure. Check esp_tls API reference");
         return ESP_ERR_WOLFSSL_SSL_SETUP_FAILED;
