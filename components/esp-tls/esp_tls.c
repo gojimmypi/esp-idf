@@ -110,6 +110,7 @@ static const char *TAG = "esp-tls";
 
 static esp_err_t create_ssl_handle(const char *hostname, size_t hostlen, const void *cfg, esp_tls_t *tls)
 {
+/* TODO is the version wolfSSL or ESP-IDF ? */
 #if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
     return _esp_create_ssl_handle(hostname, hostlen, cfg, tls, NULL);
 #else
