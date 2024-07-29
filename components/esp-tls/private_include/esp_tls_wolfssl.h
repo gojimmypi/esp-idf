@@ -86,9 +86,9 @@ static inline void esp_wolfssl_net_init(esp_tls_t *tls)
     ESP_LOGI("esp_tls_wolfssl", "esp_wolfssl_net_init not implemented");
 }
 
-void wolfssl_ssl_conf_ca_chain(wolfssl_ssl_config *conf,
-                               WOLFSSL_X509 *ca_chain,
-                               WOLFSSL_X509_CRL *ca_crl);
+//void wolfssl_ssl_conf_ca_chain(wolfssl_ssl_config *conf,
+//                               WOLFSSL_X509 *ca_chain,
+//                               WOLFSSL_X509_CRL *ca_crl);
 
 #ifdef CONFIG_ESP_TLS_SERVER
 

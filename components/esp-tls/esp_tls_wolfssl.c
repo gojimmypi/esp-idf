@@ -89,20 +89,20 @@ typedef enum x509_file_type {
 } x509_file_type_t;
 
 /* cert buffer compatilbility helper */
-void wolfssl_ssl_conf_ca_chain(wolfssl_ssl_config *conf,
-                               WOLFSSL_X509 *ca_chain,
-                               WOLFSSL_X509_CRL *ca_crl)
-{
-    conf->ca_chain   = ca_chain;
-    conf->ca_crl     = ca_crl;
-//
-//#if defined(MBEDTLS_X509_TRUSTED_CERTIFICATE_CALLBACK)
-//    /* mbedtls_ssl_conf_ca_chain() and mbedtls_ssl_conf_ca_cb()
-//     * cannot be used together. */
-//    conf->f_ca_cb = NULL;
-//    conf->p_ca_cb = NULL;
-//#endif /* MBEDTLS_X509_TRUSTED_CERTIFICATE_CALLBACK */
-}
+//void wolfssl_ssl_conf_ca_chain(wolfssl_ssl_config *conf,
+//                               WOLFSSL_X509 *ca_chain,
+//                               WOLFSSL_X509_CRL *ca_crl)
+//{
+//    conf->ca_chain   = ca_chain;
+//    conf->ca_crl     = ca_crl;
+////
+////#if defined(MBEDTLS_X509_TRUSTED_CERTIFICATE_CALLBACK)
+////    /* mbedtls_ssl_conf_ca_chain() and mbedtls_ssl_conf_ca_cb()
+////     * cannot be used together. */
+////    conf->f_ca_cb = NULL;
+////    conf->p_ca_cb = NULL;
+////#endif /* MBEDTLS_X509_TRUSTED_CERTIFICATE_CALLBACK */
+//}
 
 /* Error type conversion utility so that esp-tls read/write API to return negative number on error */
 static inline ssize_t esp_tls_convert_wolfssl_err_to_ssize(int wolfssl_error)
@@ -371,8 +371,12 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
 #ifdef CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_NONE, NULL); /* */
 #else
-        ESP_LOGE(TAG, "No server verification option set in esp_tls_cfg_t structure. Check esp_tls API reference");
-        return ESP_ERR_WOLFSSL_SSL_SETUP_FAILED;
+        // Setting this still results in
+        //   wolfSSL_connect returned -1, error code: -188
+        //   Failed to verify peer certificate , returned 21
+        // wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
+        ESP_LOGW(TAG, "No server verification option set in esp_tls_cfg_t structure. Check esp_tls API reference");
+        return ESP_ERR_WOLFSSL_SSL_SETUP_FAILED; /* TODO: really? */
 #endif
     }
 
@@ -402,6 +406,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         return ESP_ERR_WOLFSSL_SSL_SETUP_FAILED;
     }
 
+    /* Reminder: name check occurs after wolfSSL priv_ctx and priv_ssl init. */
     if (!cfg->skip_common_name) {
         char *use_host = NULL;
         if (cfg->common_name != NULL) {
