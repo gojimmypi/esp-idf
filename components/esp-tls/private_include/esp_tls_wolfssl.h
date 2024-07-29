@@ -7,6 +7,8 @@
 #pragma once
 #include "esp_tls.h"
 #include "esp_tls_private.h"
+#ifdef CONFIG_ESP_TLS_USING_WOLFSSL
+
 /* wolfssl_ssl_config is ESP-IDF specific helper for Certificate Bundles */
 #include "wolfssl/wolfcrypt/settings.h"
 #include "wolfssl/ssl.h"
@@ -103,3 +105,5 @@ int esp_wolfssl_server_session_create(esp_tls_cfg_server_t *cfg, int sockfd, esp
 void esp_wolfssl_server_session_delete(esp_tls_t *tls);
 
 #endif
+
+#endif /* CONFIG_ESP_TLS_USING_WOLFSSL */

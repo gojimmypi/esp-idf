@@ -3,10 +3,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include "esp_tls_wolfssl.h"
+
 #if defined(CONFIG_ESP_TLS_USING_MBEDTLS) || (CONFIG_ESP_TLS_USING_MBEDTLS != 0)
     #error  "mbedTLS enabled for wolfSSL file"
 #endif
     /* Test v5.4.1j (from 5.4) */
+#ifdef CONFIG_ESP_TLS_USING_WOLFSSL
 
 #include <stdio.h>
 #include <string.h>
@@ -18,6 +21,7 @@
 #include <netdb.h>
 
 #include <wolfssl/wolfcrypt/settings.h>
+
 /* TODO remove OpenSSL layer dependency */
 #ifndef OPENSSL_EXTRA
     #warning "OPENSSL_EXTRA should be defined"
@@ -43,6 +47,7 @@
 #include "esp_tls_error_capture_internal.h"
 #include <errno.h>
 #include "esp_log.h"
+
 
 static unsigned char *global_cacert = NULL;
 static unsigned int global_cacert_pem_bytes = 0;
@@ -304,10 +309,8 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
                       "Please enable CONFIG_WOLFSSL_CERTIFICATE_BUNDLE option");
         return ESP_ERR_INVALID_STATE;
 #endif
-    } /* cfg->crt_bundle_attach != NULL */
-
-    /* */
-    if (cfg->use_global_ca_store == true) {
+        /* cfg->crt_bundle_attach != NULL */
+    } else if (cfg->use_global_ca_store == true) {
         WOLFSSL_MSG("Using Global CA Store in esp_tls_wolfssl");
         if ((esp_load_wolfssl_verify_buffer(tls, global_cacert, global_cacert_pem_bytes, FILE_TYPE_CA_CERT, &ret)) != ESP_OK) {
             int err = wolfSSL_get_error( (WOLFSSL *)tls->conf.priv_ssl, ret);
@@ -835,3 +838,5 @@ static inline unsigned int esp_wolfssl_psk_client_cb(WOLFSSL* ssl, const char* h
     /* return length of key in octets or 0 or for error */
 }
 #endif /* CONFIG_ESP_TLS_PSK_VERIFICATION */
+
+#endif /* CONFIG_ESP_TLS_USING_WOLFSSL */
