@@ -745,7 +745,7 @@ esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls_cfg_t 
 
     if (cfg->crt_bundle_attach != NULL) {
 #ifdef CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
-        ESP_LOGD(TAG, "Use certificate bundle");
+        ESP_LOGI(TAG, "Use certificate bundle"); /* TODO: LOGD */
         mbedtls_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
         cfg->crt_bundle_attach(&tls->conf);
 #else //CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
