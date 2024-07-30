@@ -178,7 +178,7 @@ WOLFSSL_BIO *bio;
 static int _is_time_set = 1;
 static int _is_wolfssl_init = 0;
 
-/* ESP-IDF v5.3 introdused a new parameter: server_params */
+/* ESP-IDF v5.3 introduced a new parameter: server_params */
 #if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
     esp_err_t esp_create_wolfssl_handle(const char *hostname, size_t hostlen, const void *cfg, esp_tls_t *tls, void *server_params)
 #else
@@ -300,7 +300,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->conf.priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
         // wolfssl_ssl_conf_authmode(&tls->conf, WOLFSSL_VERIFY_PEER);
         cfg->crt_bundle_attach(&tls->conf);
-        ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach");
+        ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach checks");
 
         // cfg->cacert_buf = (first cert in bundle)
 
