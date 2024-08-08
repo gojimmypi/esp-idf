@@ -23,11 +23,12 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 /* TODO remove OpenSSL layer dependency */
-#ifndef OPENSSL_EXTRA
-    #warning "OPENSSL_EXTRA should be defined"
+#ifdef OPENSSL_EXTRA
+    #include <wolfssl/openssl/x509.h>
+#else
+    #warning "OPENSSL_EXTRA should be defined for wolfssl in esp-tls"
 #endif
 #include <wolfssl/ssl.h>
-#include <wolfssl/openssl/x509.h>
 
 #include <wolfssl/version.h>  /* TODO check for minimum version in component */
 
@@ -36,6 +37,7 @@
     /* see components\mbedtls\esp_crt_bundle\include */
     /* #include "esp_crt_bundle.h" */
     #include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle-wolfssl.h>
+    #include <esp_task_wdt.h>
 #endif
 #ifndef WOLFSSL_ESPIDF
     #warning "WOLFSSL_ESPIDF not defined! Check build system."
@@ -174,7 +176,7 @@ void *esp_wolfssl_get_ssl_context(esp_tls_t *tls)
 //    printf("%s\n", logMessage);
 //}
 
-WOLFSSL_BIO *bio;
+// WOLFSSL_BIO *bio;
 static int _is_time_set = 1;
 static int _is_wolfssl_init = 0;
 
@@ -265,6 +267,125 @@ exit:
     return esp_ret;
 }
 
+/* NOTICE: These certs are currently loaded from
+ * [ESP-IDF root]/components/mbedtls/esp_crt_bundle */
+extern const uint8_t x509_crt_imported_bundle_bin_start[]
+                     asm("_binary_x509_crt_bundle_start");
+
+extern const uint8_t x509_crt_imported_bundle_bin_end[]
+                     asm("_binary_x509_crt_bundle_end");
+
+#define BUNDLE_HEADER_OFFSET 2
+#define CRT_HEADER_OFFSET 4
+static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_size, esp_tls_t *tls)
+{
+    const uint8_t* cur_crt;
+    const uint8_t* bundle_end;
+    int ret = -1;
+    size_t name_len;
+    size_t key_len;
+
+    if (bundle_size < BUNDLE_HEADER_OFFSET + CRT_HEADER_OFFSET) {
+        ESP_LOGE(TAG, "Invalid certificate bundle");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    uint16_t num_certs = (x509_bundle[0] << 8) | x509_bundle[1];
+    if (num_certs > CONFIG_WOLFSSL_CERTIFICATE_BUNDLE_MAX_CERTS) {
+        ESP_LOGE(TAG, "No. of certs in the certificate bundle = %d exceeds\n"
+                      "Max allowed certificates in the certificate bundle = %d\n"
+                      "Please update the menuconfig option with appropriate value", num_certs, CONFIG_WOLFSSL_CERTIFICATE_BUNDLE_MAX_CERTS);
+        return ESP_ERR_INVALID_ARG;
+    }
+    else {
+        ESP_LOGI(TAG, "No. of certs in the certificate bundle = % d", num_certs);
+        ESP_LOGI(TAG, "Max allowed certificates in the certificate bundle = %d\n", CONFIG_WOLFSSL_CERTIFICATE_BUNDLE_MAX_CERTS);
+    }
+
+    const uint8_t **crts = calloc(num_certs, sizeof(x509_bundle));
+    if (crts == NULL) {
+        ESP_LOGE(TAG, "Unable to allocate memory for bundle");
+        return ESP_ERR_NO_MEM;
+    }
+
+    /* This is the maximum region that is allowed to access */
+    bundle_end = x509_bundle + bundle_size;
+    cur_crt = x509_bundle + BUNDLE_HEADER_OFFSET;
+
+    for (int i = 0; i < num_certs; i++) {
+        crts[i] = cur_crt;
+        if (cur_crt + CRT_HEADER_OFFSET > bundle_end) {
+            ESP_LOGE(TAG, "Invalid certificate bundle");
+            free(crts);
+            return ESP_ERR_INVALID_ARG;
+        }
+
+        /* A "bundle" is assembled at build time. In particular: note *only* the subject name
+         * and DER-formatted public key of the CA cert is included in the bundle:
+         *
+         * See: https://github.com/espressif/esp-idf/blob/master/components/mbedtls/esp_crt_bundle/gen_crt_bundle.py
+         *
+            """ Read the public key as DER format """
+            pub_key = crt.public_key()
+            pub_key_der = pub_key.public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+
+            """ Read the subject name as DER format """
+            sub_name_der = crt.subject.public_bytes(default_backend())
+
+            name_len = len(sub_name_der)
+            key_len = len(pub_key_der)
+            len_data = struct.pack('>HH', name_len, key_len)
+
+            bundle += len_data
+            bundle += sub_name_der
+            bundle += pub_key_der
+
+            Example for single TeliaSonera Root CA v1 cert:
+
+            openssl x509 -in telia.txt -pubkey -noout -out telia_pubkey.pem
+            openssl pkey -pubin -in telia_pubkey.pem -outform DER -out telia_pubkey.der
+            hexdump -C telia_pubkey.der
+         */
+        name_len = cur_crt[0] << 8 | cur_crt[1]; /* get a 2 byte length value for name */
+        key_len = cur_crt[2] << 8 | cur_crt[3];  /* and a 2 byte length value for the key */
+        char* sub_name_der = (char*)&cur_crt[4];
+        ESP_LOGI(TAG, "sub_name_der: %.*s", name_len, sub_name_der);
+        const unsigned char*  this_key = (cur_crt + CRT_HEADER_OFFSET + name_len);
+        ESP_LOGI(TAG, "This key starts at %p and is 0x%x bytes long.", this_key, key_len);
+/*
+ * we can't use this, as it expects an entire certificate, not just the public key in CA:
+ *
+        ret = wolfSSL_CTX_load_verify_buffer(tls->conf.priv_ctx,
+                                                this_key,
+                                                key_len,
+                                                CTC_FILETYPE_ASN1);
+        ESP_LOGW(TAG, ">> wolfSSL_CTX_load_verify_buffer ret = %d", ret);
+*/
+        cur_crt = cur_crt + CRT_HEADER_OFFSET + name_len + key_len;
+        // taskYIELD();
+    }
+
+    if (cur_crt > bundle_end) {
+        ESP_LOGE(TAG, "Invalid certificate bundle");
+        free(crts);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    /* The previous crt bundle is only updated when initialization of the
+     * current crt_bundle is successful */
+    /* Free previous crt_bundle */
+//    free(s_crt_bundle.crts);
+//    s_crt_bundle.num_certs = num_certs;
+//    s_crt_bundle.crts = crts;
+    return ESP_OK;
+}
+
+int my_verify_callback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store) {
+    // You can add custom verification logic here
+    // For now, just return the result passed to the callback
+    ESP_LOGW(TAG, "my_verify_callback");
+    return preverify_ok;
+}
 static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls_cfg_t *cfg, esp_tls_t *tls)
 {
     int ret = WOLFSSL_FAILURE;
@@ -281,7 +402,11 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_3_client_method());
 #elif defined(CONFIG_WOLFSSL_ALLOW_TLS12)
     WOLFSSL_MSG("Set Client Config for TLS1.2 Only");
+    ESP_LOGI(TAG, "Set Client Config for TLS1.2 Only");
     tls->conf.priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    esp_crt_bundle_init(x509_crt_imported_bundle_bin_start,
+                        x509_crt_imported_bundle_bin_end - x509_crt_imported_bundle_bin_start,
+                        tls);
     // cfg->priv_ctx = tls->priv_ctx; /* TODO consider consolidation */
 #else
     #warning "No TLS enabled!"
@@ -297,7 +422,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     if (cfg->crt_bundle_attach != NULL) {
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
         ESP_LOGD(TAG, "Use certificate bundle");
-        wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->conf.priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
+        wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->conf.priv_ctx, WOLFSSL_VERIFY_PEER, my_verify_callback);
         // wolfssl_ssl_conf_authmode(&tls->conf, WOLFSSL_VERIFY_PEER);
         cfg->crt_bundle_attach(&tls->conf);
         ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach checks");
@@ -321,16 +446,16 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->conf.priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
     } else if (cfg->cacert_buf != NULL) {
         WOLFSSL_MSG("set_client_config found cert_buf");
-        bio = wolfSSL_BIO_new_mem_buf(cfg->cacert_buf, -1);
-        if (!bio) {
-            printf("Failed to create BIO\n");
-        }
-        else {
-            /* Print the certificate information */
-            wolfSSL_X509_print(bio,(WOLFSSL_X509*)cfg->cacert_buf);
-        }
+//        bio = wolfSSL_BIO_new_mem_buf(cfg->cacert_buf, -1);
+//        if (!bio) {
+//            printf("Failed to create BIO\n");
+//        }
+//        else {
+//            /* Print the certificate information */
+//            // wolfSSL_X509_print(bio,(WOLFSSL_X509*)cfg->cacert_buf);
+//        }
         wolfSSL_Debugging_ON();
-        wolfSSL_X509_print(bio,(WOLFSSL_X509*)cfg->cacert_buf);
+        // wolfSSL_X509_print(bio,(WOLFSSL_X509*)cfg->cacert_buf);
         if ((esp_load_wolfssl_verify_buffer(tls, cfg->cacert_buf, cfg->cacert_bytes, FILE_TYPE_CA_CERT, &ret)) != ESP_OK) {
             int err = wolfSSL_get_error( (WOLFSSL *)tls->conf.priv_ssl, ret);
             ESP_LOGE(TAG, "Error in loading certificate verify buffer, returned %d, error code: %d", ret, err);
@@ -439,7 +564,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     }
 
     if (cfg->alpn_protos) {
-#ifdef CONFIG_WOLFSSL_HAVE_ALPN
+#if defined(CONFIG_WOLFSSL_HAVE_ALPN) && defined(HAVE_ALPN) /* TODO set in config */
         char **alpn_list = (char **)cfg->alpn_protos;
         for (; *alpn_list != NULL; alpn_list ++) {
             ESP_LOGD(TAG, "alpn protocol is %s", *alpn_list);
@@ -656,7 +781,7 @@ ssize_t esp_wolfssl_write(esp_tls_t *tls, const char *data, size_t datalen)
 void esp_wolfssl_verify_certificate(esp_tls_t *tls)
 {
     int flags;
-    if ((flags = wolfSSL_get_verify_result( (WOLFSSL *)tls->conf.priv_ssl)) != X509_V_OK) {
+    if ((flags = wolfSSL_get_verify_result( (WOLFSSL *)tls->conf.priv_ssl)) != WOLFSSL_SUCCESS) {
         ESP_LOGE(TAG, "Failed to verify peer certificate , returned %d", flags);
         ESP_INT_EVENT_TRACKER_CAPTURE(tls->error_handle, ESP_TLS_ERR_TYPE_WOLFSSL_CERT_FLAGS, flags);
     } else {
@@ -752,11 +877,13 @@ void esp_wolfssl_server_session_delete(esp_tls_t *tls)
 esp_err_t esp_wolfssl_init_global_ca_store(void)
 {
     /* This function is just to provide consistency between function calls of esp_tls.h and wolfssl */
+    ESP_LOGW(TAG, "NOT implemented: esp_wolfssl_init_global_ca_store");
     return ESP_OK;
 }
 
 esp_err_t esp_wolfssl_set_global_ca_store(const unsigned char *cacert_pem_buf, const unsigned int cacert_pem_bytes)
 {
+    ESP_LOGI(TAG, "Enter esp_wolfssl_set_global_ca_store");
     if (cacert_pem_buf == NULL) {
         ESP_LOGE(TAG, "cacert_pem_buf is null");
         return ESP_ERR_INVALID_ARG;
