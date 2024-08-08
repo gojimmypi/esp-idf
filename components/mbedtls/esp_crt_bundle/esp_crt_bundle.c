@@ -8,10 +8,12 @@
 #include "esp_crt_bundle.h"
 #include "esp_log.h"
 
+#ifdef CONFIG_ESP_TLS_USING_MBEDTLS
 #define BUNDLE_HEADER_OFFSET 2
 #define CRT_HEADER_OFFSET 4
 
 static const char *TAG = "esp-x509-crt-bundle";
+#endif
 
 #ifdef CONFIG_ESP_TLS_USING_MBEDTLS
 /* a dummy certificate so that
@@ -19,6 +21,7 @@ static const char *TAG = "esp-x509-crt-bundle";
 static mbedtls_x509_crt s_dummy_crt;
 #endif
 
+#ifdef CONFIG_ESP_TLS_USING_MBEDTLS
 /* A "Certificate Bundle" is this array of x509 certs: */
 extern const uint8_t x509_crt_imported_bundle_bin_start[] asm("_binary_x509_crt_bundle_start");
 extern const uint8_t x509_crt_imported_bundle_bin_end[]   asm("_binary_x509_crt_bundle_end");
@@ -122,6 +125,7 @@ int esp_crt_verify_callback(void *buf, mbedtls_x509_crt *crt, int depth, uint32_
 
         int cmp_res = memcmp(child->issuer_raw.p, crt_name, name_len );
         if (cmp_res == 0) {
+            ESP_LOGI(TAG, "crt found %s", crt_name);
             crt_found = true;
             break;
         } else if (cmp_res < 0) {
@@ -136,6 +140,9 @@ int esp_crt_verify_callback(void *buf, mbedtls_x509_crt *crt, int depth, uint32_
     if (crt_found) {
         size_t key_len = s_crt_bundle.crts[middle][2] << 8 | s_crt_bundle.crts[middle][3];
         ret = esp_crt_check_signature(child, s_crt_bundle.crts[middle] + CRT_HEADER_OFFSET + name_len, key_len);
+    }
+    else {
+        ESP_LOGW(TAG, "crt not found!");
     }
 
     if (ret == 0) {
@@ -152,7 +159,9 @@ int esp_crt_verify_callback(void *buf, mbedtls_x509_crt *crt, int depth, uint32_
 #else
     #error "Please pick a cryptographic provider: mbedTLS or wolfSSL"
 #endif
+#endif
 
+#ifdef CONFIG_ESP_TLS_USING_MBEDTLS
 /* Functions common to all cryptographic providers */
 
 /* Initialize the bundle into an array so we can do binary search for certs,
@@ -252,3 +261,4 @@ esp_err_t esp_crt_bundle_set(const uint8_t *x509_bundle, size_t bundle_size)
 {
     return esp_crt_bundle_init(x509_bundle, bundle_size);
 }
+#endif
