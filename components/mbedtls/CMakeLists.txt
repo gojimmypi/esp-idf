@@ -34,11 +34,13 @@ endif()
 if(CONFIG_MBEDTLS_CERTIFICATE_BUNDLE)
     set(bundle_name "x509_crt_bundle")
     set(DEFAULT_CRT_DIR ${COMPONENT_DIR}/esp_crt_bundle)
+    message(STATUS "DEFAULT_CRT_DIR = ${DEFAULT_CRT_DIR}")
 
     # Generate custom certificate bundle using the generate_cert_bundle utility
     set(GENERATE_CERT_BUNDLEPY ${python} ${COMPONENT_DIR}/esp_crt_bundle/gen_crt_bundle.py)
 
     if(CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL)
+        message(STATUS "${DEFAULT_CRT_DIR}/cacrt_all.pem")
         list(APPEND crt_paths ${DEFAULT_CRT_DIR}/cacrt_all.pem ${DEFAULT_CRT_DIR}/cacrt_local.pem)
     elseif(CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN)
         list(APPEND crt_paths ${DEFAULT_CRT_DIR}/cacrt_all.pem ${DEFAULT_CRT_DIR}/cacrt_local.pem)
