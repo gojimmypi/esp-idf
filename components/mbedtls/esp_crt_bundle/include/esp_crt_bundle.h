@@ -14,6 +14,7 @@
 #elif defined(CONFIG_ESP_TLS_USING_WOLFSSL)
     //#include <wolfssl/wolfcrypt/settings.h>
     //#include "wolfssl/ssl.h"
+    //#include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle-wolfssl.h>
 #else
 
 #endif
@@ -49,8 +50,9 @@ esp_err_t esp_crt_bundle_attach(void *conf);
 #if CONFIG_ESP_TLS_USING_MBEDTLS
 void esp_crt_bundle_detach(mbedtls_ssl_config *conf);
 #elif CONFIG_ESP_TLS_USING_WOLFSSL
-void esp_crt_bundle_detach(void *conf);
+    // void esp_crt_bundle_detach(wolfssl_ssl_config *conf);
 #else
+    /* bundles not enabled */
 #endif
 
 /**
