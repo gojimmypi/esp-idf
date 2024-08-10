@@ -32,6 +32,7 @@ idf_component_register(SRCS "${srcs}"
 # There are two options:
 #   1) A specified source directory, typically a wolfssl git clone
 #   2) The esp-wolfssl
+# TODO this is duplicate code. See components/wap_supplicant
 message(STATUS "esp-tls config begin")
 if(CONFIG_ESP_TLS_USING_WOLFSSL)
     message(STATUS "found CONFIG_ESP_TLS_USING_WOLFSSL")
