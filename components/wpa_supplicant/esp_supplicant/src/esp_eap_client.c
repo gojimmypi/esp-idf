@@ -34,6 +34,8 @@
 #include "esp_wpa_err.h"
 #ifdef CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
 #include "esp_crt_bundle.h"
+#elif CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
+#include "wolfssl/wolfcrypt/settings.h"
 #endif
 #include "esp_wpas_glue.h"
 #include "esp_eap_client_i.h"
@@ -1201,7 +1203,7 @@ esp_err_t esp_eap_client_use_default_cert_bundle(bool use_default_bundle)
     ESP_LOGW(TAG, "esp_eap_client_use_default_cert_bundle not tested");
     g_wpa_default_cert_bundle = use_default_bundle;
     if (use_default_bundle) {
-        esp_crt_bundle_attach_fn = esp_crt_bundle_attach;
+        // TODO esp_crt_bundle_attach_fn = esp_crt_bundle_attach;
     } else {
         esp_crt_bundle_attach_fn = NULL;
     }

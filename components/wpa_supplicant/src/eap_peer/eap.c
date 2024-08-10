@@ -69,7 +69,7 @@ int (*esp_crt_bundle_attach_fn)(void *conf);
 #elif defined(CONFIG_WOLFSSL_CERTIFICATE_BUNDLE)
 bool g_wpa_default_cert_bundle;
 int (*esp_crt_bundle_attach_fn)(void *conf);
-#warning "EAP wolfssl certificate bundle not implemented"
+  // #warning "EAP wolfssl certificate bundle not implemented"
 #endif
 
 void eap_peer_config_deinit(struct eap_sm *sm);

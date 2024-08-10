@@ -6,6 +6,14 @@ else()
     set(linker_fragments linker.lf)
 endif()
 
+if(CONFIG_ESP_TLS_USING_WOLFSSL)
+    message(STATUS "wpa_supplicant is using wolfssl")
+    set(WOLFSSL_COMPONENT "wolfssl")
+else()
+    message(STATUS "wpa_supplicant is NOT using wolfssl")
+    unset(WOLFSSL_COMPONENT)
+endif()
+
 set(srcs "port/os_xtensa.c"
     "port/eloop.c"
     "src/ap/ap_config.c"
@@ -215,12 +223,114 @@ else()
     set(wps_registrar_src "")
 endif()
 
+
+
 idf_component_register(SRCS "${srcs}" "${esp_srcs}" "${tls_src}" "${roaming_src}"
                             "${crypto_src}" "${mbo_src}" "${dpp_src}" "${wps_registrar_src}"
                     INCLUDE_DIRS include port/include esp_supplicant/include
                     PRIV_INCLUDE_DIRS src src/utils esp_supplicant/src src/crypto
                     LDFRAGMENTS   ${linker_fragments}
-                    PRIV_REQUIRES mbedtls esp_timer esp_wifi)
+                    PRIV_REQUIRES mbedtls esp_timer esp_wifi
+                                  wolfssl # TODO wolfSSL parameterize
+                                  )
+
+set(TEST_VAR "nope")
+# setup_wolfssl(TEST_VAR)
+message(STATUS "TEST_VAR = ${TEST_VAR}")
+
+# TODO this is duplicate code. See components/esp-tls
+if(NOT ("${WOLFSSL_COMPONENT}" STREQUAL ""))
+    message(STATUS "Registering component with ${WOLFSSL_COMPONENT}")
+
+    # When using wolfSSL for the ESP-TLS (see menuconfig),
+    # There are two options:
+    #   1) A specified source directory, typically a wolfssl git clone
+    #   2) The esp-wolfssl
+    message(STATUS "esp-tls config begin")
+    if(CONFIG_ESP_TLS_USING_WOLFSSL)
+        message(STATUS "found CONFIG_ESP_TLS_USING_WOLFSSL")
+        # See https://github.com/wolfSSL/wolfssl/
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_ESPIDF")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
+
+        # The published wolfSSL 5.7.0 user_settings.h does not include some features that
+        # might be enabled in Kconfig, so enable them here:
+        # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_ALPN")
+        # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_SNI")
+        # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DOPENSSL_EXTRA_X509_SMALL")
+        # this only works for VisualGDB, not idf.py from command-line
+
+        message(STATUS "CMAKE_HOME_DIRECTORY = ${CMAKE_HOME_DIRECTORY}")
+        message(STATUS "CMAKE_PARENT_LIST_FILE = ${CMAKE_PARENT_LIST_FILE}")
+        message(STATUS "CMAKE_SOURCE_DIR = ${CMAKE_SOURCE_DIR}")
+        message(STATUS "COMPONENT_DIR = ${CMAKE_HOME_DIRECTORY}")
+        message(STATUS "COMPONENT_LIB = ${COMPONENT_LIB}")
+        message(STATUS "FOUND_WOLFSSL = ${FOUND_WOLFSSL}")
+        message(STATUS "PROJECT_DIR = ${PROJECT_DIR}")
+        message(STATUS "WOLFSSL_PROJECT_DIR = ${WOLFSSL_PROJECT_DIR}")
+        message(STATUS "CMAKE_HOME_DIRECTORY = ${CMAKE_HOME_DIRECTORY}")
+        message(STATUS "WOLFSSL_ROOT = ${WOLFSSL_ROOT}")
+
+        if(CONFIG_ESP_TLS_USING_WOLFSSL_SPECIFIED)
+            get_filename_component(CUSTOM_SETTING_WOLFSSL_ROOT_PATH "${CUSTOM_SETTING_WOLFSSL_ROOT}" ABSOLUTE)
+            if(EXISTS "${CUSTOM_SETTING_WOLFSSL_ROOT_PATH}/wolfcrypt/src")
+                message(STATUS "ESP-TLS using wolfSSL in: ${CUSTOM_SETTING_WOLFSSL_ROOT_PATH}")
+            else()
+                message(STATUS "ESP-TLS specified directory does not contain wolfSSL: ${CUSTOM_SETTING_WOLFSSL_ROOT_PATH}")
+            endif()
+            idf_component_get_property(wolfssl wolfssl COMPONENT_LIB)
+            target_link_libraries(${COMPONENT_LIB} PUBLIC ${wolfssl})
+        else()
+            # Is wolfSSL installed in the local project as a Managed Component?
+            set(WOLFSSL_COMPONENT_SEARCH "${PROJECT_DIR}/managed_components/wolfssl__wolfssl")
+            message(STATUS "Searching for wolfSSL in ${WOLFSSL_COMPONENT_SEARCH}")
+            if(EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
+                message(STATUS "Configuring ESP-IDF to use wolfssl in Managed Component: ${WOLFSSL_COMPONENT_SEARCH}")
+                idf_component_get_property(wolfssl wolfssl__wolfssl COMPONENT_LIB)
+            else()
+                # Is wolfSSL installed in the local project as a Managed Component
+                # converted to regular project component?
+                set(WOLFSSL_COMPONENT_SEARCH "${PROJECT_DIR}/components/wolfssl__wolfssl")
+                message(STATUS "Searching for wolfSSL in ${WOLFSSL_COMPONENT_SEARCH}")
+                if(EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
+                    message(STATUS
+                          "Configuring ESP-IDF to use wolfssl in Converted Managed Component: ${WOLFSSL_COMPONENT_SEARCH}")
+                    idf_component_get_property(wolfssl wolfssl__wolfssl COMPONENT_LIB)
+                else()
+                    # Is wolfSSL installed in the local project as a non-maged, regular component?
+                    set(WOLFSSL_COMPONENT_SEARCH "${PROJECT_DIR}/components/wolfssl")
+                    message(STATUS "Searching for wolfSSL in ${WOLFSSL_COMPONENT_SEARCH}")
+                    if(EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
+                        message(STATUS "Configuring ESP-IDF to use wolfssl in Component: ${WOLFSSL_COMPONENT_SEARCH}")
+                        idf_component_get_property(wolfssl wolfssl COMPONENT_LIB)
+                    else()
+                        set(WOLFSSL_COMPONENT_SEARCH "${THIS_IDF_PATH}/components/esp-wolfssl")
+                        message(STATUS "Searching for wolfSSL in ${WOLFSSL_COMPONENT_SEARCH}")
+                        if(EXISTS "${WOLFSSL_COMPONENT_SEARCH}")
+                            message(STATUS "Configuring ESP-IDF to use wolfssl from: ${WOLFSSL_COMPONENT_SEARCH}")
+                            message(STATUS "Warning: Using legacy esp-wolfssl. Consider using a Managed Component")
+                            # See https://github.com/espressif/esp-idf
+                            message(STATUS "Configuring ESP-TLS to use esp-wolfssl")
+                            idf_component_get_property(wolfssl esp-wolfssl COMPONENT_LIB)
+                        else()
+                            message(STATUS "Consider installing wolfSSL from "
+                                           "https://components.espressif.com/components/wolfssl/wolfssl")
+                            message(FATAL_ERROR "Component ${component} not found")
+                        endif() # esp-wolfssl
+                    endif() # project wolfssl
+                endif() # project converted wolfssl__wolfssl
+            endif() # project managed component wolfssl__wolfssl
+            # idf_component_get_property(wolfssl wolfssl__wolfssl COMPONENT_LIB)
+            message(STATUS "COMPONENT_LIB = ${COMPONENT_LIB}")
+            # set(COMPONENT_LIB wpa_supplicant)
+            target_link_libraries(${COMPONENT_LIB} PUBLIC ${wolfssl})
+        endif()
+    else()
+        message(STATUS "ESP-TLS is not configured to use wolfSSL.")
+    endif()
+else()
+    message(STATUS "WOLFSSL_COMPONENT not defined, no registered component with ${COMPONENT_LIB}")
+endif()
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-strict-aliasing -Wno-write-strings -Werror)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
