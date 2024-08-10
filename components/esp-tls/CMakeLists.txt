@@ -28,7 +28,7 @@ idf_component_register(SRCS "${srcs}"
                     REQUIRES mbedtls ${wolfssl_esp_tls_lib}
                     PRIV_REQUIRES ${priv_req})
 
-# When using wolfSSL for the ESP-TLS (see emnuconfig),
+# When using wolfSSL for the ESP-TLS (see menuconfig),
 # There are two options:
 #   1) A specified source directory, typically a wolfssl git clone
 #   2) The esp-wolfssl
