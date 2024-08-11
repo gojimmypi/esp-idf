@@ -34,7 +34,7 @@
     #include "wolfssl/wolfcrypt/settings.h"
     #include "wolfssl/ssl.h"
     #include "wolfssl/openssl/x509.h" /* TODO not wolfssl internal WOLFSSL_X509 ? */
-    #include "wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle-wolfssl.h"
+    #include "wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h"
     #include "private_include/esp_tls_wolfssl.h"
 #endif
 

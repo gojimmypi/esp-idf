@@ -36,7 +36,7 @@
     /* TODO Add bundle support */
     /* see components\mbedtls\esp_crt_bundle\include */
     /* #include "esp_crt_bundle.h" */
-    #include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle-wolfssl.h>
+    #include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h>
     #include <esp_task_wdt.h>
 #endif
 #ifndef WOLFSSL_ESPIDF
