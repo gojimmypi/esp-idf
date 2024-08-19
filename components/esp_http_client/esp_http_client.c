@@ -711,7 +711,7 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
     #if defined(CONFIG_ESP_TLS_USING_MBEDTLS)
         ESP_LOGE(TAG, "use_crt_bundle configured but not enabled in menuconfig: Please enable MBEDTLS_CERTIFICATE_BUNDLE option");
     #elif defined(CONFIG_ESP_TLS_USING_WOLFSSL)
-        ESP_LOGE(TAG, "use_crt_bundle configured but not enabled in menuconfig: Please enable MBEDTLS_CERTIFICATE_BUNDLE option");
+        ESP_LOGE(TAG, "use_crt_bundle configured but not enabled in menuconfig: Please enable WOLFSSL_CERTIFICATE_BUNDLE option");
     #else
         ESP_LOGE(TAG, "use_crt_bundle configured but a cryptographic provider not enabled in menuconfig: Please enable CONFIG_ESP_TLS_USING_WOLFSSL or CONFIG_ESP_TLS_USING_MBEDTLS");
     #endif
