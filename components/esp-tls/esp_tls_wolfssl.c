@@ -269,14 +269,14 @@ exit:
 
 /* NOTICE: These certs are currently loaded from
  * [ESP-IDF root]/components/mbedtls/esp_crt_bundle */
-extern const uint8_t x509_crt_imported_bundle_bin_start[]
-                     asm("_binary_x509_crt_bundle_start");
+extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_start[]
+                     asm("_binary_x509_crt_bundle_wolfssl_start");
 
-extern const uint8_t x509_crt_imported_bundle_bin_end[]
-                     asm("_binary_x509_crt_bundle_end");
+extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_end[]
+                     asm("_binary_x509_crt_bundle_wolfssl_end");
 
 #define BUNDLE_HEADER_OFFSET 2
-#define CRT_HEADER_OFFSET 4
+#define CRT_HEADER_OFFSET 2
 static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_size, esp_tls_t *tls)
 {
     const uint8_t* cur_crt;
@@ -308,8 +308,11 @@ static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_s
         return ESP_ERR_NO_MEM;
     }
 
-    /* This is the maximum region that is allowed to access */
+    /* This is the maximum region that is allowed to access.
+     * Starting address of the bundle + 2 bytes/cert for size. */
     bundle_end = x509_bundle + bundle_size;
+
+    /* Layout is [2 byte count][all the certs] */
     cur_crt = x509_bundle + BUNDLE_HEADER_OFFSET;
 
     for (int i = 0; i < num_certs; i++) {
@@ -337,8 +340,7 @@ static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_s
             len_data = struct.pack('>HH', name_len, key_len)
 
             bundle += len_data
-            bundle += sub_name_der
-            bundle += pub_key_der
+            bundle += cert_der
 
             Example for single TeliaSonera Root CA v1 cert:
 
@@ -346,11 +348,8 @@ static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_s
             openssl pkey -pubin -in telia_pubkey.pem -outform DER -out telia_pubkey.der
             hexdump -C telia_pubkey.der
          */
-        name_len = cur_crt[0] << 8 | cur_crt[1]; /* get a 2 byte length value for name */
-        key_len = cur_crt[2] << 8 | cur_crt[3];  /* and a 2 byte length value for the key */
-        char* sub_name_der = (char*)&cur_crt[4];
-        ESP_LOGI(TAG, "sub_name_der: %.*s", name_len, sub_name_der);
-        const unsigned char*  this_key = (cur_crt + CRT_HEADER_OFFSET + name_len);
+        key_len = cur_crt[0] << 8 | cur_crt[1];  /* and a 2 byte length value for the key */
+        const unsigned char*  this_key = (cur_crt + CRT_HEADER_OFFSET);
         ESP_LOGI(TAG, "This key starts at %p and is 0x%x bytes long.", this_key, key_len);
 /*
  * we can't use this, as it expects an entire certificate, not just the public key in CA:
@@ -361,7 +360,7 @@ static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_s
                                                 CTC_FILETYPE_ASN1);
         ESP_LOGW(TAG, ">> wolfSSL_CTX_load_verify_buffer ret = %d", ret);
 */
-        cur_crt = cur_crt + CRT_HEADER_OFFSET + name_len + key_len;
+        cur_crt = cur_crt + (CRT_HEADER_OFFSET + key_len);
         // taskYIELD();
     }
 
@@ -404,8 +403,10 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     WOLFSSL_MSG("Set Client Config for TLS1.2 Only");
     ESP_LOGI(TAG, "Set Client Config for TLS1.2 Only");
     tls->conf.priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_client_method());
-    esp_crt_bundle_init(x509_crt_imported_bundle_bin_start,
-                        x509_crt_imported_bundle_bin_end - x509_crt_imported_bundle_bin_start,
+
+    /* TODO bundles are not TLS 1.2 specific  x509_crt_imported_bundle_wolfssl_bin_start*/
+    esp_crt_bundle_init(x509_crt_imported_bundle_wolfssl_bin_start,
+                        x509_crt_imported_bundle_wolfssl_bin_end - x509_crt_imported_bundle_wolfssl_bin_start,
                         tls);
     // cfg->priv_ctx = tls->priv_ctx; /* TODO consider consolidation */
 #else
