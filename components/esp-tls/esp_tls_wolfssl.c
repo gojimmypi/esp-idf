@@ -281,9 +281,12 @@ static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_s
 {
     const uint8_t* cur_crt;
     const uint8_t* bundle_end;
-    int ret = -1;
+    int ret = ESP_OK;
+    int i;
     size_t name_len;
-    size_t key_len;
+    size_t cert_len;
+
+    ESP_LOGI(TAG, "x509_bundle ptr = 0x%x", (intptr_t)x509_bundle);
 
     if (bundle_size < BUNDLE_HEADER_OFFSET + CRT_HEADER_OFFSET) {
         ESP_LOGE(TAG, "Invalid certificate bundle");
@@ -312,16 +315,40 @@ static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_s
      * Starting address of the bundle + 2 bytes/cert for size. */
     bundle_end = x509_bundle + bundle_size;
 
-    /* Layout is [2 byte count][all the certs] */
+    /* Layout is [2 byte count][all the certs]
+     * [all the certs] = [2 byte size][cert #1][2 byte size][cert #2]...  */
     cur_crt = x509_bundle + BUNDLE_HEADER_OFFSET;
 
-    for (int i = 0; i < num_certs; i++) {
+    for (i = 0; i < num_certs; i++) {
         crts[i] = cur_crt;
-        if (cur_crt + CRT_HEADER_OFFSET > bundle_end) {
+        if ((cur_crt + CRT_HEADER_OFFSET) > bundle_end) {
             ESP_LOGE(TAG, "Invalid certificate bundle");
             free(crts);
             return ESP_ERR_INVALID_ARG;
         }
+
+#if 0
+        #define X509_MAX_SUBJECT_LEN 200
+        char subjectName[X509_MAX_SUBJECT_LEN];
+        WOLFSSL_X509* x509 = NULL;
+        WOLFSSL_X509_NAME* subject = NULL;
+        WOLFSSL_X509_NAME* issuer = NULL;
+
+        WOLFSSL_X509* cert = (WOLFSSL_X509*)(cur_crt + 2);
+
+        if (ret == ESP_OK) {
+            subject = wolfSSL_X509_get_subject_name(cert);
+            if (subject == NULL) {
+                ESP_LOGE(TAG, "Error getting subject name.");
+                ret = ESP_FAIL;
+            }
+            if (wolfSSL_X509_NAME_oneline(subject, subjectName, sizeof(subjectName)) == NULL) {
+                ESP_LOGE(TAG, "Error converting subject name to string.");
+                ret = ESP_FAIL;
+            }
+            ESP_LOGI(TAG, "Subject Name: %s", subjectName);
+        }
+#endif
 
         /* A "bundle" is assembled at build time. In particular: note *only* the subject name
          * and DER-formatted public key of the CA cert is included in the bundle:
@@ -348,9 +375,9 @@ static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_s
             openssl pkey -pubin -in telia_pubkey.pem -outform DER -out telia_pubkey.der
             hexdump -C telia_pubkey.der
          */
-        key_len = cur_crt[0] << 8 | cur_crt[1];  /* and a 2 byte length value for the key */
-        const unsigned char*  this_key = (cur_crt + CRT_HEADER_OFFSET);
-        ESP_LOGI(TAG, "This key starts at %p and is 0x%x bytes long.", this_key, key_len);
+        cert_len = cur_crt[0] << 8 | cur_crt[1];  /* and a 2 byte length value for the key */
+        const unsigned char*  this_cert = (cur_crt + CRT_HEADER_OFFSET);
+        ESP_LOGI(TAG, "Cert #%d starts at %p and is %d bytes long.", i, this_cert, cert_len);
 /*
  * we can't use this, as it expects an entire certificate, not just the public key in CA:
  *
@@ -360,7 +387,7 @@ static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_s
                                                 CTC_FILETYPE_ASN1);
         ESP_LOGW(TAG, ">> wolfSSL_CTX_load_verify_buffer ret = %d", ret);
 */
-        cur_crt = cur_crt + (CRT_HEADER_OFFSET + key_len);
+        cur_crt = cur_crt + (CRT_HEADER_OFFSET + cert_len);
         // taskYIELD();
     }
 
@@ -547,6 +574,9 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         }
         if (use_host == NULL) {
             return ESP_ERR_NO_MEM;
+        }
+        else {
+            ESP_LOGI(TAG, "Using host for wolfSSL Check Domain: %s", use_host);
         }
         /* Hostname set here should match CN in server certificate */
         if ((ret = (wolfSSL_check_domain_name( (WOLFSSL *)tls->conf.priv_ssl, use_host))) != WOLFSSL_SUCCESS) {
