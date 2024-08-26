@@ -746,7 +746,6 @@ int ShowCiphers(WOLFSSL* ssl)
 int esp_wolfssl_handshake(esp_tls_t *tls, const esp_tls_cfg_t *cfg)
 {
     int ret;
-    wolfSSL_Debugging_ON();
 
     ret = wolfSSL_connect( (WOLFSSL *)tls->conf.priv_ssl);
     if (ret == WOLFSSL_SUCCESS) {
