@@ -73,7 +73,13 @@ struct esp_tls {
                                                                                    certificate */
 #endif
 #elif CONFIG_ESP_TLS_USING_WOLFSSL
+    #ifndef WOLFSSL_NO_CONF_COMPATIBILITY
     wolfssl_ssl_config conf;
+    void (*sync)(struct esp_tls*);
+    #endif
+
+    void *priv_ctx;
+    void *priv_ssl;
 #endif
     int sockfd;                                                                 /*!< Underlying socket file descriptor. */
 
