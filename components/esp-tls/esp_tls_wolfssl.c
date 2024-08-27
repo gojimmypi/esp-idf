@@ -34,6 +34,12 @@
 #endif
 
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
+    /* Note these are also set in wolfcrypt/src/port/Espressif/esp_crt_bundle.c
+     * to avoid conflicts with other cert bundles.
+     * Ensure they exactly match here: */
+    #define BUNDLE_HEADER_OFFSET 2
+    #define CRT_HEADER_OFFSET 2
+
     #include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h>
     #include <esp_task_wdt.h>
 #endif
@@ -44,6 +50,16 @@
 #include "esp_tls_error_capture_internal.h"
 #include <errno.h>
 #include "esp_log.h"
+
+/* NOTICE: These wolfSSL certs are loaded from
+ * [WOLFSSL_ROOT]/wolfcrypt/src/port/Espressif/esp_crt_bundle
+ *   and *NOT*
+ * [ESP-IDF root]/components/mbedtls/esp_crt_bundle */
+extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_start[]
+                     asm("_binary_x509_crt_bundle_wolfssl_start");
+
+extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_end[]
+                     asm("_binary_x509_crt_bundle_wolfssl_end");
 
 static unsigned char *global_cacert = NULL;
 static unsigned int global_cacert_pem_bytes = 0;
@@ -151,11 +167,6 @@ void *esp_wolfssl_get_ssl_context(esp_tls_t *tls)
     return (void*)tls->priv_ssl;
 }
 
-//void wolfSSL_DebuggingCallback(const int logLevel, const char* const logMessage) {
-//    printf("%s\n", logMessage);
-//}
-
-// WOLFSSL_BIO *bio;
 static int _is_time_set = 1;
 static int _is_wolfssl_init = 0;
 
@@ -204,11 +215,6 @@ static int _is_wolfssl_init = 0;
     esp_show_current_datetime();
 //    wolfSSL_SetLoggingCb(wolfSSL_DebuggingCallback);
 
-
-
-//    // Free resources
-//    wolfSSL_BIO_free(bio);
-
     if (ret != WOLFSSL_SUCCESS) {
         ESP_LOGE(TAG, "Init wolfSSL failed: 0x%04X", ret);
         wolfssl_print_error_msg(ret);
@@ -246,16 +252,6 @@ exit:
     return esp_ret;
 }
 
-/* NOTICE: These certs are currently loaded from
- * [ESP-IDF root]/components/mbedtls/esp_crt_bundle */
-extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_start[]
-                     asm("_binary_x509_crt_bundle_wolfssl_start");
-
-extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_end[]
-                     asm("_binary_x509_crt_bundle_wolfssl_end");
-
-#define BUNDLE_HEADER_OFFSET 2
-#define CRT_HEADER_OFFSET 2
 static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_size, esp_tls_t *tls)
 {
     const uint8_t* cur_crt;
@@ -481,16 +477,6 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
     } else if (cfg->cacert_buf != NULL) {
         WOLFSSL_MSG("set_client_config found cert_buf");
-//        bio = wolfSSL_BIO_new_mem_buf(cfg->cacert_buf, -1);
-//        if (!bio) {
-//            printf("Failed to create BIO\n");
-//        }
-//        else {
-//            /* Print the certificate information */
-//            // wolfSSL_X509_print(bio,(WOLFSSL_X509*)cfg->cacert_buf);
-//        }
-        wolfSSL_Debugging_ON();
-        // wolfSSL_X509_print(bio,(WOLFSSL_X509*)cfg->cacert_buf);
         if ((esp_load_wolfssl_verify_buffer(tls, cfg->cacert_buf, cfg->cacert_bytes, FILE_TYPE_CA_CERT, &ret)) != ESP_OK) {
             int err = wolfSSL_get_error( (WOLFSSL *)tls->priv_ssl, ret);
             ESP_LOGE(TAG, "Error in loading certificate verify buffer, returned %d, error code: %d", ret, err);
@@ -536,10 +522,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
 #ifdef CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_NONE, NULL); /* */
 #else
-        // Setting this still results in
-        //   wolfSSL_connect returned -1, error code: -188
-        //   Failed to verify peer certificate , returned 21
-        // wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
+        wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
         ESP_LOGW(TAG, "No server verification option set in esp_tls_cfg_t structure. Check esp_tls API reference");
         return ESP_ERR_WOLFSSL_SSL_SETUP_FAILED; /* TODO: really? */
 #endif
@@ -603,7 +586,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     }
 
     if (cfg->alpn_protos) {
-#if defined(CONFIG_WOLFSSL_HAVE_ALPN) && defined(HAVE_ALPN) /* TODO set in config */
+#if defined(CONFIG_WOLFSSL_HAVE_ALPN) && defined(HAVE_ALPN)
         char **alpn_list = (char **)cfg->alpn_protos;
         for (; *alpn_list != NULL; alpn_list ++) {
             ESP_LOGD(TAG, "alpn protocol is %s", *alpn_list);
@@ -655,15 +638,9 @@ static esp_err_t set_server_config(esp_tls_cfg_server_t *cfg, esp_tls_t *tls)
 {
     int ret = WOLFSSL_FAILURE;
 
-//#ifdef WOLFSSL_TLS13
-//    tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_3_server_method());
-//#else
-//    tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_server_method());
-//#endif
 #if defined(CONFIG_WOLFSSL_ALLOW_TLS13) && defined(CONFIG_WOLFSSL_ALLOW_TLS12)
     WOLFSSL_MSG("Set Server Config for any TLS version");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfSSLv23_server_method());
-//    tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_server_method());
 #elif defined(CONFIG_WOLFSSL_ALLOW_TLS13)
     WOLFSSL_MSG("Set Server Config for TLS1.3 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_3_server_method());
@@ -672,9 +649,11 @@ static esp_err_t set_server_config(esp_tls_cfg_server_t *cfg, esp_tls_t *tls)
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_server_method());
 #else
     #warning "No TLS enabled!"
+#endif /* TLS Version */
+
+#ifndef WOLFSSL_NO_CONF_COMPATIBILITY
+    tls->sync((void*)&tls);
 #endif
-
-
     if (!tls->priv_ctx) {
         ESP_LOGE(TAG, "Set wolfSSL ctx failed");
         return ESP_ERR_WOLFSSL_CTX_SETUP_FAILED;
