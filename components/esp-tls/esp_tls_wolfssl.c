@@ -415,7 +415,6 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
 #if defined(CONFIG_WOLFSSL_ALLOW_TLS13) && defined(CONFIG_WOLFSSL_ALLOW_TLS12)
     WOLFSSL_MSG("Set Client Config for any TLS version");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfSSLv23_client_method());
-//    tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_client_method());
 #elif defined(CONFIG_WOLFSSL_ALLOW_TLS13)
     WOLFSSL_MSG("Set Client Config for TLS1.3 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_3_client_method());
@@ -423,8 +422,14 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     WOLFSSL_MSG("Set Client Config for TLS1.2 Only");
     ESP_LOGI(TAG, "Set Client Config for TLS1.2 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+#else
+    ESP_LOGW(TAG, "No TLS enabled!");
+    #warning "No TLS enabled!"
+#endif
+
+#if defined(CONFIG_WOLFSSL_ALLOW_TLS13) || defined(CONFIG_WOLFSSL_ALLOW_TLS12)
     if (tls == NULL) {
-        ESP_LOGE(TAG, "FAiled to create wolfSSL TLS Client Method");
+        ESP_LOGE(TAG, "Failed to create wolfSSL TLS Client Method");
         return ESP_ERR_INVALID_STATE;
     }
     else {
@@ -434,13 +439,10 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         tls->sync = sync_tls_conf_values;
     #endif
     }
-    /* TODO bundles are not TLS 1.2 specific  x509_crt_imported_bundle_wolfssl_bin_start*/
+
     esp_crt_bundle_init(x509_crt_imported_bundle_wolfssl_bin_start,
                         x509_crt_imported_bundle_wolfssl_bin_end - x509_crt_imported_bundle_wolfssl_bin_start,
                         tls);
-    // cfg->priv_ctx = tls->priv_ctx; /* TODO consider consolidation */
-#else
-    #warning "No TLS enabled!"
 #endif
 
     if (!tls->priv_ctx) {
@@ -456,6 +458,8 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, my_verify_callback);
         // wolfssl_ssl_conf_authmode(&tls->conf, WOLFSSL_VERIFY_PEER);
         cfg->crt_bundle_attach(&tls->conf); /* callback is also set here */
+//        wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)(conf->priv_ctx),
+//                            WOLFSSL_VERIFY_PEER, wolfssl_ssl_conf_verify_cb);
         ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach checks");
 
         // cfg->cacert_buf = (first cert in bundle)
