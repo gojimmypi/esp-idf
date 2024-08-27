@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2019-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,39 +8,34 @@
 #if defined(CONFIG_ESP_TLS_USING_MBEDTLS) || (CONFIG_ESP_TLS_USING_MBEDTLS != 0)
     #error  "mbedTLS enabled for wolfSSL file"
 #endif
-    /* Test v5.4.1j (from 5.4) */
+
 #ifdef CONFIG_ESP_TLS_USING_WOLFSSL
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-/* TODO remove OpenSSL layer dependency */
+#ifndef WOLFSSL_ESPIDF
+    #warning "WOLFSSL_ESPIDF not defined! Check build system."
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/x509.h>
 #else
     #warning "OPENSSL_EXTRA should be defined for wolfssl in esp-tls"
 #endif
 #include <wolfssl/ssl.h>
-
-#include <wolfssl/version.h>  /* TODO check for minimum version in component */
+#include <wolfssl/version.h>
+#ifdef LIBWOLFSSL_VERSION_HEX
+    #if LIBWOLFSSL_VERSION_HEX < 0x05007002
+        #warning "wolfSSL 5.7.2 or newer is recommended."
+        #warning "MAnaged Components recommended. See: https://components.espressif.com/components/wolfssl/wolfssl"
+    #endif
+#else
+    #warning "Unknown wolfSSL version. Check build system."
+#endif
 
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
-    /* TODO Add bundle support */
-    /* see components\mbedtls\esp_crt_bundle\include */
-    /* #include "esp_crt_bundle.h" */
     #include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h>
     #include <esp_task_wdt.h>
-#endif
-#ifndef WOLFSSL_ESPIDF
-    #warning "WOLFSSL_ESPIDF not defined! Check build system."
 #endif
 
 
@@ -53,6 +48,7 @@
 static unsigned char *global_cacert = NULL;
 static unsigned int global_cacert_pem_bytes = 0;
 static const char *TAG = "esp-tls-wolfssl";
+
 /* Prototypes for the static functions */
 static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls_cfg_t *cfg, esp_tls_t *tls);
 static int ShowCiphers(WOLFSSL* ssl);
@@ -262,12 +258,10 @@ extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_end[]
 #define CRT_HEADER_OFFSET 2
 static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_size, esp_tls_t *tls)
 {
-
     const uint8_t* cur_crt;
     const uint8_t* bundle_end;
     int ret = ESP_OK;
     int i;
-    size_t name_len;
     size_t cert_len;
 
 #if defined(CONFIG_WOLFSSL_DEBUG_CERT_BUNDLE) || \
@@ -385,7 +379,7 @@ static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_s
 //    free(s_crt_bundle.crts);
 //    s_crt_bundle.num_certs = num_certs;
 //    s_crt_bundle.crts = crts;
-    return ESP_OK;
+    return ret;
 }
 
 int my_verify_callback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store) {
@@ -570,7 +564,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     }
 
     tls->priv_ssl =(void *)wolfSSL_new( (WOLFSSL_CTX *)tls->priv_ctx);
-    tls->sync(&tls);
+    tls->sync((void*)&tls);
     if (!tls->priv_ssl) {
         ESP_LOGE(TAG, "Create wolfSSL failed");
         int err = wolfSSL_get_error( (WOLFSSL *)tls->priv_ssl, ret);
