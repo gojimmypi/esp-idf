@@ -231,7 +231,7 @@ idf_component_register(SRCS "${srcs}" "${esp_srcs}" "${tls_src}" "${roaming_src}
                     PRIV_INCLUDE_DIRS src src/utils esp_supplicant/src src/crypto
                     LDFRAGMENTS   ${linker_fragments}
                     PRIV_REQUIRES mbedtls esp_timer esp_wifi
-                                  wolfssl # TODO wolfSSL parameterize
+                                  ${WOLFSSL_COMPONENT} # TODO wolfSSL parameterize
                                   )
 
 set(TEST_VAR "nope")
