@@ -85,7 +85,7 @@ void *esp_wolfssl_get_ssl_context(esp_tls_t *tls);
  */
 static inline void esp_wolfssl_net_init(esp_tls_t *tls)
 {
-    ESP_LOGI("esp_tls_wolfssl", "esp_wolfssl_net_init not implemented");
+    ESP_LOGW("esp_tls_wolfssl", "esp_wolfssl_net_init not implemented");
 }
 
 #ifdef CONFIG_ESP_TLS_SERVER
