@@ -70,6 +70,20 @@ extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_end[]
                      asm("_binary_x509_crt_bundle_wolfssl_end");
 #endif
 
+/* Bundle debug may come from user_settings.h and/or sdkconfig.h */
+#if defined(CONFIG_WOLFSSL_DEBUG_CERT_BUNDLE) || \
+    defined(       WOLFSSL_DEBUG_CERT_BUNDLE)
+    /* Only display certificate bundle debugging messages when enabled: */
+    #define ESP_LOGCBI ESP_LOGI
+    #define ESP_LOGCBW ESP_LOGW
+#else
+    /* Only display certificate bundle messages for most verbosee setting.
+     * Note that the delays will likely cause TLS connection failures. */
+    #define ESP_LOGCBI ESP_LOGV
+    #define ESP_LOGCBW ESP_LOGV
+    #define ESP_LOGCBV ESP_LOGV
+#endif
+
 static unsigned char *global_cacert = NULL;
 static unsigned int global_cacert_pem_bytes = 0;
 static const char *TAG = "esp-tls-wolfssl";
@@ -754,8 +768,7 @@ int esp_wolfssl_handshake(esp_tls_t *tls, const esp_tls_cfg_t *cfg)
     #ifdef DEBUG_WOLFSSL
         wolfSSL_Debugging_ON();
     #endif
-    ESP_LOGI(TAG, "Begin esp-tls esp_wolfssl_handshake");
-    ESP_LOGI(TAG, "wolfSSL_connect( (WOLFSSL *)tls->priv_ssl) ...");
+    ESP_LOGCBI(TAG, "Begin esp-tls esp_wolfssl_handshake");
     ret = wolfSSL_connect( (WOLFSSL *)tls->priv_ssl);
 #ifndef WOLFSSL_NO_CONF_COMPATIBILITY
     tls->conf.priv_ssl = tls->priv_ssl;
