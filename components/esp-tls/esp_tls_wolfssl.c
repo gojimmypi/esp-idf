@@ -51,15 +51,24 @@
 #include <errno.h>
 #include "esp_log.h"
 
-/* NOTICE: These wolfSSL certs are loaded from
+#if defined(CONFIG_WOLFSSL_CERTIFICATE_BUNDLE) && \
+    defined(CONFIG_WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_NONE) && \
+    (CONFIG_WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_NONE == 0)
+
+/* Only define the extern cert bundle data when using a bundle
+ * other than the "none" selection.
+ *
+ * NOTICE: These wolfSSL certs are loaded from
  * [WOLFSSL_ROOT]/wolfcrypt/src/port/Espressif/esp_crt_bundle
  *   and *NOT*
  * [ESP-IDF root]/components/mbedtls/esp_crt_bundle */
+
 extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_start[]
                      asm("_binary_x509_crt_bundle_wolfssl_start");
 
 extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_end[]
                      asm("_binary_x509_crt_bundle_wolfssl_end");
+#endif
 
 static unsigned char *global_cacert = NULL;
 static unsigned int global_cacert_pem_bytes = 0;
@@ -97,7 +106,11 @@ static void wolfssl_print_error_msg(int error)
 {
 #if defined(DEBUG_WOLFSSL) || (CONFIG_LOG_DEFAULT_LEVEL_DEBUG || CONFIG_LOG_DEFAULT_LEVEL_VERBOSE)
     static char error_buf[100];
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     ESP_LOGE(TAG, "(%d) : %s", error, ERR_error_string(error, error_buf));
+#else
+    ESP_LOGE(TAG, "Error: (%d)", error);
+#endif
 #endif
 }
 
@@ -400,10 +413,12 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     WOLFSSL_MSG("Set Client Config for any TLS version");
     ESP_LOGW(TAG, "Set Client Config for ANY TLS version");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfSSLv23_client_method());
-#elif defined(CONFIG_WOLFSSL_ALLOW_TLS13)
+#elif defined(CONFIG_WOLFSSL_ALLOW_TLS13) & defined(WOLFSSL_TLS13)
     WOLFSSL_MSG("Set Client Config for TLS1.3 Only");
     ESP_LOGW(TAG, "Set Client Config for TLS1.3 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+#elif defined(CONFIG_WOLFSSL_ALLOW_TLS13)
+    #error "CONFIG_WOLFSSL_ALLOW_TLS13 configured without WOLFSSL_TLS13?"
 #elif defined(CONFIG_WOLFSSL_ALLOW_TLS12)
     WOLFSSL_MSG("Set Client Config for TLS1.2 Only");
     ESP_LOGW(TAG, "Set Client Config for TLS1.2 Only");
@@ -426,10 +441,15 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     #endif
     }
 
+#if defined(CONFIG_WOLFSSL_CERTIFICATE_BUNDLE) && \
+    defined(CONFIG_WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_NONE) && \
+    (CONFIG_WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_NONE == 0)
     esp_crt_bundle_init(x509_crt_imported_bundle_wolfssl_bin_start,
                         x509_crt_imported_bundle_wolfssl_bin_end - x509_crt_imported_bundle_wolfssl_bin_start,
                         tls);
-#endif
+    ESP_LOGI(TAG, "No Certificate Bundle Selected.");
+#endif /* Some certificate bundle other than "none" */
+#endif /* CONFIG_WOLFSSL_ALLOW_[TLS12 or TLS13] */
 
     if (!tls->priv_ctx) {
         ESP_LOGE(TAG, "Set wolfSSL ctx failed");
@@ -450,11 +470,6 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
 //        wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)(conf->priv_ctx),
 //                            WOLFSSL_VERIFY_PEER, wolfssl_ssl_conf_verify_cb);
         ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach checks");
-        ESP_LOGI(TAG, "tls->priv_ctx TLS13 = %d", (int)(tls->priv_ctx));
-        ESP_LOGI(TAG, "tls->priv_ssl TLS13 = %d",  (int)(tls->priv_ssl));
-        ESP_LOGI(TAG, "tls->conf.priv_ctx TLS13 = %d",  (int)(tls->conf.priv_ctx));
-        ESP_LOGI(TAG, "tls->conf.priv_ssl TLS13 = %d",  (int)(tls->conf.priv_ssl));
-        // cfg->cacert_buf = (first cert in bundle)
 
 #else /* CONFIG_WOLFSSL_CERTIFICATE_BUNDLE */
         ESP_LOGE(TAG, "use_crt_bundle configured but not enabled in menuconfig:"
