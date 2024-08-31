@@ -83,6 +83,18 @@ extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_end[]
     #define ESP_LOGCBW ESP_LOGV
     #define ESP_LOGCBV ESP_LOGV
 #endif
+#if defined(WOLFSSL_EXAMPLE_VERBOSITY)
+    #define ESP_LOGXI ESP_LOGI
+    #define ESP_LOGXW ESP_LOGW
+    #define ESP_LOGXV ESP_LOGW
+#else
+    #define ESP_LOGXI ESP_LOGV
+    #define ESP_LOGXI ESP_LOGV
+    #define ESP_LOGXI ESP_LOGV
+#endif
+
+/* WOLFSSL_NO_CONF_COMPATIBILITY is not defined;
+ * assumes compatibility with existing Espressif "conf" parameters. */
 
 static unsigned char *global_cacert = NULL;
 static unsigned int global_cacert_pem_bytes = 0;
@@ -221,6 +233,7 @@ static int _is_wolfssl_init = 0;
         _is_wolfssl_init = 1;
     }
     else {
+  //      ret = wolfSSL_Init();
         ESP_LOGI(TAG, "skipping wolfSSL_Init");
     }
 
@@ -259,10 +272,12 @@ static int _is_wolfssl_init = 0;
 
     return ESP_OK;
 exit:
+    ESP_LOGE(TAG, "Error exit");
     esp_wolfssl_cleanup(tls);
     return esp_ret;
 }
 
+#ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
 static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_size, esp_tls_t *tls)
 {
     const uint8_t* cur_crt;
@@ -388,6 +403,7 @@ static esp_err_t esp_crt_bundle_init(const uint8_t *x509_bundle, size_t bundle_s
 //    s_crt_bundle.crts = crts;
     return ret;
 }
+#endif
 
 int my_verify_callback(int preverify_ok, WOLFSSL_X509_STORE_CTX* store) {
     // You can add custom verification logic here
@@ -424,18 +440,15 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     assert(tls != NULL);
 
 #if defined(CONFIG_WOLFSSL_ALLOW_TLS13) && defined(CONFIG_WOLFSSL_ALLOW_TLS12)
-    WOLFSSL_MSG("Set Client Config for any TLS version");
-    ESP_LOGW(TAG, "Set Client Config for ANY TLS version");
+    ESP_LOGXI(TAG, "Set Client Config for ANY TLS version");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfSSLv23_client_method());
 #elif defined(CONFIG_WOLFSSL_ALLOW_TLS13) & defined(WOLFSSL_TLS13)
-    WOLFSSL_MSG("Set Client Config for TLS1.3 Only");
-    ESP_LOGW(TAG, "Set Client Config for TLS1.3 Only");
+    ESP_LOGXI(TAG, "Set Client Config for TLS1.3 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_3_client_method());
 #elif defined(CONFIG_WOLFSSL_ALLOW_TLS13)
     #error "CONFIG_WOLFSSL_ALLOW_TLS13 configured without WOLFSSL_TLS13?"
 #elif defined(CONFIG_WOLFSSL_ALLOW_TLS12)
-    WOLFSSL_MSG("Set Client Config for TLS1.2 Only");
-    ESP_LOGW(TAG, "Set Client Config for TLS1.2 Only");
+    ESP_LOGXI(TAG, "Set Client Config for TLS1.2 Only");
     tls->priv_ctx = (void *)wolfSSL_CTX_new(wolfTLSv1_2_client_method());
 #else
     ESP_LOGW(TAG, "No TLS enabled!");
@@ -476,14 +489,11 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
         ESP_LOGD(TAG, "Use certificate bundle");
         wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, my_verify_callback);
-        // wolfssl_ssl_conf_authmode(&tls->conf, WOLFSSL_VERIFY_PEER);
         cfg->crt_bundle_attach(&tls->conf); /* callback is also set here */
+    #ifndef WOLFSSL_NO_CONF_COMPATIBILITY
         tls->conf.priv_ctx = tls->priv_ctx;
         tls->conf.priv_ssl = tls->priv_ssl;
-
-//        wolfSSL_CTX_set_verify( (WOLFSSL_CTX *)(conf->priv_ctx),
-//                            WOLFSSL_VERIFY_PEER, wolfssl_ssl_conf_verify_cb);
-        ESP_LOGW(TAG, "TODO: Implement crt_bundle_attach checks");
+    #endif
 
 #else /* CONFIG_WOLFSSL_CERTIFICATE_BUNDLE */
         ESP_LOGE(TAG, "use_crt_bundle configured but not enabled in menuconfig:"
@@ -572,11 +582,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     }
 
     tls->priv_ssl =(void *)wolfSSL_new( (WOLFSSL_CTX *)tls->priv_ctx);
-//    if ((((WOLFSSL *)(tls->priv_ssl)).options).tls1_3) {
-//
-//    }
     tls->conf.priv_ssl = tls->priv_ssl;
- //   tls->sync((void*)&tls);
     if (!tls->priv_ssl) {
         ESP_LOGE(TAG, "Create wolfSSL failed");
         int err = wolfSSL_get_error( (WOLFSSL *)tls->priv_ssl, ret);
@@ -838,6 +844,12 @@ void esp_wolfssl_verify_certificate(esp_tls_t *tls)
     int flags;
     if ((flags = wolfSSL_get_verify_result( (WOLFSSL *)tls->priv_ssl)) != WOLFSSL_SUCCESS) {
         ESP_LOGE(TAG, "Failed to verify peer certificate , returned %d", flags);
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+        ESP_LOGW(TAG, "WOLFSSL_ALT_CERT_CHAINS is defined");
+#else
+        /* wolfSSL is considerably more strict with certificates by default. */
+        ESP_LOGW(TAG, "Consider chaging the certificates loaded and/or defining WOLFSSL_ALT_CERT_CHAINS to relax certificate check.");
+#endif
         ESP_INT_EVENT_TRACKER_CAPTURE(tls->error_handle, ESP_TLS_ERR_TYPE_WOLFSSL_CERT_FLAGS, flags);
     } else {
         ESP_LOGI(TAG, "Certificate verified.");
