@@ -12,22 +12,16 @@
 #ifdef CONFIG_ESP_TLS_USING_WOLFSSL
 
 #include <wolfssl/wolfcrypt/settings.h>
-
 #ifndef WOLFSSL_ESPIDF
     #warning "WOLFSSL_ESPIDF not defined! Check build system."
 #endif
-
-#ifdef OPENSSL_EXTRA
-    #include <wolfssl/openssl/x509.h>
-#else
-    #warning "OPENSSL_EXTRA should be defined for wolfssl in esp-tls"
-#endif
+#include <wolfssl/openssl/x509.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/version.h>
 #ifdef LIBWOLFSSL_VERSION_HEX
     #if LIBWOLFSSL_VERSION_HEX < 0x05007002
         #warning "wolfSSL 5.7.2 or newer is recommended."
-        #warning "MAnaged Components recommended. See: https://components.espressif.com/components/wolfssl/wolfssl"
+        #warning "Managed Components recommended. See: https://components.espressif.com/components/wolfssl/wolfssl"
     #endif
 #else
     #warning "Unknown wolfSSL version. Check build system."
@@ -43,7 +37,6 @@
     #include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h>
     #include <esp_task_wdt.h>
 #endif
-
 
 #include <http_parser.h>
 #include "esp_tls_wolfssl.h"
@@ -96,9 +89,10 @@ extern const uint8_t x509_crt_imported_bundle_wolfssl_bin_end[]
 /* WOLFSSL_NO_CONF_COMPATIBILITY is not defined;
  * assumes compatibility with existing Espressif "conf" parameters. */
 
+static const char *TAG = "esp-tls-wolfssl";
+
 static unsigned char *global_cacert = NULL;
 static unsigned int global_cacert_pem_bytes = 0;
-static const char *TAG = "esp-tls-wolfssl";
 
 inline void esp_wolfssl_net_init(esp_tls_t *tls)
 {
@@ -220,7 +214,6 @@ void *esp_wolfssl_get_ssl_context(esp_tls_t *tls)
     return (void*)tls->priv_ssl;
 }
 
-static int _is_time_set = 1;
 static int _is_wolfssl_init = 0;
 
 /* ESP-IDF v5.3 introduced a new parameter: server_params */
@@ -247,11 +240,8 @@ static int _is_wolfssl_init = 0;
         _is_wolfssl_init = 1;
     }
     else {
-  //      ret = wolfSSL_Init();
         ESP_LOGI(TAG, "skipping wolfSSL_Init");
     }
-
-    //    wolfSSL_SetLoggingCb(wolfSSL_DebuggingCallback);
 
     if (ret != WOLFSSL_SUCCESS) {
         ESP_LOGE(TAG, "Init wolfSSL failed: 0x%04X", ret);
