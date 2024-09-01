@@ -100,6 +100,20 @@ static unsigned char *global_cacert = NULL;
 static unsigned int global_cacert_pem_bytes = 0;
 static const char *TAG = "esp-tls-wolfssl";
 
+inline void esp_wolfssl_net_init(esp_tls_t *tls)
+{
+    ESP_LOGV(TAG, "esp_wolfssl_net_init");
+    if ((tls == NULL) || (tls->priv_ssl == NULL)){
+        /* nothing to do */
+    }
+    else {
+        if (wolfSSL_set_fd((WOLFSSL*)&tls->priv_ssl, -1) != SSL_SUCCESS) {
+            ESP_LOGE(TAG, "Failed to initialize socket file descriptor");
+        }
+    }
+}
+
+
 /* Prototypes for the static functions */
 static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls_cfg_t *cfg, esp_tls_t *tls);
 static int ShowCiphers(WOLFSSL* ssl);

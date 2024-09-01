@@ -83,11 +83,15 @@ void *esp_wolfssl_get_ssl_context(esp_tls_t *tls);
 /**
  * wolfSSL function for Initializing socket wrappers (no-operation for wolfSSL)
  */
-static inline void esp_wolfssl_net_init(esp_tls_t *tls)
-{
-    ESP_LOGW("esp_tls_wolfssl", "esp_wolfssl_net_init not implemented");
-}
+void esp_wolfssl_net_init(esp_tls_t *tls);
 
+/*
+ * Initialize a context
+ */
+//void wolfssl_net_init(wolfsslctx *ctx)
+//{
+//    ctx->fd = -1;
+//}
 #ifdef CONFIG_ESP_TLS_SERVER
 
 /**
