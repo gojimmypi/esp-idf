@@ -724,7 +724,11 @@ void esp_wolfssl_verify_certificate(esp_tls_t *tls)
         ESP_LOGW(TAG, "WOLFSSL_ALT_CERT_CHAINS is defined");
 #else
         /* wolfSSL is considerably more strict with certificates by default. */
-        ESP_LOGW(TAG, "Consider chaging the certificates loaded and/or defining WOLFSSL_ALT_CERT_CHAINS to relax certificate check.");
+    #if defined(CONFIG_WOLFSSL_CERTIFICATE_BUNDLE) && CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
+        ESP_LOGW(TAG, "Consider chaging the certificates loaded and/or defining WOLFSSL_ALT_CERT_CHAINS to relax certificate check. (1)");
+    #else
+        ESP_LOGW(TAG, "Consider enabling CONFIG_WOLFSSL_CERTIFICATE_BUNDLE.");
+    #endif
 #endif
         ESP_INT_EVENT_TRACKER_CAPTURE(tls->error_handle, ESP_TLS_ERR_TYPE_WOLFSSL_CERT_FLAGS, flags);
     } else {
