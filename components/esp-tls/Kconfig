@@ -11,8 +11,8 @@ menu "ESP-TLS"
             bool "mbedTLS"
 
         config ESP_TLS_USING_WOLFSSL
-            depends on TLS_STACK_WOLFSSL
-            bool "wolfSSL (Set source & see License info in wolfSSL directory README)"
+            bool "wolfSSL (License info in wolfSSL directory README)"
+            select TLS_STACK_WOLFSSL
             help
                 This option enables wolfSSL for ESP-TLS.
                 Note: Ensure TLS_STACK_WOLFSSL is enabled to use this option.

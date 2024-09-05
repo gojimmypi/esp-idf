@@ -34,7 +34,7 @@
 #include "esp_wpa_err.h"
 #ifdef CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
 #include "esp_crt_bundle.h"
-#elif CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
+#elif CONFIG_WOLFSSL_CERTIFICATE_BUNDLE && 0
 #include "wolfssl/wolfcrypt/settings.h"
 #endif
 #include "esp_wpas_glue.h"
