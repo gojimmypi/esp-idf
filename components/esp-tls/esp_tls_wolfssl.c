@@ -237,7 +237,7 @@ static int _is_wolfssl_init = 0;
     if (_is_wolfssl_init == 0) {
         ESP_LOGXI(TAG, "wolfSSL_Init");
         ret = wolfSSL_Init();
-        _is_wolfssl_init = 1;
+      //  _is_wolfssl_init = 1;
     }
     else {
         ESP_LOGXI(TAG, "skipping wolfSSL_Init");
@@ -749,6 +749,7 @@ ssize_t esp_wolfssl_get_bytes_avail(esp_tls_t *tls)
 
 void esp_wolfssl_conn_delete(esp_tls_t *tls)
 {
+    ESP_LOGW(TAG, "esp_wolfssl_conn_delete");
     if (tls != NULL) {
         esp_wolfssl_cleanup(tls);
     }
@@ -756,6 +757,7 @@ void esp_wolfssl_conn_delete(esp_tls_t *tls)
 
 void esp_wolfssl_cleanup(esp_tls_t *tls)
 {
+    ESP_LOGW(TAG, "esp_wolfssl_cleanup");
     if (!tls) {
         return;
     }
@@ -783,6 +785,7 @@ void esp_wolfssl_cleanup(esp_tls_t *tls)
     tls->conf.priv_ssl = NULL;
     tls->conf.priv_ctx = NULL;
 #endif
+    wolfSSL_bundle_cleanup();
     wolfSSL_Cleanup();
 }
 
