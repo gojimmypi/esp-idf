@@ -749,7 +749,7 @@ ssize_t esp_wolfssl_get_bytes_avail(esp_tls_t *tls)
 
 void esp_wolfssl_conn_delete(esp_tls_t *tls)
 {
-    ESP_LOGW(TAG, "esp_wolfssl_conn_delete");
+    ESP_LOGCBW(TAG, "esp_wolfssl_conn_delete");
     if (tls != NULL) {
         esp_wolfssl_cleanup(tls);
     }
@@ -757,7 +757,7 @@ void esp_wolfssl_conn_delete(esp_tls_t *tls)
 
 void esp_wolfssl_cleanup(esp_tls_t *tls)
 {
-    ESP_LOGW(TAG, "esp_wolfssl_cleanup");
+    ESP_LOGCBW(TAG, "esp_wolfssl_cleanup");
     if (!tls) {
         return;
     }
