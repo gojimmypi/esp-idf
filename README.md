@@ -1,5 +1,49 @@
 # Espressif IoT Development Framework
 
+This is the gojimmypi experimental version for PlatformIO.
+
+See [platform-espressif32/issues/1398](https://github.com/platformio/platform-espressif32/issues/1398#issuecomment-2198553046):
+
+- [ ] Fork the IDF version you want to use.
+- [ ] Do your changes.
+- [ ] Add a valid `package.json` and `version.txt` in the root.
+- [ ] Update the [.github/workflows/release_zips.yml](.github/workflows/release_zips.yml): `uses: gojimmypi/github-actions/release_zips@release_idf`
+- [ ] Create a UNIQUE tag. It MUST have `v` prefix! Ensure proper branch is selected.
+- [ ] Create a release. The github function release will NOT work since it does not include the git submodules. The generated release can be used with platform_packages
+- [ ] Confirm action is running at https://github.com/gojimmypi/esp-idf/actions (wait ~15 minutes to complete)
+- [ ] Use newly created, 3rd asset file, listed typically at top with name `esp-idf-v[version id].zip`. Reminder: both path and filename change with each release!
+
+Sample `platformio.ini` file:
+
+```ini
+[env:esp32dev]
+platform = espressif32
+board = esp32dev
+framework = espidf
+monitor_speed = 115200
+platform_packages =
+	; Successful v5.2+my02 custom release:
+    framework-espidf @ https://github.com/gojimmypi/esp-idf/releases/download/v5.2.0+my02/esp-idf-v5.2.0+my02.zip
+
+	; Failing v5.4.1k custom release needs updated toolchain, here with local VisualGDB; error: ld.exe:sections.ld:497: syntax error collect2.exe: error: ld returned 1 exit status
+    ; framework-espidf @ https://github.com/gojimmypi/esp-idf/releases/download/v5.4.1k/esp-idf-v5.4.1k.zip
+    ; toolchain-xtensa-esp-elf @ file:///SysGCC//esp32-master//tools//xtensa-esp-elf//esp-13.2.0_20240530//xtensa-esp-elf
+
+    ; Failing v5.2-my01 (this is what happens if `package.json` and `version.txt` files are missing)
+	; framework-espidf @ https://github.com/gojimmypi/esp-idf/releases/download/v5.2-my01/esp-idf-v5.2-my01.zip
+
+	; framework-espidf @ https://dl.espressif.com/github_assets/espressif/esp-idf/releases/download/v5.2.2/esp-idf-v5.2.2.zip
+	; toolchain-xtensa-esp-elf @ https://github.com/espressif/crosstool-NG/releases/download/esp-13.2.0_20240530/xtensa-esp-elf-13.2.0_20240530-x86_64-w64-mingw32.zip
+    ; toolchain-xtensa-esp-elf @ https://github.com/espressif/crosstool-NG/releases/download/esp-13.2.0_20240530/xtensa-esp-elf-13.2.0_20240530-x86_64-linux-gnu.tar.gz
+lib_deps = wolfssl/wolfssl@^5.7.0-rev.3d
+```
+
+See https://github.com/gojimmypi/esp-idf/releases and https://github.com/gojimmypi/github-actions/tree/master/release_zips
+
+Example can be seen here https://github.com/Jason2866/esp-idf and working PlatformIO releases https://github.com/Jason2866/esp-idf/releases
+
+Important! [Espressif Releases](https://github.com/espressif/esp-idf/releases) CANNOT be used directly!
+
 * [中文版](./README_CN.md)
 
 ESP-IDF is the development framework for Espressif SoCs supported on Windows, Linux and macOS.
