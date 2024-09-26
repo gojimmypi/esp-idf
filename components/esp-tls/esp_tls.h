@@ -711,7 +711,7 @@ int esp_tls_server_session_create(esp_tls_cfg_server_t *cfg, int sockfd, esp_tls
  *
  * @param[in]  tls  pointer to esp_tls_t
  */
-void esp_tls_server_session_delete(esp_tls_t *tls);
+int esp_tls_server_session_delete(esp_tls_t *tls);
 
 /**
  * @brief Creates a plain TCP connection, returning a valid socket fd on success or an error handle

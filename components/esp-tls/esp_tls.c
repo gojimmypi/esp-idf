@@ -112,7 +112,12 @@ static const char *TAG = "esp-tls";
 
 static esp_err_t create_ssl_handle(const char *hostname, size_t hostlen, const void *cfg, esp_tls_t *tls)
 {
+/* TODO is the version wolfSSL or ESP-IDF ? */
+#if defined(ESP_IDF_VERSION) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
     return _esp_create_ssl_handle(hostname, hostlen, cfg, tls, NULL);
+#else
+    return _esp_create_ssl_handle(hostname, hostlen, cfg, tls);
+#endif
 }
 
 static esp_err_t esp_tls_handshake(esp_tls_t *tls, const esp_tls_cfg_t *cfg)
@@ -442,7 +447,10 @@ err:
 
 static int esp_tls_low_level_conn(const char *hostname, int hostlen, int port, const esp_tls_cfg_t *cfg, esp_tls_t *tls)
 {
-
+    if (!tls) {
+        ESP_LOGE(TAG, "empty esp_tls parameter");
+        return -1;
+    }
     esp_err_t esp_ret;
     /* These states are used to keep a tab on connection progress in case of non-blocking connect,
     and in case of blocking connect these cases will get executed one after the other */
@@ -497,6 +505,7 @@ static int esp_tls_low_level_conn(const char *hostname, int hostlen, int port, c
             }
         }
         /* By now, the connection has been established */
+        ESP_LOGI(TAG, "\ncreate_ssl_handle for host: %s:%d\n", hostname, port);
         esp_ret = create_ssl_handle(hostname, hostlen, cfg, tls);
         if (esp_ret != ESP_OK) {
             ESP_LOGE(TAG, "create_ssl_handle failed");
@@ -706,7 +715,7 @@ int esp_tls_server_session_create(esp_tls_cfg_server_t *cfg, int sockfd, esp_tls
 /**
  * @brief      Close the server side TLS/SSL connection and free any allocated resources.
  */
-void esp_tls_server_session_delete(esp_tls_t *tls)
+int esp_tls_server_session_delete(esp_tls_t *tls)
 {
     return _esp_tls_server_session_delete(tls);
 }
