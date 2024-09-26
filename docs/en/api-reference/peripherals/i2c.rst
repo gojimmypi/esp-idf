@@ -8,7 +8,7 @@ Introduction
 
 I2C is a serial, synchronous, multi-device, half-duplex communication protocol that allows co-existence of multiple masters and slaves on the same bus. I2C uses two bidirectional open-drain lines: serial data line (SDA) and serial clock line (SCL), pulled up by resistors.
 
-{IDF_TARGET_NAME} has {IDF_TARGET_SOC_HP_I2C_NUM} I2C controller (also called port), responsible for handling communication on the I2C bus.
+{IDF_TARGET_NAME} has {IDF_TARGET_SOC_HP_I2C_NUM} I2C controller(s) (also called port), responsible for handling communication on the I2C bus.
 
 .. only:: not esp32c2
 
@@ -34,7 +34,7 @@ Typically, an I2C slave device has a 7-bit address or 10-bit address. {IDF_TARGE
 
     The frequency of SCL is influenced by both the pull-up resistor and the wire capacitance. Therefore, it is strongly recommended to choose appropriate pull-up resistors to make the frequency accurate. The recommended value for pull-up resistors usually ranges from 1 kΩ to 10 kΩ.
 
-    Keep in mind that the higher the frequency, the smaller the pull-up resistor should be (but not less than 1 KOhms). Indeed, large resistors will decline the current, which will increase the clock switching time and reduce the frequency. A range of 2 KOhms to 5 KOhms is recommended, but adjustments may also be necessary depending on their current draw requirements.
+    Keep in mind that the higher the frequency, the smaller the pull-up resistor should be (but not less than 1 kΩ). Indeed, large resistors will decline the current, which will increase the clock switching time and reduce the frequency. A range of 2 kΩ to 5 kΩ is recommended, but adjustments may also be necessary depending on their current draw requirements.
 
 
 I2C Clock Configuration
@@ -150,6 +150,27 @@ Once the :cpp:type:`i2c_device_config_t` structure is populated with mandatory p
     i2c_master_dev_handle_t dev_handle;
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
 
+Get I2C master handle via port
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When the I2C master handle has been initialized in one module (e.g. the audio module), but it is not convenient to acquire this handle in another module (e.g. the video module). You can use the helper function, :cpp:func:`i2c_master_get_bus_handle` to retrieve the initialized handle via port. Ensure that the handle has already been initialized beforehand to avoid potential errors.
+
+.. code:: c
+
+    // Source File 1
+    #include "driver/i2c_master.h"
+    i2c_master_bus_handle_t bus_handle;
+    i2c_master_bus_config_t i2c_mst_config = {
+        ... // same as others
+    };
+    ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
+
+    // Source File 2
+    #include "esp_private/i2c_platform.h"
+    #include "driver/i2c_master.h"
+    i2c_master_bus_handle_t handle;
+    ESP_ERROR_CHECK(i2c_master_get_bus_handle(0, &handle));
+
 .. only:: SOC_LP_I2C_SUPPORTED
 
     Install I2C master bus with LP I2C Peripheral
@@ -190,7 +211,7 @@ If a previously installed I2C bus or device is no longer needed, it's recommende
 Install I2C slave device
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-I2C slave requires the configuration that specified by :cpp:type:`i2c_slave_config_t`:
+I2C slave requires the configuration specified by :cpp:type:`i2c_slave_config_t`:
 
 .. list::
 
@@ -200,7 +221,7 @@ I2C slave requires the configuration that specified by :cpp:type:`i2c_slave_conf
     - :cpp:member:`i2c_slave_config_t::clk_source` selects the source clock for I2C bus. The available clocks are listed in :cpp:type:`i2c_clock_source_t`. For the effect on power consumption of different clock source, please refer to `Power Management <#power-management>`__  section.
     - :cpp:member:`i2c_slave_config_t::send_buf_depth` sets the sending buffer length.
     - :cpp:member:`i2c_slave_config_t::slave_addr` sets the slave address.
-    - :cpp:member:`i2c_master_bus_config_t::intr_priority` sets the priority of the interrupt. If set to ``0`` , then the driver will use a interrupt with low or medium priority (priority level may be one of 1, 2 or 3), otherwise use the priority indicated by :cpp:member:`i2c_master_bus_config_t::intr_priority`. Please use the number form (1, 2, 3), not the bitmask form ((1<<1), (1<<2), (1<<3)). Please pay attention that once the interrupt priority is set, it cannot be changed until :cpp:func:`i2c_del_master_bus` is called.
+    - :cpp:member:`i2c_master_bus_config_t::intr_priority` sets the priority of the interrupt. If set to ``0`` , then the driver will use a interrupt with low or medium priority (priority level may be one of 1, 2 or 3), otherwise use the priority indicated by :cpp:member:`i2c_master_bus_config_t::intr_priority`. Please use the number form (1, 2, 3), instead of the bitmask form ((1<<1), (1<<2), (1<<3)). Please pay attention that once the interrupt priority is set, it cannot be changed until :cpp:func:`i2c_del_master_bus` is called.
     - :cpp:member:`i2c_slave_config_t::addr_bit_len`. Set this variable to ``I2C_ADDR_BIT_LEN_10`` if the slave should have a 10-bit address.
     :SOC_I2C_SLAVE_CAN_GET_STRETCH_CAUSE: - :cpp:member:`i2c_slave_config_t::stretch_en`. Set this variable to true, then the slave controller stretch will work. Please refer to [`TRM <{IDF_TARGET_TRM_EN_URL}#i2c>`__] to learn how I2C stretch works.
     :SOC_I2C_SLAVE_CAN_GET_STRETCH_CAUSE: - :cpp:member:`i2c_slave_config_t::broadcast_en`. Set this to true to enable the slave broadcast. When the slave receives the general call address 0x00 from the master and the R/W bit followed is 0, it responds to the master regardless of its own address.
@@ -628,10 +649,10 @@ Kconfig Options
 Application Examples
 --------------------
 
-.. list::
+- :example:`peripherals/i2c/i2c_eeprom` demonstrates how to use the I2C master mode to read and write data from a connected EEPROM.
 
-    - :example:`peripherals/i2c/i2c_eeprom` demonstrates the basic usage of I2C driver by reading and writing from an I2C connected EEPROM.
-    - :example:`peripherals/i2c/i2c_tools` implements some basic features of I2C tools based on the ESP32 console component.
+- :example:`peripherals/i2c/i2c_tools` demonstrates how to use the I2C Tools for developing I2C related applications, providing command-line tools for configuring the I2C bus, scanning for devices, reading and setting registers, and examining registers.
+
 
 API Reference
 -------------

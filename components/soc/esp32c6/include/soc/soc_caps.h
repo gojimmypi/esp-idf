@@ -60,8 +60,7 @@
 #define SOC_SECURE_BOOT_SUPPORTED       1
 #define SOC_SDIO_SLAVE_SUPPORTED        1
 #define SOC_BOD_SUPPORTED               1
-#define SOC_APM_SUPPORTED               1
-#define SOC_APM_CTRL_FILTER_SUPPORTED   1
+#define SOC_APM_SUPPORTED               1 /*!< Support for APM peripheral */
 #define SOC_PMU_SUPPORTED               1
 #define SOC_PAU_SUPPORTED               1
 #define SOC_LP_TIMER_SUPPORTED          1
@@ -155,6 +154,7 @@
 
 #define SOC_CPU_HAS_PMA                 1
 #define SOC_CPU_IDRAM_SPLIT_USING_PMP   1
+#define SOC_CPU_PMP_REGION_GRANULARITY  4
 
 // TODO: IDF-5360 (Copy from esp32c3, need check)
 /*-------------------------- DIGITAL SIGNATURE CAPS ----------------------------------------*/
@@ -204,12 +204,15 @@
 #define SOC_GPIO_OUT_RANGE_MAX          30
 
 #define SOC_GPIO_DEEP_SLEEP_WAKE_VALID_GPIO_MASK        (0ULL | BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7)
+#define SOC_GPIO_DEEP_SLEEP_WAKE_SUPPORTED_PIN_CNT      (8)
 
 // digital I/O pad powered by VDD3P3_CPU or VDD_SPI(GPIO_NUM_8~GPIO_NUM_30)
 #define SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK 0x000000007FFFFF00ULL
 
 // Support to force hold all IOs
 #define SOC_GPIO_SUPPORT_FORCE_HOLD              (1)
+// LP_IOs and DIG_IOs can be hold during deep sleep and after waking up
+#define SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP (1)
 // Support to hold a single digital I/O when the digital domain is powered off
 #define SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP  (1)
 
@@ -226,7 +229,6 @@
                                              */
 #define SOC_RTCIO_HOLD_SUPPORTED            1
 #define SOC_RTCIO_WAKE_SUPPORTED            1
-#define SOC_RTCIO_VALID_RTCIO_MASK         (0xFF)
 
 /*-------------------------- Dedicated GPIO CAPS -----------------------------*/
 #define SOC_DEDIC_GPIO_OUT_CHANNELS_NUM (8) /*!< 8 outward channels on each CPU core */
@@ -263,6 +265,7 @@
 /*-------------------------- I2S CAPS ----------------------------------------*/
 #define SOC_I2S_NUM                 (1U)
 #define SOC_I2S_HW_VERSION_2        (1)
+#define SOC_I2S_SUPPORTS_ETM        (1)
 #define SOC_I2S_SUPPORTS_XTAL       (1)
 #define SOC_I2S_SUPPORTS_PLL_F160M  (1)
 #define SOC_I2S_SUPPORTS_PCM        (1)
@@ -283,6 +286,7 @@
 
 /*-------------------------- MMU CAPS ----------------------------------------*/
 #define SOC_MMU_PAGE_SIZE_CONFIGURABLE        (1)
+#define SOC_MMU_PAGE_SIZE_8KB_SUPPORTED       (1)
 #define SOC_MMU_PERIPH_NUM                    (1U)
 #define SOC_MMU_LINEAR_ADDRESS_REGION_NUM     (1U)
 #define SOC_MMU_DI_VADDR_SHARED               (1) /*!< D/I vaddr are shared */
@@ -477,6 +481,10 @@
 #define SOC_FLASH_ENCRYPTION_XTS_AES        1
 #define SOC_FLASH_ENCRYPTION_XTS_AES_128    1
 
+/*-------------------------- APM CAPS ----------------------------------------*/
+#define SOC_APM_CTRL_FILTER_SUPPORTED   1 /*!< Support for APM control filter */
+#define SOC_APM_LP_APM0_SUPPORTED       1 /*!< Support for LP APM0 control filter */
+
 /*------------------------ Anti DPA (Security) CAPS --------------------------*/
 #define SOC_CRYPTO_DPA_PROTECTION_SUPPORTED     1
 
@@ -541,8 +549,13 @@
 #define SOC_PM_CPU_RETENTION_BY_SW          (1)
 #define SOC_PM_MODEM_RETENTION_BY_REGDMA    (1)
 #define SOC_PM_RETENTION_HAS_CLOCK_BUG      (1)
+#define SOC_EXT_MEM_CACHE_TAG_IN_CPU_DOMAIN (1)
 
-#define SOC_PM_PAU_LINK_NUM             (4)
+#define SOC_PM_PAU_LINK_NUM                 (4)
+#define SOC_PM_PAU_REGDMA_LINK_MULTI_ADDR   (1)
+#define SOC_PM_PAU_REGDMA_LINK_WIFIMAC      (1)
+
+#define SOC_PM_PAU_REGDMA_UPDATE_CACHE_BEFORE_WAIT_COMPARE  (1)
 
 /*-------------------------- CLOCK SUBSYSTEM CAPS ----------------------------------------*/
 #define SOC_CLK_RC_FAST_SUPPORT_CALIBRATION       (1)
@@ -571,6 +584,7 @@
 #define SOC_WIFI_CSI_SUPPORT                (1)    /*!< Support CSI */
 #define SOC_WIFI_MESH_SUPPORT               (1)    /*!< Support WIFI MESH */
 #define SOC_WIFI_HE_SUPPORT                 (1)    /*!< Support Wi-Fi 6 */
+#define SOC_WIFI_MAC_VERSION_NUM            (2)    /*!< Wi-Fi MAC version num is 2 */
 
 /*---------------------------------- Bluetooth CAPS ----------------------------------*/
 #define SOC_BLE_SUPPORTED               (1)    /*!< Support Bluetooth Low Energy hardware */
@@ -594,3 +608,4 @@
 
 /*------------------------------------- ULP CAPS -------------------------------------*/
 #define SOC_LP_CORE_SINGLE_INTERRUPT_VECTOR   (1) /*!< LP Core interrupts all map to a single entry in vector table */
+#define SOC_LP_CORE_SUPPORT_ETM               (1) /*!< LP Core supports ETM */

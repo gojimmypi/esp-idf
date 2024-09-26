@@ -173,6 +173,7 @@
 #define SOC_GPIO_OUT_RANGE_MAX          21
 
 #define SOC_GPIO_DEEP_SLEEP_WAKE_VALID_GPIO_MASK        (0ULL | BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5)
+#define SOC_GPIO_DEEP_SLEEP_WAKE_SUPPORTED_PIN_CNT      (6)
 
 // digital I/O pad powered by VDD3P3_CPU or VDD_SPI(GPIO_NUM_6~GPIO_NUM_21)
 #define SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK 0x00000000003FFFC0ULL
@@ -180,6 +181,9 @@
 // The Clock Out signal is route to the pin by GPIO matrix
 #define SOC_GPIO_CLOCKOUT_BY_GPIO_MATRIX    (1)
 #define SOC_GPIO_CLOCKOUT_CHANNEL_NUM       (3)
+
+// "RTC"_IOs and DIG_IOs can be hold during deep sleep and after waking up
+#define SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP (1)
 
 /*-------------------------- Dedicated GPIO CAPS -----------------------------*/
 #define SOC_DEDIC_GPIO_OUT_CHANNELS_NUM (8) /*!< 8 outward channels on each CPU core */
@@ -436,6 +440,7 @@
 
 #define SOC_PM_CPU_RETENTION_BY_RTCCNTL      (1)
 #define SOC_PM_MODEM_RETENTION_BY_BACKUPDMA  (1)
+#define SOC_PM_MODEM_PD_BY_SW                (1)
 
 /*--------------------------- CLOCK SUBSYSTEM CAPS -------------------------- */
 #define SOC_CLK_RC_FAST_D256_SUPPORTED            (1)

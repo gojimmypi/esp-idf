@@ -1,6 +1,8 @@
 通用定时器
 =====================
 
+:link_to_translation:`en:[English]`
+
 简介
 -----------------
 
@@ -8,9 +10,9 @@
 
 通用定时器通常在以下场景中使用：
 
--  如同挂钟一般自由运行，随时随地获取高分辨率时间戳；
--  生成周期性警报，定期触发事件；
--  生成一次性警报，在目标时间内响应。
+- 如同挂钟一般自由运行，随时随地获取高分辨率时间戳；
+- 生成周期性警报，定期触发事件；
+- 生成一次性警报，在目标时间内响应。
 
 功能概述
 -----------------
@@ -25,7 +27,7 @@
     - :ref:`gptimer-register-event-callbacks` - 如何将用户的特定代码挂载到警报事件回调函数。
     - :ref:`enable-and-disable-timer` - 如何使能和禁用定时器。
     - :ref:`start-and-stop-timer` - 通过不同报警行为启动定时器的典型使用场景。
-    :SOC_ETM_SUPPORTED and SOC_TIMER_SUPPORT_ETM: - :ref:`gptimer-etm-event-and-task` - 定时器提供了哪些事件和任务可以连接到 ETM 通道上。
+    :SOC_TIMER_SUPPORT_ETM: - :ref:`gptimer-etm-event-and-task` - 定时器提供了哪些事件和任务可以连接到 ETM 通道上。
     - :ref:`gptimer-power-management` - 选择不同的时钟源将会如何影响功耗。
     - :ref:`gptimer-iram-safe` - 在 cache 禁用的情况下，如何更好地让定时器处理中断事务以及实现 IO 控制功能。
     - :ref:`gptimer-thread-safety` - 驱动程序保证哪些 API 线程安全。
@@ -258,10 +260,10 @@
     };
     ESP_ERROR_CHECK(gptimer_register_event_callbacks(gptimer, &cbs, queue));
     ESP_ERROR_CHECK(gptimer_enable(gptimer));
-    ESP_ERROR_CHECK(gptimer_start(gptimer, &alarm_config));
+    ESP_ERROR_CHECK(gptimer_start(gptimer));
 
 
-.. only:: SOC_ETM_SUPPORTED and SOC_TIMER_SUPPORT_ETM
+.. only:: SOC_TIMER_SUPPORT_ETM
 
     .. _gptimer-etm-event-and-task:
 
@@ -274,7 +276,7 @@
 
     .. _gptimer-power-management:
 
-.. only:: not SOC_ETM_SUPPORTED or not SOC_TIMER_SUPPORT_ETM
+.. only:: not SOC_TIMER_SUPPORT_ETM
 
     .. _gptimer-power-management:
 
@@ -341,16 +343,21 @@ Kconfig 选项
 
 .. list::
 
-    - 示例 :example:`peripherals/timer_group/gptimer` 中列出了通用定时器的典型用例。
-    :SOC_TIMER_SUPPORT_ETM: - 示例 :example:`peripherals/timer_group/gptimer_capture_hc_sr04` 展示了如何在 ETM 模块的帮助下，用定时器捕获外部事件的时间戳。
+    * :example:`peripherals/timer_group/gptimer` 演示了如何在 ESP 芯片上使用通用定时器 API 生成周期性警报事件，触发不同的警报动作。
+    :SOC_TIMER_SUPPORT_ETM: * :example:`peripherals/timer_group/gptimer_capture_hc_sr04` 展示了如何使用通用定时器和事件任务矩阵 (ETM) 外设来捕获内部定时器计数值，并测量两个事件之间的时间，用于解码常见的 HC-SR04 超声波传感器生成的脉冲宽度信号。
+    :not esp32c2: * :example:`peripherals/timer_group/wiegand_interface` 使用两个定时器（一个在单次触发模式下，另一个在周期触发模式下），来触发中断并在中断中改变 GPIO 的输出状态。
+
 
 API 参考
 -------------------
 
 .. include-build-file:: inc/gptimer.inc
-.. include-build-file:: inc/gptimer_etm.inc
 .. include-build-file:: inc/gptimer_types.inc
 .. include-build-file:: inc/timer_types.inc
+
+.. only:: SOC_TIMER_SUPPORT_ETM
+
+    .. include-build-file:: inc/gptimer_etm.inc
 
 .. [1]
    不同 ESP 芯片系列的通用定时器实例数量可能不同。了解详细信息，请参考《{IDF_TARGET_NAME} 技术参考手册》 > 章节定时器组 (TIMG) [`PDF <{IDF_TARGET_TRM_CN_URL}#timg>`__]。驱动程序对通道申请数量不做限制，但当硬件资源用尽时，驱动程序将返回错误。在分配资源时，请务必检查返回值（例如 :cpp:func:`gptimer_new_timer`）。

@@ -47,7 +47,15 @@ config SOC_PCNT_SUPPORTED
     bool
     default y
 
+config SOC_LCDCAM_SUPPORTED
+    bool
+    default y
+
 config SOC_LCDCAM_CAM_SUPPORTED
+    bool
+    default y
+
+config SOC_LCDCAM_I80_LCD_SUPPORTED
     bool
     default y
 
@@ -189,11 +197,11 @@ config SOC_ECC_EXTENDED_MODES_SUPPORTED
 
 config SOC_ECDSA_SUPPORTED
     bool
-    default y
+    default n
 
 config SOC_KEY_MANAGER_SUPPORTED
     bool
-    default y
+    default n
 
 config SOC_FLASH_ENC_SUPPORTED
     bool
@@ -243,6 +251,18 @@ config SOC_LP_I2C_SUPPORTED
     bool
     default y
 
+config SOC_LP_I2S_SUPPORTED
+    bool
+    default y
+
+config SOC_LP_SPI_SUPPORTED
+    bool
+    default y
+
+config SOC_LP_ADC_SUPPORTED
+    bool
+    default y
+
 config SOC_SPIRAM_SUPPORTED
     bool
     default y
@@ -260,6 +280,10 @@ config SOC_CLK_TREE_SUPPORTED
     default y
 
 config SOC_ASSIST_DEBUG_SUPPORTED
+    bool
+    default y
+
+config SOC_DEBUG_PROBE_SUPPORTED
     bool
     default y
 
@@ -499,6 +523,10 @@ config SOC_CPU_PMP_REGION_GRANULARITY
     int
     default 128
 
+config SOC_CPU_HAS_LOCKUP_RESET
+    bool
+    default y
+
 config SOC_DS_SIGNATURE_MAX_BIT_LEN
     int
     default 4096
@@ -595,6 +623,14 @@ config SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP
     bool
     default y
 
+config SOC_LP_IO_HAS_INDEPENDENT_WAKEUP_SOURCE
+    bool
+    default y
+
+config SOC_LP_IO_CLOCK_IS_INDEPENDENT
+    bool
+    default y
+
 config SOC_GPIO_VALID_GPIO_MASK
     hex
     default 0x007FFFFFFFFFFFFF
@@ -610,6 +646,10 @@ config SOC_GPIO_OUT_RANGE_MAX
 config SOC_GPIO_DEEP_SLEEP_WAKE_VALID_GPIO_MASK
     int
     default 0
+
+config SOC_GPIO_DEEP_SLEEP_WAKE_SUPPORTED_PIN_CNT
+    int
+    default 16
 
 config SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK
     hex
@@ -627,11 +667,15 @@ config SOC_CLOCKOUT_SUPPORT_CHANNEL_DIVIDER
     bool
     default y
 
-config SOC_GPIO_SUPPORT_FORCE_HOLD
-    bool
-    default y
+config SOC_DEBUG_PROBE_NUM_UNIT
+    int
+    default 1
 
-config SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
+config SOC_DEBUG_PROBE_MAX_OUTPUT_WIDTH
+    int
+    default 16
+
+config SOC_GPIO_SUPPORT_FORCE_HOLD
     bool
     default y
 
@@ -743,7 +787,15 @@ config SOC_I2S_HW_VERSION_2
     bool
     default y
 
+config SOC_I2S_SUPPORTS_ETM
+    bool
+    default y
+
 config SOC_I2S_SUPPORTS_XTAL
+    bool
+    default y
+
+config SOC_I2S_SUPPORTS_APLL
     bool
     default y
 
@@ -787,6 +839,10 @@ config SOC_I2S_TDM_FULL_DATA_WIDTH
     bool
     default y
 
+config SOC_LP_I2S_NUM
+    int
+    default 1
+
 config SOC_ISP_BF_SUPPORTED
     bool
     default y
@@ -795,7 +851,23 @@ config SOC_ISP_CCM_SUPPORTED
     bool
     default y
 
+config SOC_ISP_DEMOSAIC_SUPPORTED
+    bool
+    default y
+
 config SOC_ISP_DVP_SUPPORTED
+    bool
+    default y
+
+config SOC_ISP_SHARPEN_SUPPORTED
+    bool
+    default y
+
+config SOC_ISP_COLOR_SUPPORTED
+    bool
+    default y
+
+config SOC_ISP_SHARE_CSI_BRG
     bool
     default y
 
@@ -807,6 +879,18 @@ config SOC_ISP_DVP_CTLR_NUMS
     int
     default 1
 
+config SOC_ISP_AE_CTLR_NUMS
+    int
+    default 1
+
+config SOC_ISP_AE_BLOCK_X_NUMS
+    int
+    default 5
+
+config SOC_ISP_AE_BLOCK_Y_NUMS
+    int
+    default 5
+
 config SOC_ISP_AF_CTLR_NUMS
     int
     default 1
@@ -814,10 +898,6 @@ config SOC_ISP_AF_CTLR_NUMS
 config SOC_ISP_AF_WINDOW_NUMS
     int
     default 3
-
-config SOC_ISP_SHARE_CSI_BRG
-    bool
-    default y
 
 config SOC_ISP_BF_TEMPLATE_X_NUMS
     int
@@ -831,9 +911,73 @@ config SOC_ISP_CCM_DIMENSION
     int
     default 3
 
+config SOC_ISP_DEMOSAIC_GRAD_RATIO_INT_BITS
+    int
+    default 2
+
+config SOC_ISP_DEMOSAIC_GRAD_RATIO_DEC_BITS
+    int
+    default 4
+
+config SOC_ISP_DEMOSAIC_GRAD_RATIO_RES_BITS
+    int
+    default 26
+
 config SOC_ISP_DVP_DATA_WIDTH_MAX
     int
     default 16
+
+config SOC_ISP_SHARPEN_TEMPLATE_X_NUMS
+    int
+    default 3
+
+config SOC_ISP_SHARPEN_TEMPLATE_Y_NUMS
+    int
+    default 3
+
+config SOC_ISP_SHARPEN_H_FREQ_COEF_INT_BITS
+    int
+    default 3
+
+config SOC_ISP_SHARPEN_H_FREQ_COEF_DEC_BITS
+    int
+    default 5
+
+config SOC_ISP_SHARPEN_H_FREQ_COEF_RES_BITS
+    int
+    default 24
+
+config SOC_ISP_SHARPEN_M_FREQ_COEF_INT_BITS
+    int
+    default 3
+
+config SOC_ISP_SHARPEN_M_FREQ_COEF_DEC_BITS
+    int
+    default 5
+
+config SOC_ISP_SHARPEN_M_FREQ_COEF_RES_BITS
+    int
+    default 24
+
+config SOC_ISP_HIST_CTLR_NUMS
+    int
+    default 1
+
+config SOC_ISP_HIST_BLOCK_X_NUMS
+    int
+    default 5
+
+config SOC_ISP_HIST_BLOCK_Y_NUMS
+    int
+    default 5
+
+config SOC_ISP_HIST_SEGMENT_NUMS
+    int
+    default 16
+
+config SOC_ISP_HIST_INTERVAL_NUMS
+    int
+    default 15
 
 config SOC_LEDC_SUPPORT_PLL_DIV_CLOCK
     bool
@@ -866,10 +1010,6 @@ config SOC_LEDC_SUPPORT_FADE_STOP
 config SOC_LEDC_FADE_PARAMS_BIT_WIDTH
     int
     default 10
-
-config SOC_MMU_PAGE_SIZE_CONFIGURABLE
-    bool
-    default n
 
 config SOC_MMU_PERIPH_NUM
     int
@@ -995,25 +1135,21 @@ config SOC_RMT_SUPPORT_SLEEP_RETENTION
     bool
     default y
 
-config SOC_LCD_I80_BUSES
-    int
-    default 1
-
-config SOC_LCD_RGB_PANELS
-    int
-    default 1
-
-config SOC_LCD_I80_BUS_WIDTH
-    int
-    default 24
-
-config SOC_LCD_RGB_DATA_WIDTH
-    int
-    default 24
-
-config SOC_LCD_SUPPORT_RGB_YUV_CONV
+config SOC_LCD_I80_SUPPORTED
     bool
     default y
+
+config SOC_LCDCAM_I80_NUM_BUSES
+    int
+    default 1
+
+config SOC_LCDCAM_I80_BUS_WIDTH
+    int
+    default 24
+
+config SOC_LCDCAM_RGB_NUM_PANELS
+    int
+    default 1
 
 config SOC_MCPWM_GROUPS
     int
@@ -1279,6 +1415,18 @@ config SOC_SPI_MAX_PRE_DIVIDER
     int
     default 16
 
+config SOC_LP_SPI_PERIPH_NUM
+    bool
+    default y
+
+config SOC_LP_SPI_MAXIMUM_BUFFER_SIZE
+    int
+    default 64
+
+config SOC_SPIRAM_XIP_SUPPORTED
+    bool
+    default y
+
 config SOC_SPI_MEM_SUPPORT_AUTO_WAIT_IDLE
     bool
     default y
@@ -1328,6 +1476,10 @@ config SOC_MEMSPI_SRC_FREQ_40M_SUPPORTED
     default y
 
 config SOC_MEMSPI_SRC_FREQ_20M_SUPPORTED
+    bool
+    default y
+
+config SOC_MEMSPI_FLASH_PSRAM_INDEPENDENT
     bool
     default y
 
@@ -1492,6 +1644,14 @@ config SOC_EFUSE_DIS_DOWNLOAD_MSPI
     default y
 
 config SOC_EFUSE_ECDSA_KEY
+    bool
+    default y
+
+config SOC_KEY_MANAGER_ECDSA_KEY_DEPLOY
+    bool
+    default y
+
+config SOC_KEY_MANAGER_FE_KEY_DEPLOY
     bool
     default y
 
@@ -1667,6 +1827,10 @@ config SOC_CPU_IN_TOP_DOMAIN
     bool
     default y
 
+config SOC_PM_PAU_REGDMA_UPDATE_CACHE_BEFORE_WAIT_COMPARE
+    bool
+    default y
+
 config SOC_PSRAM_VDD_POWER_MPLL
     bool
     default y
@@ -1678,6 +1842,10 @@ config SOC_CLK_RC_FAST_SUPPORT_CALIBRATION
 config SOC_MODEM_CLOCK_IS_INDEPENDENT
     bool
     default n
+
+config SOC_CLK_APLL_SUPPORTED
+    bool
+    default y
 
 config SOC_CLK_MPLL_SUPPORTED
     bool
@@ -1692,6 +1860,10 @@ config SOC_CLK_RC32K_SUPPORTED
     default y
 
 config SOC_CLK_LP_FAST_SUPPORT_LP_PLL
+    bool
+    default y
+
+config SOC_CLK_LP_FAST_SUPPORT_XTAL
     bool
     default y
 
@@ -1762,3 +1934,11 @@ config SOC_LCDCAM_CAM_PERIPH_NUM
 config SOC_LCDCAM_CAM_DATA_WIDTH_MAX
     int
     default 16
+
+config SOC_LP_CORE_SUPPORT_ETM
+    bool
+    default y
+
+config SOC_LP_CORE_SUPPORT_LP_ADC
+    bool
+    default y

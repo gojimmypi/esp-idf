@@ -421,7 +421,7 @@ eFuse 位序采取小字节序（参见下方示例），这说明 eFuse 位按�
 
 .. code-block:: none
 
-    $ espefuse.py dump
+    $ idf.py efuse-dump
 
     USER_DATA      (BLOCK3          ) [3 ] read_regs: 03020100 07060504 0B0A0908 0F0E0D0C 13121111 17161514 1B1A1918 1F1E1D1C
     BLOCK4         (BLOCK4          ) [4 ] read_regs: 03020100 07060504 0B0A0908 0F0E0D0C 13121111 17161514 1B1A1918 1F1E1D1C
@@ -511,7 +511,7 @@ eFuse 位序采取小字节序（参见下方示例），这说明 eFuse 位按�
         },
     }
 
-可以通过项目顶层目录下的 ``CMakeLists.txt`` (:example_file:`get-started/hello_world/CMakeLists.txt`) 来使用这些函数：
+可以通过项目顶层目录下的 ``CMakeLists.txt`` (:example_file:`system/efuse/CMakeLists.txt`) 来使用这些函数：
 
 .. code-block:: cmake
 
@@ -522,13 +522,13 @@ eFuse 位序采取小字节序（参见下方示例），这说明 eFuse 位按�
     espefuse_get_efuse(ret_data ${efuse_json} "MAC" "value")
     message("MAC:" ${ret_data})
 
-``value`` 属性的格式与 ``espefuse.py summary`` 中显示的格式相同。
+``value`` 属性的格式与 ``espefuse.py summary`` 或 ``idf.py efuse-summary`` 中显示的格式相同。
 
 .. code-block:: none
 
     MAC:94:b9:7e:5a:6e:58 (CRC 0xe2 OK)
 
-在示例测试 :example_file:`system/efuse/CMakeLists.txt` 中，添加了一个自定义目标 ``efuse-summary``。这样，不仅在项目构建阶段，而在任何时候都可以运行 ``idf.py efuse-summary`` 命令读取所需的 eFuse（在 ``efuse_names`` 列表中指定）。
+在示例测试 :example_file:`system/efuse/CMakeLists.txt` 中，添加了一个自定义目标 ``efuse-filter``。这样，不仅在项目构建阶段，而在任何时候都可以运行 ``idf.py efuse-filter`` 命令读取所需的 eFuse（在 ``efuse_names`` 列表中指定）。
 
 调试 eFuse & 单元测试
 ------------------------
@@ -565,6 +565,18 @@ esptool 中包含一个用于读取/写入 {IDF_TARGET_NAME} eFuse 位的有用�
 ``idf.py`` 命令也可以直接提供上述工具的部分功能。例如，运行 ``idf.py efuse-summary`` 命令，效果等同于 ``espefuse.py summary``。
 
 .. include:: inc/espefuse_summary_{IDF_TARGET_NAME}.rst
+
+获取所有 eFuse 寄存器的转储数据。
+
+.. include:: inc/espefuse_summary_{IDF_TARGET_NAME}_dump.rst
+
+应用示例
+-----------------
+
+- :example:`system/efuse` 演示了如何在 {IDF_TARGET_NAME} 上使用 eFuse API，展示了从通用和自定义 eFuse 表中读取和写入字段的操作，并解释了虚拟 eFuse 在调试中的用途。
+
+API 参考
+----------------
 
 .. include-build-file:: inc/esp_efuse_chip.inc
 .. include-build-file:: inc/esp_efuse.inc

@@ -6,6 +6,7 @@
 
 #include <string.h>
 #include "sdkconfig.h"
+#include "esp_macros.h"
 #include "esp_system.h"
 #include "esp_private/system_internal.h"
 #include "esp_attr.h"
@@ -49,6 +50,7 @@ void IRAM_ATTR esp_system_reset_modules_on_exit(void)
     SET_PERI_REG_MASK(HP_SYS_CLKRST_HP_RST_EN1_REG, HP_SYS_CLKRST_REG_RST_EN_UART3_CORE);
     SET_PERI_REG_MASK(HP_SYS_CLKRST_HP_RST_EN1_REG, HP_SYS_CLKRST_REG_RST_EN_UART4_CORE);
     SET_PERI_REG_MASK(HP_SYS_CLKRST_HP_RST_EN0_REG, HP_SYS_CLKRST_REG_RST_EN_GDMA);
+    SET_PERI_REG_MASK(HP_SYS_CLKRST_HP_RST_EN2_REG, HP_SYS_CLKRST_REG_RST_EN_ADC);
 
     // Clear Peripheral clk rst
     CLEAR_PERI_REG_MASK(HP_SYS_CLKRST_HP_RST_EN1_REG, HP_SYS_CLKRST_REG_RST_EN_TIMERGRP0);
@@ -62,6 +64,7 @@ void IRAM_ATTR esp_system_reset_modules_on_exit(void)
     CLEAR_PERI_REG_MASK(HP_SYS_CLKRST_HP_RST_EN1_REG, HP_SYS_CLKRST_REG_RST_EN_UART3_CORE);
     CLEAR_PERI_REG_MASK(HP_SYS_CLKRST_HP_RST_EN1_REG, HP_SYS_CLKRST_REG_RST_EN_UART4_CORE);
     CLEAR_PERI_REG_MASK(HP_SYS_CLKRST_HP_RST_EN0_REG, HP_SYS_CLKRST_REG_RST_EN_GDMA);
+    CLEAR_PERI_REG_MASK(HP_SYS_CLKRST_HP_RST_EN2_REG, HP_SYS_CLKRST_REG_RST_EN_ADC);
 
 #if CONFIG_ESP32P4_REV_MIN_FULL <= 100
     // enable soc clk and reset parent crypto
@@ -162,7 +165,5 @@ void IRAM_ATTR esp_restart_noos(void)
     }
 #endif
 
-    while (true) {
-        ;
-    }
+    ESP_INFINITE_LOOP();
 }

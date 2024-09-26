@@ -93,6 +93,7 @@ esp_err_t ieee802154_mac_deinit(void);
  *
  * @return
  *      - ESP_OK on success.
+ *      - ESP_ERR_INVALID_ARG on an invalid frame.
  *      - ESP_FAIL on failure due to invalid state.
  *
  */
@@ -130,6 +131,7 @@ esp_err_t ieee802154_receive_handle_done(const uint8_t* frame);
  *
  * @return
  *      - ESP_OK on success.
+ *      - ESP_ERR_INVALID_ARG on an invalid frame.
  *      - ESP_FAIL on failure due to invalid state.
  *
  * Note: The transmit result will be reported via esp_ieee802154_transmit_done()
@@ -245,6 +247,7 @@ extern void esp_ieee802154_timer1_done(void);
 #define IEEE802154_STATIC  static
 #define IEEE802154_INLINE  inline
 #endif // CONFIG_IEEE802154_TEST
+#define IEEE802154_NOINLINE __attribute__((noinline))
 
 #ifdef __cplusplus
 }

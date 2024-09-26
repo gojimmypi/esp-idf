@@ -506,6 +506,13 @@ static BaseType_t prvCheckItemAvail(Ringbuffer_t *pxRingbuffer)
         return pdFALSE;     //Byte buffers do not allow multiple retrievals before return
     }
     if ((pxRingbuffer->xItemsWaiting > 0) && ((pxRingbuffer->pucRead != pxRingbuffer->pucWrite) || (pxRingbuffer->uxRingbufferFlags & rbBUFFER_FULL_FLAG))) {
+        // If the ring buffer is a no-split buffer, the read pointer must point to an item that has been written to.
+        if ((pxRingbuffer->uxRingbufferFlags & (rbBYTE_BUFFER_FLAG | rbALLOW_SPLIT_FLAG)) == 0) {
+            ItemHeader_t *pxHeader = (ItemHeader_t *)pxRingbuffer->pucRead;
+            if ((pxHeader->uxItemFlags & rbITEM_WRITTEN_FLAG) == 0) {
+                return pdFALSE;
+            }
+        }
         return pdTRUE;      //Items/data available for retrieval
     } else {
         return pdFALSE;     //No items/data available for retrieval
@@ -979,9 +986,6 @@ BaseType_t xRingbufferSendAcquire(RingbufHandle_t xRingbuffer, void **ppvItem, s
     if (xItemSize > pxRingbuffer->xMaxItemSize) {
         return pdFALSE;     //Data will never ever fit in the queue.
     }
-    if ((pxRingbuffer->uxRingbufferFlags & rbBYTE_BUFFER_FLAG) && xItemSize == 0) {
-        return pdTRUE;      //Sending 0 bytes to byte buffer has no effect
-    }
 
     return prvSendAcquireGeneric(pxRingbuffer, NULL, ppvItem, xItemSize, xTicksToWait);
 }
@@ -1374,6 +1378,11 @@ RingbufHandle_t xRingbufferCreateWithCaps(size_t xBufferSize, RingbufferType_t x
     StaticRingbuffer_t *pxStaticRingbuffer;
     uint8_t *pucRingbufferStorage;
 
+    //Allocate memory
+    if (xBufferType != RINGBUF_TYPE_BYTEBUF) {
+        xBufferSize = rbALIGN_SIZE(xBufferSize);    //xBufferSize is rounded up for no-split/allow-split buffers
+    }
+
     pxStaticRingbuffer = heap_caps_malloc(sizeof(StaticRingbuffer_t), (uint32_t)uxMemoryCaps);
     pucRingbufferStorage = heap_caps_malloc(xBufferSize, (uint32_t)uxMemoryCaps);
 
@@ -1397,7 +1406,8 @@ err:
 
 void vRingbufferDeleteWithCaps(RingbufHandle_t xRingbuffer)
 {
-    BaseType_t xResult;
+    // Return value unused if asserts are disabled
+    BaseType_t __attribute__((unused)) xResult;
     StaticRingbuffer_t *pxStaticRingbuffer = NULL;
     uint8_t *pucRingbufferStorage = NULL;
 

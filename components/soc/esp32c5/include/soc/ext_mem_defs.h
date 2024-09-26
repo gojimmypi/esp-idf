@@ -32,6 +32,12 @@ extern "C" {
 #define SOC_DRAM_FLASH_ADDRESS_LOW                   SOC_DRAM0_CACHE_ADDRESS_LOW
 #define SOC_DRAM_FLASH_ADDRESS_HIGH                  SOC_DRAM0_CACHE_ADDRESS_HIGH
 
+#define SOC_IRAM_PSRAM_ADDRESS_LOW                   SOC_IRAM0_CACHE_ADDRESS_LOW
+#define SOC_IRAM_PSRAM_ADDRESS_HIGH                  SOC_IRAM0_CACHE_ADDRESS_HIGH
+
+#define SOC_DRAM_PSRAM_ADDRESS_LOW                   SOC_DRAM0_CACHE_ADDRESS_LOW
+#define SOC_DRAM_PSRAM_ADDRESS_HIGH                  SOC_DRAM0_CACHE_ADDRESS_HIGH
+
 #define SOC_BUS_SIZE(bus_name)                       (bus_name##_ADDRESS_HIGH - bus_name##_ADDRESS_LOW)
 #define SOC_ADDRESS_IN_BUS(bus_name, vaddr)          ((vaddr) >= bus_name##_ADDRESS_LOW && (vaddr) < bus_name##_ADDRESS_HIGH)
 
@@ -52,7 +58,7 @@ extern "C" {
  * valid bit + value bits
  * valid bit is BIT(9), so value bits are 0x1ff
  */
-#define SOC_MMU_VALID_VAL_MASK (SOC_MMU_ACCESS_SPIRAM-1)
+#define SOC_MMU_VALID_VAL_MASK (SOC_MMU_ACCESS_SPIRAM - 1)
 /**
  * Max MMU available paddr page num.
  * `SOC_MMU_MAX_PADDR_PAGE_NUM * SOC_MMU_PAGE_SIZE` means the max paddr address supported by the MMU. e.g.:
@@ -66,7 +72,7 @@ extern "C" {
  * This is the mask used for mapping. e.g.:
  * 0x4200_0000 & SOC_MMU_VADDR_MASK
  */
-#define SOC_MMU_VADDR_MASK                  ((SOC_MMU_PAGE_SIZE) * SOC_MMU_ENTRY_NUM - 1)
+#define SOC_MMU_VADDR_MASK                   ((SOC_MMU_PAGE_SIZE) * SOC_MMU_ENTRY_NUM - 1)
 
 #define SOC_MMU_DBUS_VADDR_BASE               0x42000000
 #define SOC_MMU_IBUS_VADDR_BASE               0x42000000

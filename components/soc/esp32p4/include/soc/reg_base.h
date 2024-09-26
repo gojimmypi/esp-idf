@@ -59,7 +59,9 @@
 #define DR_REG_DDRPHY_BASE            (DR_REG_HPPERIPH0_BASE + 0x9D000)
 #define DR_REG_PVT_BASE               (DR_REG_HPPERIPH0_BASE + 0x9E000)
 #define DR_REG_CSI_HOST_BASE          (DR_REG_HPPERIPH0_BASE + 0x9F000)
+#define DR_REG_CSI_BRG_BASE           (DR_REG_HPPERIPH0_BASE + 0x9F800)
 #define DR_REG_DSI_HOST_BASE          (DR_REG_HPPERIPH0_BASE + 0xA0000)
+#define DR_REG_DSI_BRG_BASE           (DR_REG_HPPERIPH0_BASE + 0xA0800)
 #define DR_REG_ISP_BASE               (DR_REG_HPPERIPH0_BASE + 0xA1000)
 #define DR_REG_RMT_BASE               (DR_REG_HPPERIPH0_BASE + 0xA2000)
 #define DR_REG_BITSCRAM_BASE          (DR_REG_HPPERIPH0_BASE + 0xA3000)
@@ -161,8 +163,10 @@
 /**
  * @brief: Special memory address
  */
+#define LP_I2S_RAM_BASE               0x50125c00
 #define MIPI_CSI_BRG_MEM_BASE         0x50104000
 #define MIPI_DSI_BRG_MEM_BASE         0x50105000
+
 
 /**
  * This are module helper MACROs for quick module reference
@@ -194,9 +198,7 @@
 #define DR_REG_INTERRUPT_CORE1_BASE             (DR_REG_INTR_BASE + 0x800)
 #define DR_REG_LPPERI_BASE                      DR_REG_LP_PERI_CLKRST_BASE
 #define DR_REG_CPU_BUS_MONITOR_BASE             DR_REG_CPU_BUS_MON_BASE
-
+#define DR_REG_ASSIST_DEBUG_BASE                DR_REG_CPU_BUS_MON_BASE
 #define DR_REG_PAU_BASE                         DR_REG_REGDMA_BASE
-
-//TODO: IDF-7688
-// #define DR_REG_TRACE_BASE                       0x600C0000
-#define DR_REG_ASSIST_DEBUG_BASE                0x3FF06000
+#define DR_REG_SDHOST_BASE                      DR_REG_SDMMC_BASE
+#define DR_REG_TRACE_BASE                       DR_REG_TRACE0_BASE

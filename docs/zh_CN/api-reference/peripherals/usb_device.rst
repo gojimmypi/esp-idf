@@ -5,16 +5,16 @@ USB 设备栈
 
 {IDF_TARGET_USB_DP_GPIO_NUM:default="20"}
 {IDF_TARGET_USB_DM_GPIO_NUM:default="19"}
-{IDF_TARGET_USB_EP_NUM:default="6"}
-{IDF_TARGET_USB_EP_NUM_INOUT:default="5"}
-{IDF_TARGET_USB_EP_NUM_IN:default="1"}
+{IDF_TARGET_USB_EP_NUM: default="6", esp32p4="15"}
+{IDF_TARGET_USB_EP_NUM_INOUT:default="5", esp32p4="8"}
+{IDF_TARGET_USB_EP_NUM_IN:default="1", esp32p4="7"}
 
 概述
 --------
 
 USB 设备栈（以下简称设备栈）支持在 {IDF_TARGET_NAME} 上启用 USB 设备支持。通过使用设备栈，可以为 {IDF_TARGET_NAME} 烧录任意具有明确定义的 USB 设备功能（如键盘、鼠标、摄像头）、自定义功能（也称特定供应商类别）或上述功能的组合（也称复合设备）。
 
-设备栈基于 TinyUSB 栈构建，但对 TinyUSB 进行了一些小的功能扩展和修改，使其更好地集成到 ESP-IDF。设备栈通过 `ESP-IDF 组件注册器 <https://components.espressif.com/components/espressif/esp_tinyusb>`__ 作为托管组件分发。
+设备栈基于 TinyUSB 栈构建，但对 TinyUSB 进行了一些小的功能扩展和修改，使其更好地集成到 ESP-IDF。设备栈通过 `乐鑫组件注册表 <https://components.espressif.com/components/espressif/esp_tinyusb>`__ 作为托管组件分发。
 
 功能列表
 --------
@@ -34,16 +34,24 @@ USB 设备栈（以下简称设备栈）支持在 {IDF_TARGET_NAME} 上启用 US
 硬件连接
 --------
 
-{IDF_TARGET_NAME} 将 USB D+ 和 D- 信号分别路由到 GPIO {IDF_TARGET_USB_DP_GPIO_NUM} 和 {IDF_TARGET_USB_DM_GPIO_NUM}。为了实现 USB 设备功能，这些 GPIO 应通过某种方式连接到总线上（例如，通过 Micro-B 端口、USB-C 端口或直接连接到标准-A 插头）。
+.. only:: esp32s2 or esp32s3
+
+    {IDF_TARGET_NAME} 将 USB D+ 和 D- 信号分别路由到 GPIO {IDF_TARGET_USB_DP_GPIO_NUM} 和 {IDF_TARGET_USB_DM_GPIO_NUM}。为了实现 USB 设备功能，这些 GPIO 应通过某种方式连接到总线（例如，通过 Micro-B 端口、USB-C 端口或直接连接到标准-A 插头）。
+
+.. only:: esp32p4
+
+    {IDF_TARGET_NAME} 将 USB D+ 和 D- 信号路由到其专用引脚。为了实现 USB 设备功能，这些引脚应通过某种方式连接到总线（例如，通过 Micro-B 端口、USB-C 端口或直接连接到标准-A 插头）。
 
 .. figure:: ../../../_static/usb-board-connection.png
     :align: center
     :alt: 将 USB GPIO 直接接连至 USB 标准-A 插头
     :figclass: align-center
 
-.. note::
+.. only:: esp32s2 or esp32s3
 
-    如果你使用带有两个 USB 端口的 {IDF_TARGET_NAME} 开发板，标有 "USB" 的端口已经连接到 D+ 和 D- GPIO。
+    .. note::
+
+        如果你使用带有两个 USB 端口的 {IDF_TARGET_NAME} 开发板，标有 "USB" 的端口已经连接到 D+ 和 D- GPIO。
 
 .. note::
 
@@ -63,7 +71,7 @@ USB 设备栈（以下简称设备栈）支持在 {IDF_TARGET_NAME} 上启用 US
 组件依赖项
 -------------
 
-设备栈通过 `ESP-IDF 组件注册器 <https://components.espressif.com/components/espressif/esp_tinyusb>`__ 分发，使用前，请使用以下命令将设备栈组件添加为依赖项：
+设备栈通过 `乐鑫组件注册表 <https://components.espressif.com/components/espressif/esp_tinyusb>`__ 分发，使用前，请使用以下命令将设备栈组件添加为依赖项：
 
 .. code:: bash
 
@@ -95,15 +103,17 @@ USB 设备栈（以下简称设备栈）支持在 {IDF_TARGET_NAME} 上启用 US
 
 - :cpp:member:`configuration_descriptor`
 
-高速 USB 设备应初始化以下字段，以提供不同速度下的配置描述符：
+.. only:: esp32p4
 
-- :cpp:member:`fs_configuration_descriptor`
-- :cpp:member:`hs_configuration_descriptor`
-- :cpp:member:`qualifier_descriptor`
+    高速 USB 设备应初始化以下字段，以提供不同速度下的配置描述符：
 
-.. note::
+    - :cpp:member:`fs_configuration_descriptor`
+    - :cpp:member:`hs_configuration_descriptor`
+    - :cpp:member:`qualifier_descriptor`
 
-    若设备栈支持高速，为符合 USB 2.0 协议规范，应同时初始化 :cpp:member:`fs_configuration_descriptor` 和 :cpp:member:`hs_configuration_descriptor`。
+    .. note::
+
+        为符合 USB 2.0 协议规范，需同时初始化 :cpp:member:`fs_configuration_descriptor` 和 :cpp:member:`hs_configuration_descriptor`。
 
 调用 :cpp:func:`tinyusb_driver_install` 时，设备栈将基于上述字段中提供的描述符实现 USB 设备。
 
@@ -260,23 +270,15 @@ USB 大容量存储设备 (MSC)
 应用示例
 --------------------
 
-下表列出了 :example:`peripherals/usb/device` 目录下的代码示例：
+如需查看相关示例，请前往目录 :example:`peripherals/usb/device`。
 
-.. list-table::
-   :widths: 35 65
-   :header-rows: 1
+- :example:`peripherals/usb/device/tusb_console` 演示了如何使用 TinyUSB 组件配置 {IDF_TARGET_NAME}，以通过串行设备连接获取和输出日志，适用于任何支持 USB-OTG 的乐鑫开发板。
+- :example:`peripherals/usb/device/tusb_serial_device` 演示了如何使用 TinyUSB 组件将 {IDF_TARGET_NAME} 配置为 USB 串行设备，还支持配置为双串行设备。
+- :example:`peripherals/usb/device/tusb_midi` 演示了如何使用 TinyUSB 组件将 {IDF_TARGET_NAME} 配置为 USB MIDI 设备，从而通过本地 USB 端口输出 MIDI 音符序列。
+- :example:`peripherals/usb/device/tusb_hid` 演示了如何使用 TinyUSB 组件实现 USB 键盘和鼠标，在连接到 USB 主机时发送 “按下和释放 key a/A” 事件，并使鼠标沿方形轨迹移动。
+- :example:`peripherals/usb/device/tusb_msc` 演示了如何使用 USB 功能创建一个可以被 USB 主机识别的大容量存储设备，允许访问其内部数据存储，支持 SPI Flash 和 SD MMC 卡存储介质。
+- :example:`peripherals/usb/device/tusb_composite_msc_serialdevice` 演示了如何使用 TinyUSB 组件将 {IDF_TARGET_NAME} 同时配置为 USB 串行设备和 MSC 设备（存储介质为 SPI-Flash）运行。
 
-   * - 代码示例
-     - 描述
-   * - :example:`peripherals/usb/device/tusb_console`
-     - 设置 {IDF_TARGET_NAME} 芯片，通过串行设备连接获取日志输出
-   * - :example:`peripherals/usb/device/tusb_serial_device`
-     - 设置 {IDF_TARGET_NAME} 芯片，将其作为 USB 串行设备使用
-   * - :example:`peripherals/usb/device/tusb_midi`
-     - 设置 {IDF_TARGET_NAME} 芯片，将其作为 USB MIDI 设备使用
-   * - :example:`peripherals/usb/device/tusb_hid`
-     - 设置 {IDF_TARGET_NAME} 芯片，将其作为 USB 人机界面设备使用
-   * - :example:`peripherals/usb/device/tusb_msc`
-     - 设置 {IDF_TARGET_NAME} 芯片，将其作为 USB 大容量存储设备使用
-   * - :example:`peripherals/usb/device/tusb_composite_msc_serialdevice`
-     - 设置 {IDF_TARGET_NAME} 芯片，将其作为复合 USB 设备使用 (MSC + CDC)
+.. only:: not esp32p4
+
+  - :example:`peripherals/usb/device/tusb_ncm` 演示了使用 TinyUSB 组件，借助网络控制模型 (NCM) 将 Wi-Fi 数据通过 USB 传输到 Linux 或 Windows 主机。NCM 是通信设备类 (CDC) USB 设备的一个子类，专用于 Ethernet-over-USB 应用。

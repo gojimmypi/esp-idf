@@ -1851,7 +1851,7 @@ def add_variables_to_deactivate_file(args: List[str], new_idf_vars:Dict[str, Any
     return deactivate_file_path
 
 
-def deactivate_statement(args: List[str]) -> None:
+def print_deactivate_statement(args: List[str]) -> None:
     """
     Deactivate statement is sequence of commands, that remove IDF global variables from environment,
     so the environment gets to the state it was before calling export.{sh/fish} script.
@@ -2152,8 +2152,9 @@ def action_export(args: Any) -> None:
     """
     Exports all necessary environment variables and paths needed for tools used.
     """
-    if args.deactivate and different_idf_detected():
-        deactivate_statement(args)
+    if args.deactivate:
+        if different_idf_detected():
+            print_deactivate_statement(args)
         return
 
     tools_info = load_tools_info()
@@ -2604,18 +2605,12 @@ def action_install_python_env(args):  # type: ignore
         warn(f'Removing the existing Python environment in {idf_python_env_path}')
         shutil.rmtree(idf_python_env_path)
 
-    venv_can_upgrade = False
-
     if os.path.exists(virtualenv_python):
         check_python_venv_compatibility(idf_python_env_path, idf_version)
     else:
         if subprocess.run([sys.executable, '-m', 'venv', '-h'], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
             # venv available
             virtualenv_options = ['--clear']  # delete environment if already exists
-            if sys.version_info[:2] >= (3, 9):
-                # upgrade pip & setuptools
-                virtualenv_options += ['--upgrade-deps']
-                venv_can_upgrade = True
 
             info(f'Creating a new Python environment in {idf_python_env_path}')
 
@@ -2656,17 +2651,19 @@ def action_install_python_env(args):  # type: ignore
         warn('Found PIP_USER="yes" in the environment. Disabling PIP_USER in this shell to install packages into a virtual environment.')
         env_copy['PIP_USER'] = 'no'
 
-    if not venv_can_upgrade:
-        info('Upgrading pip and setuptools...')
-        subprocess.check_call([virtualenv_python, '-m', 'pip', 'install', '--upgrade', 'pip', 'setuptools'],
-                              stdout=sys.stdout, stderr=sys.stderr, env=env_copy)
+    constraint_file = get_constraints(idf_version) if use_constraints else None
+
+    info('Upgrading pip and setuptools...')
+    run_args = [virtualenv_python, '-m', 'pip', 'install', '--upgrade', 'pip', 'setuptools']
+    if constraint_file:
+        run_args += ['--constraint', constraint_file]
+    subprocess.check_call(run_args, stdout=sys.stdout, stderr=sys.stderr, env=env_copy)
 
     run_args = [virtualenv_python, '-m', 'pip', 'install', '--no-warn-script-location']
     requirements_file_list = get_requirements(args.features)
     for requirement_file in requirements_file_list:
         run_args += ['-r', requirement_file]
-    if use_constraints:
-        constraint_file = get_constraints(idf_version)
+    if constraint_file:
         run_args += ['--upgrade', '--constraint', constraint_file]
     if args.extra_wheels_dir:
         run_args += ['--find-links', args.extra_wheels_dir]
@@ -2680,7 +2677,7 @@ def action_install_python_env(args):  # type: ignore
         run_args += ['--find-links', wheels_dir]
 
     info('Installing Python packages')
-    if use_constraints:
+    if constraint_file:
         info(f' Constraint file: {constraint_file}')
     info(' Requirement files:')
     info(os.linesep.join(f'  - {path}' for path in requirements_file_list))
@@ -2760,8 +2757,8 @@ class ChecksumFileParser():
         <sha256sum-string> *<artifact-filename>
         ... (2 lines for every artifact) ...
     """
-    def __init__(self, tool_name: str, url: str) -> None:
-        self.tool_name = tool_name
+    def __init__(self, filename_prefix: str, url: str) -> None:
+        self.filename_prefix = filename_prefix
 
         sha256_file_tmp = os.path.join(g.idf_tools_path, 'tools', 'add-version.sha256.tmp')
         sha256_file = os.path.abspath(url)
@@ -2796,8 +2793,8 @@ class ChecksumFileParser():
                     raise SystemExit(1)
                 # crosstool-ng checksum file contains info about few tools
                 # e.g.: "xtensa-esp32-elf", "xtensa-esp32s2-elf"
-                # filter records for file by tool_name to avoid mismatch
-                if not hash_filename.startswith(self.tool_name):
+                # filter records for file by filename_prefix to avoid mismatch
+                if not hash_filename.startswith(self.filename_prefix):
                     continue
                 size = self.parseLine(r'^# \S*: (\d*) bytes', bytes_str)
                 sha256 = self.parseLine(r'^(\S*) ', hash_str)
@@ -2831,7 +2828,8 @@ def action_add_version(args: Any) -> None:
         version_obj = IDFToolVersion(version, version_status)
         tool_obj.versions[version] = version_obj
     url_prefix = args.url_prefix or f'https://{TODO_MESSAGE}/'
-    checksum_info: ChecksumFileParser = (ChecksumFileParser(tool_name, args.checksum_file)
+    filename_prefix = args.dist_filename_prefix if len(args.dist_filename_prefix) else tool_name
+    checksum_info: ChecksumFileParser = (ChecksumFileParser(filename_prefix, args.checksum_file)
                                          if args.checksum_file
                                          else ChecksumCalculator(args.artifact_file))  # type: ignore
     for file_size, file_sha256, file_name in checksum_info:
@@ -3163,6 +3161,9 @@ def main(argv: List[str]) -> None:
         add_version.add_argument('--version', help='Version identifier', required=True)
         add_version.add_argument('--url-prefix', help='String to prepend to file names to obtain download URLs')
         add_version.add_argument('--override', action='store_true', help='Override tool versions with new data')
+        add_version.add_argument('--dist-filename-prefix',
+                                 help='Prefix of distro archive name in checksum file. If skipped tool name is used.',
+                                 default='')
         add_version_files_group = add_version.add_mutually_exclusive_group(required=True)
         add_version_files_group.add_argument('--checksum-file', help='URL or path to local file with checksum/size for artifacts')
         add_version_files_group.add_argument('--artifact-file', help='File names of the download artifacts', nargs='*')

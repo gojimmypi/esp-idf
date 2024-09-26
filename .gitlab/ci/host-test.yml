@@ -68,22 +68,6 @@ test_ldgen_on_host:
   variables:
     LC_ALL: C.UTF-8
 
-test_reproducible_build:
-  extends: .host_test_template
-  script:
-    - ./tools/ci/test_reproducible_build.sh
-  artifacts:
-    when: on_failure
-    paths:
-      - "**/sdkconfig"
-      - "**/build*/*.bin"
-      - "**/build*/*.elf"
-      - "**/build*/*.map"
-      - "**/build*/flasher_args.json"
-      - "**/build*/*.bin"
-      - "**/build*/bootloader/*.bin"
-      - "**/build*/partition_table/*.bin"
-
 test_spiffs_on_host:
   extends: .host_test_template
   script:
@@ -299,16 +283,16 @@ test_pytest_qemu:
     paths:
       - XUNIT_RESULT.xml
       - pytest-embedded/
+      - "**/build*/*.bin"
     reports:
       junit: XUNIT_RESULT.xml
-  allow_failure: true # IDFCI-1752
   parallel:
     matrix:
       - IDF_TARGET: [esp32, esp32c3]
   variables:
     INSTALL_QEMU: 1
   script:
-    - run_cmd python tools/ci/ci_build_apps.py . -vv
+    - run_cmd python tools/ci/ci_build_apps.py . -v
       --target $IDF_TARGET
       --pytest-apps
       -m qemu
@@ -318,6 +302,7 @@ test_pytest_qemu:
     - python tools/ci/get_known_failure_cases_file.py
     - run_cmd pytest
       --target $IDF_TARGET
+      --log-cli-level DEBUG
       -m qemu
       --embedded-services idf,qemu
       --junitxml=XUNIT_RESULT.xml
@@ -337,7 +322,7 @@ test_pytest_linux:
     reports:
       junit: XUNIT_RESULT.xml
   script:
-    - run_cmd python tools/ci/ci_build_apps.py components examples tools/test_apps -vv
+    - run_cmd python tools/ci/ci_build_apps.py components examples tools/test_apps -v
       --target linux
       --pytest-apps
       -m host_test
@@ -348,6 +333,7 @@ test_pytest_linux:
     - run_cmd pytest
       --target linux
       -m host_test
+      --embedded-services idf
       --junitxml=XUNIT_RESULT.xml
       --ignore-result-files ${KNOWN_FAILURE_CASES_FILE_NAME}
       --app-info-filepattern \"list_job_*.txt\"
@@ -383,7 +369,6 @@ test_pytest_macos:
       --ignore-result-files ${KNOWN_FAILURE_CASES_FILE_NAME}
       --app-info-filepattern \"list_job_*.txt\"
 
-
 test_idf_pytest_plugin:
   extends:
     - .host_test_template
@@ -398,3 +383,22 @@ test_idf_pytest_plugin:
     - python -m unittest test_report_generator.py
     - cd ${IDF_PATH}/tools/ci/idf_pytest
     - pytest --junitxml=${CI_PROJECT_DIR}/XUNIT_RESULT.xml
+
+test_idf_build_apps_load_soc_caps:
+  extends: .host_test_template
+  script:
+    - python tools/ci/check_soc_headers_load_in_idf_build_apps.py
+
+test_nvs_gen_check:
+  extends: .host_test_template
+  artifacts:
+    paths:
+      - XUNIT_RESULT.xml
+      - components/nvs_flash/nvs_partition_tool
+    reports:
+      junit: XUNIT_RESULT.xml
+  variables:
+    LC_ALL: C.UTF-8
+  script:
+    - cd ${IDF_PATH}/components/nvs_flash/nvs_partition_tool
+    - pytest --noconftest test_nvs_gen_check.py --junitxml=XUNIT_RESULT.xml

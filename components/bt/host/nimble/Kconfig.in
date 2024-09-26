@@ -65,7 +65,7 @@ config BT_NIMBLE_LOG_LEVEL
 config BT_NIMBLE_MAX_CONNECTIONS
     int "Maximum number of concurrent connections"
     range 1 2 if IDF_TARGET_ESP32C2
-    range 1 70 if IDF_TARGET_ESP32C6
+    range 1 70 if IDF_TARGET_ESP32C6 || IDF_TARGET_ESP32C5 || IDF_TARGET_ESP32C61
     range 1 35 if IDF_TARGET_ESP32H2
     range 1 9
     default 2 if IDF_TARGET_ESP32C2
@@ -163,6 +163,16 @@ config BT_NIMBLE_NVS_PERSIST
     default n
     help
             Enable this flag to make bonding persistent across device reboots
+
+config BT_NIMBLE_SMP_ID_RESET
+    bool "Reset device identity when all bonding records are deleted"
+    default n
+    help
+        There are tracking risks associated with using a fixed or static IRK.
+        If enabled this option, Bluedroid will assign a new randomly-generated IRK
+        when all pairing and bonding records are deleted. This would decrease the ability
+        of a previously paired peer to be used to determine whether a device
+        with which it previously shared an IRK is within range.
 
 menuconfig BT_NIMBLE_SECURITY_ENABLE
     bool "Enable BLE SM feature"
@@ -636,6 +646,13 @@ config BT_NIMBLE_PERIODIC_ADV_ENH
     help
         Enable the periodic advertising enhancements
 
+config BT_NIMBLE_AOA_AOD
+    bool "Direction Finding"
+    depends on BT_NIMBLE_50_FEATURE_SUPPORT && SOC_BLE_CTE_SUPPORTED
+    default n
+    help
+        Enable support for Connectionless and Connection Oriented Direction Finding
+
 menuconfig BT_NIMBLE_GATT_CACHING
     bool "Enable GATT caching"
     depends on BT_NIMBLE_ENABLED && BT_NIMBLE_50_FEATURE_SUPPORT
@@ -922,6 +939,12 @@ config BT_NIMBLE_HIGH_DUTY_ADV_ITVL
     depends on BT_NIMBLE_ENABLED
     help
         This enable BLE high duty advertising interval feature
+
+config BT_NIMBLE_HOST_ALLOW_CONNECT_WITH_SCAN
+    bool "Allow Connections with scanning in progress"
+    depends on BT_NIMBLE_ENABLED && (IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32S3)
+    help
+        This enables support for user to initiate a new connection with scan in progress
 
 config BT_NIMBLE_HOST_QUEUE_CONG_CHECK
     bool "BLE queue congestion check"

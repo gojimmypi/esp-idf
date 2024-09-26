@@ -17,8 +17,12 @@ SECTIONS
    */
   .rtc.text :
   {
-    ALIGNED_SYMBOL(4, _rtc_fast_start)
-    ALIGNED_SYMBOL(4, _rtc_text_start)
+    /* Align the start of RTC code region as per PMP granularity
+     * this ensures we do not overwrite the permissions for the previous
+     * region (ULP mem) regardless of its end alignment
+     */
+    ALIGNED_SYMBOL(_esp_pmp_align_size, _rtc_fast_start)
+    ALIGNED_SYMBOL(_esp_pmp_align_size, _rtc_text_start)
 
     *(.rtc.entry.text)
 
@@ -26,6 +30,9 @@ SECTIONS
 
     *rtc_wake_stub*.*(.text .text.*)
     *(.rtc_text_end_test)
+
+    /* Align the end of RTC code region as per PMP granularity */
+    . = ALIGN(_esp_pmp_align_size);
 
     _rtc_text_end = ABSOLUTE(.);
   } > lp_ram_seg
@@ -166,6 +173,9 @@ SECTIONS
   /* Marks the end of IRAM code segment */
   .iram0.text_end (NOLOAD) :
   {
+    /* Align the end of code region as per PMP region granularity */
+    . = ALIGN(_esp_pmp_align_size);
+
     ALIGNED_SYMBOL(4, _iram_text_end)
   } > sram_seg
 
@@ -371,6 +381,45 @@ SECTIONS
     . = ALIGN(ALIGNOF(.eh_frame_hdr));
   } > default_rodata_seg
   ASSERT_SECTIONS_GAP(.flash.rodata, .eh_frame_hdr)
+
+  /* External RAM */
+  /**
+   * This section is required to skip flash sections, because `extern_ram_seg`
+   * and `drom_seg` / `irom_seg` are on the same bus when app build use flash sections
+   */
+  .ext_ram.dummy (NOLOAD):
+  {
+    . = ORIGIN(extern_ram_seg);
+    . = . + (_rodata_reserved_end - _flash_rodata_dummy_start);
+    . = ALIGN (_esp_mmu_page_size);
+  } > extern_ram_seg
+
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+  /* This section holds .ext_ram.bss data, and will be put in PSRAM */
+  .ext_ram.bss (NOLOAD) :
+  {
+    _ext_ram_bss_start = ABSOLUTE(.);
+
+    mapping[extern_ram]
+
+    ALIGNED_SYMBOL(4, _ext_ram_bss_end)
+  } > extern_ram_seg
+#endif  //CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+
+#if CONFIG_SPIRAM_ALLOW_NOINIT_SEG_EXTERNAL_MEMORY
+  /**
+   * This section holds data that won't be initialised when startup.
+   * This section locates in External RAM region.
+   */
+  .ext_ram_noinit (NOLOAD) :
+  {
+    _ext_ram_noinit_start = ABSOLUTE(.);
+
+    *(.ext_ram_noinit*)
+
+    ALIGNED_SYMBOL(4, _ext_ram_noinit_end)
+  } > extern_ram_seg
+#endif //CONFIG_SPIRAM_ALLOW_NOINIT_SEG_EXTERNAL_MEMORY
 
   .eh_frame_hdr :
   {

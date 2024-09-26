@@ -134,8 +134,8 @@ static void s_reserve_irom_region(mem_region_t *hw_mem_regions, int region_nums)
      * - Now IBUS addresses (between `_instruction_reserved_start` and `_instruction_reserved_end`) are consecutive on all chips,
      *   we strongly rely on this to calculate the .text length
      */
-    extern int _instruction_reserved_start;
-    extern int _instruction_reserved_end;
+    extern char _instruction_reserved_start;
+    extern char _instruction_reserved_end;
     size_t irom_len_to_reserve = (uint32_t)&_instruction_reserved_end - (uint32_t)&_instruction_reserved_start;
     assert((mmu_ll_vaddr_to_laddr((uint32_t)&_instruction_reserved_end) - mmu_ll_vaddr_to_laddr((uint32_t)&_instruction_reserved_start)) == irom_len_to_reserve);
 
@@ -162,8 +162,8 @@ static void s_reserve_drom_region(mem_region_t *hw_mem_regions, int region_nums)
     /**
      * Similarly, we follow the way how 1st bootloader load flash .rodata:
      */
-    extern int _rodata_reserved_start;
-    extern int _rodata_reserved_end;
+    extern char _rodata_reserved_start;
+    extern char _rodata_reserved_end;
     size_t drom_len_to_reserve = (uint32_t)&_rodata_reserved_end - (uint32_t)&_rodata_reserved_start;
     assert((mmu_ll_vaddr_to_laddr((uint32_t)&_rodata_reserved_end) - mmu_ll_vaddr_to_laddr((uint32_t)&_rodata_reserved_start)) == drom_len_to_reserve);
 
@@ -187,7 +187,7 @@ static void s_reserve_drom_region(mem_region_t *hw_mem_regions, int region_nums)
 #endif  //#if CONFIG_APP_BUILD_USE_FLASH_SECTIONS
 
 #if SOC_MMU_PER_EXT_MEM_TARGET
-static inline uint32_t s_get_mmu_id_from_target(mmu_target_t target)
+FORCE_INLINE_ATTR uint32_t s_get_mmu_id_from_target(mmu_target_t target)
 {
     return (target == MMU_TARGET_FLASH0) ? MMU_LL_FLASH_MMU_ID : MMU_LL_PSRAM_MMU_ID;
 }
@@ -510,7 +510,15 @@ esp_err_t esp_mmu_map(esp_paddr_t paddr_start, size_t size, mmu_target_t target,
 
     if (is_enclosed) {
         ESP_LOGW(TAG, "paddr block is mapped already, vaddr_start: %p, size: 0x%x", (void *)mem_block->vaddr_start, mem_block->size);
-        *out_ptr = (void *)mem_block->vaddr_start;
+        /*
+         * This condition is triggered when `s_is_enclosed` is true and hence
+         * we are sure that `paddr_start` >= `mem_block->paddr_start`.
+         *
+         * Add the offset of new physical address while returning the virtual
+         * address.
+         */
+        const uint32_t new_paddr_offset = paddr_start - mem_block->paddr_start;
+        *out_ptr = (void *)mem_block->vaddr_start + new_paddr_offset;
         return ESP_ERR_INVALID_STATE;
     }
 

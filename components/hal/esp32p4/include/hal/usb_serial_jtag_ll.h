@@ -120,7 +120,7 @@ static inline int usb_serial_jtag_ll_read_rxfifo(uint8_t *buf, uint32_t rd_len)
     int i;
     for (i = 0; i < (int)rd_len; i++) {
         if (!USB_SERIAL_JTAG.ep1_conf.serial_out_ep_data_avail) break;
-        buf[i] = HAL_FORCE_READ_U32_REG_FIELD(USB_SERIAL_JTAG.ep1, rdwr_byte);
+        buf[i] = USB_SERIAL_JTAG.ep1.rdwr_byte;
     }
     return i;
 }
@@ -139,7 +139,7 @@ static inline int usb_serial_jtag_ll_write_txfifo(const uint8_t *buf, uint32_t w
     int i;
     for (i = 0; i < (int)wr_len; i++) {
         if (!USB_SERIAL_JTAG.ep1_conf.serial_in_ep_data_free) break;
-        HAL_FORCE_MODIFY_U32_REG_FIELD(USB_SERIAL_JTAG.ep1, rdwr_byte, buf[i]);
+        USB_SERIAL_JTAG.ep1.rdwr_byte = buf[i];
     }
     return i;
 }
@@ -331,7 +331,7 @@ FORCE_INLINE_ATTR void usb_serial_jtag_ll_phy_enable_pad(bool enable)
  * @brief Enable the bus clock for USJ module
  * @param clk_en True if enable the clock of USJ module
  */
-FORCE_INLINE_ATTR void usb_serial_jtag_ll_enable_bus_clock(bool clk_en)
+FORCE_INLINE_ATTR void _usb_serial_jtag_ll_enable_bus_clock(bool clk_en)
 {
     HP_SYS_CLKRST.soc_clk_ctrl2.reg_usb_device_apb_clk_en = clk_en;
     // Enable PHY clock (48MHz) for USB FSLS PHY 0
@@ -339,7 +339,7 @@ FORCE_INLINE_ATTR void usb_serial_jtag_ll_enable_bus_clock(bool clk_en)
 }
 
 // HP_SYS_CLKRST.soc_clk_ctrlx and LP_AON_CLKRST.hp_usb_clkrst_ctrlx are shared registers, so this function must be used in an atomic way
-#define usb_serial_jtag_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; usb_serial_jtag_ll_enable_bus_clock(__VA_ARGS__)
+#define usb_serial_jtag_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; _usb_serial_jtag_ll_enable_bus_clock(__VA_ARGS__)
 
 /**
  * @brief Reset the USJ module

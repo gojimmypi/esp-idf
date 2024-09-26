@@ -47,6 +47,7 @@ examples/system/ota/otatool/otatool_example.py
 examples/system/ota/otatool/otatool_example.sh
 install.fish
 install.sh
+tools/activate.py
 tools/check_python_dependencies.py
 tools/ci/build_template_app.sh
 tools/ci/check_api_violation.sh
@@ -80,7 +81,6 @@ tools/ci/push_to_github.sh
 tools/ci/sort_yaml.py
 tools/ci/test_autocomplete/test_autocomplete.py
 tools/ci/test_configure_ci_environment.sh
-tools/ci/test_reproducible_build.sh
 tools/docker/entrypoint.sh
 tools/esp_app_trace/logtrace_proc.py
 tools/esp_app_trace/sysviewtrace_proc.py

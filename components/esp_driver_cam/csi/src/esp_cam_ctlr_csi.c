@@ -22,6 +22,7 @@
 #include "esp_private/periph_ctrl.h"
 #include "esp_private/mipi_csi_share_hw_ctrl.h"
 #include "esp_private/esp_cache_private.h"
+#include "esp_private/esp_clk_tree_common.h"
 #include "esp_cache.h"
 
 #if CONFIG_CAM_CTLR_MIPI_CSI_ISR_IRAM_SAFE
@@ -117,6 +118,7 @@ esp_err_t esp_cam_new_csi_ctlr(const esp_cam_ctlr_csi_config_t *config, esp_cam_
 #endif
 
     mipi_csi_phy_clock_source_t clk_src = !config->clk_src ? MIPI_CSI_PHY_CLK_SRC_DEFAULT : config->clk_src;
+    esp_clk_tree_enable_src((soc_module_clk_t)clk_src, true);
     PERIPH_RCC_ATOMIC() {
         // phy clock source setting
         mipi_csi_ll_set_phy_clock_source(ctlr->csi_id, clk_src);
@@ -350,7 +352,7 @@ IRAM_ATTR static bool csi_dma_trans_done_callback(dw_gdma_channel_handle_t chan,
     dw_gdma_channel_enable_ctrl(chan, true);
 
     if ((ctlr->trans.buffer != ctlr->backup_buffer) || ctlr->bk_buffer_exposed) {
-        esp_err_t ret = esp_cache_msync((void *)(ctlr->trans.buffer), ctlr->trans.received_size, ESP_CACHE_MSYNC_FLAG_INVALIDATE);
+        esp_err_t ret = esp_cache_msync((void *)(ctlr->trans.buffer), ctlr->trans.received_size, ESP_CACHE_MSYNC_FLAG_DIR_M2C);
         assert(ret == ESP_OK);
         assert(ctlr->cbs.on_trans_finished);
         if (ctlr->cbs.on_trans_finished) {

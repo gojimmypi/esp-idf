@@ -83,6 +83,8 @@
 
   - "tools/idf_monitor.py"
 
+  - "tools/activate.py"
+
   - "tools/idf.py"
   - "tools/idf_py_actions/**/*"
   - "tools/test_idf_py/**/*"
@@ -96,6 +98,11 @@
   - "tools/test_idf_tools/**/*"
   - "tools/install_util.py"
 
+  - "tools/export_utils/utils.py"
+  - "tools/export_utils/shell_types.py"
+  - "tools/export_utils/console_output.py"
+  - "tools/export_utils/activate_venv.py"
+
   - "tools/requirements/*"
   - "tools/requirements.json"
   - "tools/requirements_schema.json"
@@ -107,8 +114,6 @@
 
   - "tools/detect_python.sh"
   - "tools/detect_python.fish"
-
-  - "tools/ci/test_reproducible_build.sh"
 
   - "tools/gen_soc_caps_kconfig/*"
   - "tools/gen_soc_caps_kconfig/test/test_gen_soc_caps_kconfig.py"

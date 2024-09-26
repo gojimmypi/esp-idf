@@ -59,6 +59,7 @@
 /CONTRIBUTING.md                      @esp-idf-codeowners/docs
 /Kconfig                              @esp-idf-codeowners/build-config
 /README*.md                           @esp-idf-codeowners/docs
+/ROADMAP*.md                          @esp-idf-codeowners/docs
 /SUPPORT_POLICY*.md                   @esp-idf-codeowners/docs
 /add_path.sh                          @esp-idf-codeowners/tools
 /conftest.py                          @esp-idf-codeowners/ci
@@ -108,6 +109,7 @@
 /components/esp_psram/                @esp-idf-codeowners/peripherals @esp-idf-codeowners/system
 /components/esp_ringbuf/              @esp-idf-codeowners/system
 /components/esp_rom/                  @esp-idf-codeowners/system @esp-idf-codeowners/bluetooth @esp-idf-codeowners/wifi
+/components/esp_security/             @esp-idf-codeowners/security
 /components/esp_system/               @esp-idf-codeowners/system
 /components/esp_timer/                @esp-idf-codeowners/system
 /components/esp-tls/                  @esp-idf-codeowners/app-utilities
@@ -140,6 +142,7 @@
 /components/protocomm/                @esp-idf-codeowners/app-utilities/provisioning
 /components/pthread/                  @esp-idf-codeowners/system
 /components/riscv/                    @esp-idf-codeowners/system
+/components/rt/                       @esp-idf-codeowners/system
 /components/sdmmc/                    @esp-idf-codeowners/storage
 /components/soc/                      @esp-idf-codeowners/peripherals @esp-idf-codeowners/system
 /components/spi_flash/                @esp-idf-codeowners/peripherals

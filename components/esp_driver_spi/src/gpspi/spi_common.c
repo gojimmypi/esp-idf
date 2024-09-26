@@ -287,12 +287,8 @@ esp_err_t spicommon_dma_desc_alloc(spi_dma_ctx_t *dma_ctx, int cfg_max_sz, int *
         dma_desc_ct = 1;    //default to 4k when max is not given
     }
 
-    esp_dma_mem_info_t dma_mem_info = {
-        .dma_alignment_bytes = DMA_DESC_MEM_ALIGN_SIZE,
-    };
-    esp_dma_capable_malloc(sizeof(spi_dma_desc_t) * dma_desc_ct, &dma_mem_info, (void*)&dma_ctx->dmadesc_tx, NULL);
-    esp_dma_capable_malloc(sizeof(spi_dma_desc_t) * dma_desc_ct, &dma_mem_info, (void*)&dma_ctx->dmadesc_rx, NULL);
-
+    dma_ctx->dmadesc_tx = heap_caps_aligned_calloc(DMA_DESC_MEM_ALIGN_SIZE, 1, sizeof(spi_dma_desc_t) * dma_desc_ct, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    dma_ctx->dmadesc_rx = heap_caps_aligned_calloc(DMA_DESC_MEM_ALIGN_SIZE, 1, sizeof(spi_dma_desc_t) * dma_desc_ct, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
     if (dma_ctx->dmadesc_tx == NULL || dma_ctx->dmadesc_rx == NULL) {
         if (dma_ctx->dmadesc_tx) {
             free(dma_ctx->dmadesc_tx);
@@ -802,6 +798,9 @@ esp_err_t spi_bus_initialize(spi_host_device_t host_id, const spi_bus_config_t *
 #ifndef CONFIG_SPI_MASTER_ISR_IN_IRAM
     SPI_CHECK((bus_config->intr_flags & ESP_INTR_FLAG_IRAM) == 0, "ESP_INTR_FLAG_IRAM should be disabled when CONFIG_SPI_MASTER_ISR_IN_IRAM is not set.", ESP_ERR_INVALID_ARG);
 #endif
+#if CONFIG_IDF_TARGET_ESP32
+    SPI_CHECK((bus_config->data_io_default_level == 0), "no support changing io default level ", ESP_ERR_INVALID_ARG);
+#endif
 
     bool spi_chan_claimed = spicommon_periph_claim(host_id, "spi master");
     SPI_CHECK(spi_chan_claimed, "host_id already in use", ESP_ERR_INVALID_STATE);
@@ -883,13 +882,13 @@ cleanup:
     return err;
 }
 
-esp_err_t spi_bus_dma_memory_malloc(size_t size, void **out_ptr, uint32_t extra_heap_caps, size_t *actual_size)
+void *spi_bus_dma_memory_alloc(spi_host_device_t host_id, size_t size, uint32_t extra_heap_caps)
 {
-    esp_dma_mem_info_t dma_mem_info = {
-        .extra_heap_caps = extra_heap_caps,
-        .dma_alignment_bytes = DMA_DESC_MEM_ALIGN_SIZE,
-    };
-    return esp_dma_capable_malloc(size, &dma_mem_info, out_ptr, actual_size);
+    (void) host_id; //remain for extendability
+    ESP_RETURN_ON_FALSE((extra_heap_caps & MALLOC_CAP_SPIRAM) == 0, NULL, SPI_TAG, "external memory is not supported now");
+
+    size_t dma_requir = 16;  //TODO: IDF-10111, using max alignment temp, refactor to "gdma_get_alignment_constraints" instead
+    return heap_caps_aligned_calloc(dma_requir, 1, size, extra_heap_caps | MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
 }
 
 const spi_bus_attr_t* spi_bus_get_attr(spi_host_device_t host_id)
@@ -922,6 +921,9 @@ esp_err_t spi_bus_free(spi_host_device_t host_id)
 
     if (ctx->destroy_func) {
         err = ctx->destroy_func(ctx->destroy_arg);
+        if (err != ESP_OK) {
+            return err;
+        }
     }
     spicommon_bus_free_io_cfg(&bus_attr->bus_cfg);
 

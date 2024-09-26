@@ -10,13 +10,21 @@ from urllib.parse import urlparse
 import requests
 import yaml
 
+from .constants import CI_DASHBOARD_API
+from .constants import CI_JOB_TOKEN
+from .constants import CI_MERGE_REQUEST_SOURCE_BRANCH_SHA
+from .constants import CI_PAGES_URL
+from .constants import CI_PROJECT_URL
 from .models import GitlabJob
 from .models import Job
 from .models import TestCase
 
 
 def dump_jobs_to_yaml(
-    jobs: t.List[Job], output_filepath: str, extra_include_yml: t.Optional[t.List[str]] = None
+    jobs: t.List[Job],
+    output_filepath: str,
+    pipeline_name: str,
+    extra_include_yml: t.Optional[t.List[str]] = None,
 ) -> None:
     yaml_dict = {}
     for job in jobs:
@@ -30,6 +38,7 @@ def dump_jobs_to_yaml(
                 '.gitlab/ci/common.yml',
             ],
             'workflow': {
+                'name': pipeline_name,
                 'rules': [
                     # always run the child pipeline, if they are created
                     {'when': 'always'},
@@ -66,10 +75,14 @@ def load_known_failure_cases() -> t.Optional[t.Set[str]]:
     if not known_failures_file:
         return None
     try:
-        with open(known_failures_file) as f:
+        with open(known_failures_file, 'r') as f:
             file_content = f.read()
-        known_cases_list = re.sub(re.compile('#.*\n'), '', file_content).split()
-        return {case.strip() for case in known_cases_list}
+
+        pattern = re.compile(r'^(.*?)\s+#\s+([A-Z]+)-\d+', re.MULTILINE)
+        matches = pattern.findall(file_content)
+
+        known_cases_list = [match[0].strip() for match in matches]
+        return set(known_cases_list)
     except FileNotFoundError:
         return None
 
@@ -91,11 +104,9 @@ def fetch_failed_jobs(commit_id: str) -> t.List[GitlabJob]:
     :param commit_id: The commit ID for which to fetch jobs.
     :return: A list of jobs if the request is successful, otherwise an empty list.
     """
-    token = os.getenv('ESPCI_TOKEN', '')
-    ci_dash_api_backend_host = os.getenv('CI_DASHBOARD_API', '')
     response = requests.get(
-        f'{ci_dash_api_backend_host}/commits/{commit_id}/jobs',
-        headers={'Authorization': f'Bearer {token}'}
+        f'{CI_DASHBOARD_API}/commits/{commit_id}/jobs',
+        headers={'CI-Job-Token': CI_JOB_TOKEN},
     )
     if response.status_code != 200:
         print(f'Failed to fetch jobs data: {response.status_code} with error: {response.text}')
@@ -109,9 +120,9 @@ def fetch_failed_jobs(commit_id: str) -> t.List[GitlabJob]:
 
     failed_job_names = [job['name'] for job in jobs if job['status'] == 'failed']
     response = requests.post(
-        f'{ci_dash_api_backend_host}/jobs/failure_ratio',
-        headers={'Authorization': f'Bearer {token}'},
-        json={'job_names': failed_job_names, 'exclude_branches': [os.getenv('CI_COMMIT_BRANCH', '')]},
+        f'{CI_DASHBOARD_API}/jobs/failure_ratio',
+        headers={'CI-Job-Token': CI_JOB_TOKEN},
+        json={'job_names': failed_job_names, 'exclude_branches': [os.getenv('CI_MERGE_REQUEST_SOURCE_BRANCH_NAME', '')]},
     )
     if response.status_code != 200:
         print(f'Failed to fetch jobs failure rate data: {response.status_code} with error: {response.text}')
@@ -128,20 +139,18 @@ def fetch_failed_jobs(commit_id: str) -> t.List[GitlabJob]:
     return combined_jobs
 
 
-def fetch_failed_testcases_failure_ratio(failed_testcases: t.List[TestCase]) -> t.List[TestCase]:
+def fetch_failed_testcases_failure_ratio(failed_testcases: t.List[TestCase], branches_filter: dict) -> t.List[TestCase]:
     """
     Fetches info about failure rates of testcases using an API request to ci-dashboard-api.
     :param failed_testcases: The list of failed testcases models.
+    :param branches_filter: The filter to filter testcases by branch names.
     :return: A list of testcases with enriched with failure rates data.
     """
-    token = os.getenv('ESPCI_TOKEN', '')
-    ci_dash_api_backend_host = os.getenv('CI_DASHBOARD_API', '')
+    req_json = {'testcase_names': list(set([testcase.name for testcase in failed_testcases])), **branches_filter}
     response = requests.post(
-        f'{ci_dash_api_backend_host}/testcases/failure_ratio',
-        headers={'Authorization': f'Bearer {token}'},
-        json={'testcase_names': [testcase.name for testcase in failed_testcases],
-              'exclude_branches': [os.getenv('CI_COMMIT_BRANCH', '')],
-              },
+        f'{CI_DASHBOARD_API}/testcases/failure_ratio',
+        headers={'CI-Job-Token': CI_JOB_TOKEN},
+        json=req_json,
     )
     if response.status_code != 200:
         print(f'Failed to fetch testcases failure rate data: {response.status_code} with error: {response.text}')
@@ -166,3 +175,44 @@ def load_file(file_path: str) -> str:
     """
     with open(file_path, 'r') as file:
         return file.read()
+
+
+def format_permalink(s: str) -> str:
+    """
+    Formats a given string into a permalink.
+
+    :param s: The string to be formatted into a permalink.
+    :return: The formatted permalink as a string.
+    """
+    end_index = s.find('(')
+
+    if end_index != -1:
+        trimmed_string = s[:end_index].strip()
+    else:
+        trimmed_string = s.strip()
+
+    formatted_string = trimmed_string.lower().replace(' ', '-')
+
+    return formatted_string
+
+
+def get_artifacts_url(job_id: int, output_filepath: str) -> str:
+    """
+    Generates the url of the path where the artifact will be stored in the job's artifacts .
+
+    :param job_id: The job identifier used to construct the URL.
+    :param output_filepath: The path to the output file.
+    :return: The modified URL pointing to the job's artifacts.
+    """
+    url = CI_PAGES_URL.replace('esp-idf', '-/esp-idf')
+    return f'{url}/-/jobs/{job_id}/artifacts/{output_filepath}'
+
+
+def get_repository_file_url(file_path: str) -> str:
+    """
+    Generates the url of the file path inside the repository.
+
+    :param file_path: The file path where the file is stored.
+    :return: The modified URL pointing to the file's path in the repository.
+    """
+    return f'{CI_PROJECT_URL}/-/raw/{CI_MERGE_REQUEST_SOURCE_BRANCH_SHA}/{file_path}'

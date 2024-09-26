@@ -20,6 +20,7 @@
 #include "test_util_rmt_encoders.h"
 #include "test_board.h"
 
+#if SOC_RMT_SUPPORT_SLEEP_RETENTION  // TODO: IDF-10917
 typedef struct {
     TaskHandle_t task_to_notify;
     size_t received_symbol_num;
@@ -115,6 +116,7 @@ static void test_rmt_tx_rx_sleep_retention(bool back_up_before_sleep)
         TEST_ASSERT_EQUAL(PMU_SLEEP_PD_TOP, sleep_ctx.sleep_flags & PMU_SLEEP_PD_TOP);
     }
 #endif
+    esp_sleep_set_sleep_context(NULL);
 
     TEST_ESP_OK(rmt_enable(tx_channel));
     TEST_ESP_OK(rmt_enable(rx_channel));
@@ -145,7 +147,6 @@ static void test_rmt_tx_rx_sleep_retention(bool back_up_before_sleep)
 TEST_CASE("rmt tx+rx after light sleep", "[rmt]")
 {
     test_rmt_tx_rx_sleep_retention(false);
-#if SOC_RMT_SUPPORT_SLEEP_RETENTION
     test_rmt_tx_rx_sleep_retention(true);
-#endif
 }
+#endif

@@ -116,6 +116,7 @@ typedef struct {
     int data5_io_num;     ///< GPIO pin for spi data5 signal in octal mode, or -1 if not used.
     int data6_io_num;     ///< GPIO pin for spi data6 signal in octal mode, or -1 if not used.
     int data7_io_num;     ///< GPIO pin for spi data7 signal in octal mode, or -1 if not used.
+    bool data_io_default_level; ///< Output data IO default level when no transaction.
     int max_transfer_sz;  ///< Maximum transfer size, in bytes. Defaults to 4092 if 0 when DMA enabled, or to `SOC_SPI_MAXIMUM_BUFFER_SIZE` if DMA is disabled.
     uint32_t flags;       ///< Abilities of bus to be checked by the driver. Or-ed value of ``SPICOMMON_BUSFLAG_*`` flags.
     esp_intr_cpu_affinity_t  isr_cpu_id;    ///< Select cpu core to register SPI ISR.
@@ -173,18 +174,13 @@ esp_err_t spi_bus_free(spi_host_device_t host_id);
  * @note This API will take care of the cache and hardware alignment internally.
  *       To free/release memory allocated by this helper function, simply calling `free()`
  *
- * @param[in]  size          Size in bytes, the amount of memory to allocate
- * @param[out] out_ptr       Pointer to the memory if allocated successfully
- * @param[in]  extra_heap_caps Extra heap caps based on MALLOC_CAP_DMA
- * @param[out] actual_size   Optional, Actual size for allocation in bytes, when the size you specified doesn't meet the internal alignment requirements,
- *                           This value might be bigger than the size you specified. Set NULL if don't care this value.
+ * @param[in]  host_id          SPI peripheral who will using the memory
+ * @param[in]  size             Size in bytes, the amount of memory to allocate
+ * @param[in]  extra_heap_caps  Extra heap caps based on MALLOC_CAP_DMA
  *
- * @return
- *        - ESP_ERR_INVALID_ARG     Invalid argument
- *        - ESP_ERR_NO_MEM          No enough memory for allocation
- *        - ESP_OK                  on success
+ * @return                      Pointer to the memory if allocated successfully
  */
-esp_err_t spi_bus_dma_memory_malloc(size_t size, void **out_ptr, uint32_t extra_heap_caps, size_t *actual_size);
+void *spi_bus_dma_memory_alloc(spi_host_device_t host_id, size_t size, uint32_t extra_heap_caps);
 
 #ifdef __cplusplus
 }

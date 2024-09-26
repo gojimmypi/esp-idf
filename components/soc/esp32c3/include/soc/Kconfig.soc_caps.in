@@ -403,6 +403,10 @@ config SOC_GPIO_DEEP_SLEEP_WAKE_VALID_GPIO_MASK
     int
     default 0
 
+config SOC_GPIO_DEEP_SLEEP_WAKE_SUPPORTED_PIN_CNT
+    int
+    default 6
+
 config SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK
     hex
     default 0x00000000003FFFC0
@@ -414,6 +418,10 @@ config SOC_GPIO_CLOCKOUT_BY_GPIO_MATRIX
 config SOC_GPIO_CLOCKOUT_CHANNEL_NUM
     int
     default 3
+
+config SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP
+    bool
+    default y
 
 config SOC_DEDIC_GPIO_OUT_CHANNELS_NUM
     int
@@ -1040,6 +1048,10 @@ config SOC_PM_CPU_RETENTION_BY_RTCCNTL
     default y
 
 config SOC_PM_MODEM_RETENTION_BY_BACKUPDMA
+    bool
+    default y
+
+config SOC_PM_MODEM_PD_BY_SW
     bool
     default y
 

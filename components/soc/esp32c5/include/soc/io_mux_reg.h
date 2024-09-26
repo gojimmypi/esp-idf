@@ -137,6 +137,7 @@ extern "C" {
 #define SPI_CLK_GPIO_NUM             21
 #define SPI_D_GPIO_NUM               22
 #define SPI_Q_GPIO_NUM               17
+#define SPI_CS1_GPIO_NUM             15
 
 #define USB_INT_PHY0_DM_GPIO_NUM              13
 #define USB_INT_PHY0_DP_GPIO_NUM              14
@@ -149,20 +150,6 @@ extern "C" {
 #define DIG_IO_HOLD_BIT_SHIFT        32
 
 #define REG_IO_MUX_BASE DR_REG_IO_MUX_BASE
-#define PIN_CTRL                          (REG_IO_MUX_BASE +0x00)
-
-#define CLK_OUT3                                    0x1f
-#define CLK_OUT3_V                                  CLK_OUT3
-#define CLK_OUT3_S                                  10
-#define CLK_OUT3_M                                  (CLK_OUT3_V << CLK_OUT3_S)
-#define CLK_OUT2                                    0x1f
-#define CLK_OUT2_V                                  CLK_OUT2
-#define CLK_OUT2_S                                  5
-#define CLK_OUT2_M                                  (CLK_OUT2_V << CLK_OUT2_S)
-#define CLK_OUT1                                    0x1f
-#define CLK_OUT1_V                                  CLK_OUT1
-#define CLK_OUT1_S                                  0
-#define CLK_OUT1_M                                  (CLK_OUT1_V << CLK_OUT1_S)
 // definitions above are inherited from previous version of code, should double check
 
 // definitions below are generated from pin_txt.csv

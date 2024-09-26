@@ -60,8 +60,7 @@
 #define SOC_FLASH_ENC_SUPPORTED         1
 #define SOC_SECURE_BOOT_SUPPORTED       1
 #define SOC_BOD_SUPPORTED               1
-#define SOC_APM_SUPPORTED               1
-#define SOC_APM_CTRL_FILTER_SUPPORTED   1
+#define SOC_APM_SUPPORTED               1 /*!< Support for APM peripheral */
 #define SOC_PMU_SUPPORTED               1
 #define SOC_LP_TIMER_SUPPORTED          1
 #define SOC_LP_AON_SUPPORTED            1
@@ -152,9 +151,11 @@
 
 #define SOC_CPU_HAS_PMA                 1
 #define SOC_CPU_IDRAM_SPLIT_USING_PMP   1
+#define SOC_CPU_PMP_REGION_GRANULARITY  4
 
 /*-------------------------- MMU CAPS ----------------------------------------*/
 #define SOC_MMU_PAGE_SIZE_CONFIGURABLE        (1)
+#define SOC_MMU_PAGE_SIZE_8KB_SUPPORTED       (1)
 #define SOC_MMU_PERIPH_NUM                    (1U)
 #define SOC_MMU_LINEAR_ADDRESS_REGION_NUM     (1U)
 #define SOC_MMU_DI_VADDR_SHARED               (1) /*!< D/I vaddr are shared */
@@ -214,6 +215,8 @@
 
 // Support to force hold all IOs
 #define SOC_GPIO_SUPPORT_FORCE_HOLD              (1)
+// LP_IOs and DIG_IOs can be hold during deep sleep and after waking up
+#define SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP (1)
 // Support to hold a single digital I/O when the digital domain is powered off
 #define SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP  (1)
 
@@ -227,7 +230,6 @@
  * for hold, wake & 32kHz crystal functions - via LP_AON registers */
 #define SOC_RTCIO_PIN_COUNT         (8U)
 #define SOC_RTCIO_HOLD_SUPPORTED    (1)
-#define SOC_RTCIO_VALID_RTCIO_MASK  (0x7F80)
 
 /*-------------------------- Dedicated GPIO CAPS -----------------------------*/
 #define SOC_DEDIC_GPIO_OUT_CHANNELS_NUM (8) /*!< 8 outward channels on each CPU core */
@@ -262,6 +264,7 @@
 /*-------------------------- I2S CAPS ----------------------------------------*/
 #define SOC_I2S_NUM                 (1U)
 #define SOC_I2S_HW_VERSION_2        (1)
+#define SOC_I2S_SUPPORTS_ETM        (1)
 #define SOC_I2S_SUPPORTS_XTAL       (1)
 #define SOC_I2S_SUPPORTS_PLL_F96M   (1)
 #define SOC_I2S_SUPPORTS_PLL_F64M   (1)
@@ -476,6 +479,9 @@
 #define SOC_FLASH_ENCRYPTION_XTS_AES        1
 #define SOC_FLASH_ENCRYPTION_XTS_AES_128    1
 
+/*-------------------------- APM CAPS ----------------------------------------*/
+#define SOC_APM_CTRL_FILTER_SUPPORTED   1 /*!< Support for APM control filter */
+
 /*------------------------ Anti DPA (Security) CAPS --------------------------*/
 #define SOC_CRYPTO_DPA_PROTECTION_SUPPORTED     1
 
@@ -521,11 +527,18 @@
 #define SOC_PM_SUPPORT_RC_FAST_PD       (1)
 #define SOC_PM_SUPPORT_VDDSDIO_PD       (1)
 #define SOC_PM_SUPPORT_TOP_PD           (1)
-#define SOC_PM_PAU_LINK_NUM             (4)
-#define SOC_PM_CPU_RETENTION_BY_SW      (1)
+
+#define SOC_PM_PAU_LINK_NUM                 (4)
+#define SOC_PM_PAU_REGDMA_LINK_MULTI_ADDR   (1)
+#define SOC_PM_PAU_REGDMA_LINK_WIFIMAC      (1)
+
+#define SOC_PM_PAU_REGDMA_UPDATE_CACHE_BEFORE_WAIT_COMPARE  (1)
+
+#define SOC_EXT_MEM_CACHE_TAG_IN_CPU_DOMAIN        (1)
+#define SOC_PM_CPU_RETENTION_BY_SW                 (1)
 #define SOC_PM_MODEM_RETENTION_BY_REGDMA           (1)
-#define SOC_PM_SUPPORT_DEEPSLEEP_CHECK_STUB_ONLY   (1) /*!<Supports CRC only the stub code in RTC memory */
-#define SOC_PM_RETENTION_SW_TRIGGER_REGDMA      (1)    /*!< In esp32H2, regdma will power off when entering sleep */
+#define SOC_PM_SUPPORT_DEEPSLEEP_CHECK_STUB_ONLY   (1)  /*!<Supports CRC only the stub code in RTC memory */
+#define SOC_PM_RETENTION_SW_TRIGGER_REGDMA         (1)  /*!< In esp32H2, regdma will power off when entering sleep */
 
 /*-------------------------- CLOCK SUBSYSTEM CAPS ----------------------------------------*/
 #define SOC_CLK_RC_FAST_SUPPORT_CALIBRATION       (1)

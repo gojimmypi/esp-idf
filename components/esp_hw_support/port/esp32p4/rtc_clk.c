@@ -14,6 +14,7 @@
 #include "soc/rtc.h"
 #include "esp_private/rtc_clk.h"
 #include "esp_attr.h"
+#include "esp_cpu.h"
 #include "esp_hw_log.h"
 #include "esp_rom_sys.h"
 #include "hal/clk_tree_ll.h"
@@ -28,7 +29,7 @@ static const char *TAG = "rtc_clk";
 static int s_cur_cpll_freq = 0;
 
 // MPLL frequency option, 400MHz. Zero if MPLL is not enabled.
-static DRAM_ATTR uint32_t s_cur_mpll_freq = 0;
+static TCM_DRAM_ATTR uint32_t s_cur_mpll_freq = 0;
 
 void rtc_clk_32k_enable(bool enable)
 {
@@ -182,7 +183,13 @@ static void rtc_clk_cpu_freq_to_xtal(int cpu_freq, int div, bool to_default)
     clk_ll_mem_set_divider(mem_divider);
     clk_ll_sys_set_divider(sys_divider);
     clk_ll_apb_set_divider(apb_divider);
+#if (!defined(BOOTLOADER_BUILD) && (CONFIG_FREERTOS_NUMBER_OF_CORES == 2))
+    esp_cpu_stall(1 - esp_cpu_get_core_id());
+#endif
     clk_ll_bus_update();
+#if (!defined(BOOTLOADER_BUILD) && (CONFIG_FREERTOS_NUMBER_OF_CORES == 2))
+    esp_cpu_unstall(1 - esp_cpu_get_core_id());
+#endif
     esp_rom_set_cpu_ticks_per_us(cpu_freq);
 }
 
@@ -194,7 +201,13 @@ static void rtc_clk_cpu_freq_to_8m(void)
     clk_ll_sys_set_divider(1);
     clk_ll_apb_set_divider(1);
     clk_ll_cpu_set_src(SOC_CPU_CLK_SRC_RC_FAST);
+#if (!defined(BOOTLOADER_BUILD) && (CONFIG_FREERTOS_NUMBER_OF_CORES == 2))
+    esp_cpu_stall(1 - esp_cpu_get_core_id());
+#endif
     clk_ll_bus_update();
+#if (!defined(BOOTLOADER_BUILD) && (CONFIG_FREERTOS_NUMBER_OF_CORES == 2))
+    esp_cpu_unstall(1 - esp_cpu_get_core_id());
+#endif
     esp_rom_set_cpu_ticks_per_us(20);
 }
 
@@ -240,14 +253,22 @@ static void rtc_clk_cpu_freq_to_cpll_mhz(int cpu_freq_mhz, hal_utils_clk_div_t *
     // Update bit does not control CPU clock sel mux. Therefore, there may be a middle state during the switch (CPU rises)
     // Since this is upscaling, we need to configure the frequency division coefficient before switching the clock source.
     // Otherwise, an intermediate state will occur, in the intermediate state, the frequency of APB/MEM does not meet the
-    // timing requirements. If there are periperals/CPU access that depend on these two clocks at this moment, some exception
+    // timing requirements. If there are periperals access that depend on these two clocks at this moment, some exception
     // might occur.
     clk_ll_cpu_set_divider(div->integer, div->numerator, div->denominator);
     clk_ll_mem_set_divider(mem_divider);
     clk_ll_sys_set_divider(sys_divider);
     clk_ll_apb_set_divider(apb_divider);
+#if (!defined(BOOTLOADER_BUILD) && (CONFIG_FREERTOS_NUMBER_OF_CORES == 2))
+    // During frequency switching, non-frequency switching cores may have ongoing memory accesses, which may cause access
+    // failures, stalling non-frequency switching cores here can avoid such failures.
+    esp_cpu_stall(1 - esp_cpu_get_core_id());
+#endif
     clk_ll_bus_update();
     clk_ll_cpu_set_src(SOC_CPU_CLK_SRC_PLL);
+#if (!defined(BOOTLOADER_BUILD) && (CONFIG_FREERTOS_NUMBER_OF_CORES == 2))
+    esp_cpu_unstall(1 - esp_cpu_get_core_id());
+#endif
     esp_rom_set_cpu_ticks_per_us(cpu_freq_mhz);
 }
 
@@ -452,18 +473,84 @@ uint32_t rtc_clk_apb_freq_get(void)
 
 void rtc_clk_apll_enable(bool enable)
 {
-    // TODO: IDF-8884
+    if (enable) {
+        clk_ll_apll_enable();
+    } else {
+        clk_ll_apll_disable();
+    }
 }
 
 uint32_t rtc_clk_apll_coeff_calc(uint32_t freq, uint32_t *_o_div, uint32_t *_sdm0, uint32_t *_sdm1, uint32_t *_sdm2)
 {
-    // TODO: IDF-8884
-    return 0;
+    uint32_t rtc_xtal_freq = (uint32_t)rtc_clk_xtal_freq_get();
+    if (rtc_xtal_freq == 0) {
+        // xtal_freq has not set yet
+        ESP_HW_LOGE(TAG, "Get xtal clock frequency failed, it has not been set yet");
+        abort();
+    }
+    /* Reference formula: apll_freq = xtal_freq * (4 + sdm2 + sdm1/256 + sdm0/65536) / ((o_div + 2) * 2)
+     *                                ----------------------------------------------   -----------------
+     *                                     350 MHz <= Numerator <= 500 MHz                Denominator
+     */
+    int o_div = 0; // range: 0~31
+    int sdm0 = 0;  // range: 0~255
+    int sdm1 = 0;  // range: 0~255
+    int sdm2 = 0;  // range: 0~63
+    /* Firstly try to satisfy the condition that the operation frequency of numerator should be greater than 350 MHz,
+     * i.e. xtal_freq * (4 + sdm2 + sdm1/256 + sdm0/65536) >= 350 MHz, '+1' in the following code is to get the ceil value.
+     * With this condition, as we know the 'o_div' can't be greater than 31, then we can calculate the APLL minimum support frequency is
+     * 350 MHz / ((31 + 2) * 2) = 5303031 Hz (for ceil) */
+    o_div = (int)(CLK_LL_APLL_MULTIPLIER_MIN_HZ / (float)(freq * 2) + 1) - 2;
+    if (o_div > 31) {
+        ESP_HW_LOGE(TAG, "Expected frequency is too small");
+        return 0;
+    }
+    if (o_div < 0) {
+        /* Try to satisfy the condition that the operation frequency of numerator should be smaller than 500 MHz,
+         * i.e. xtal_freq * (4 + sdm2 + sdm1/256 + sdm0/65536) <= 500 MHz, we need to get the floor value in the following code.
+         * With this condition, as we know the 'o_div' can't be smaller than 0, then we can calculate the APLL maximum support frequency is
+         * 500 MHz / ((0 + 2) * 2) = 125000000 Hz */
+        o_div = (int)(CLK_LL_APLL_MULTIPLIER_MAX_HZ / (float)(freq * 2)) - 2;
+        if (o_div < 0) {
+            ESP_HW_LOGE(TAG, "Expected frequency is too big");
+            return 0;
+        }
+    }
+    // sdm2 = (int)(((o_div + 2) * 2) * apll_freq / xtal_freq) - 4
+    sdm2 = (int)(((o_div + 2) * 2 * freq) / (rtc_xtal_freq * MHZ)) - 4;
+    // numrator = (((o_div + 2) * 2) * apll_freq / xtal_freq) - 4 - sdm2
+    float numrator = (((o_div + 2) * 2 * freq) / ((float)rtc_xtal_freq * MHZ)) - 4 - sdm2;
+    // If numrator is bigger than 255/256 + 255/65536 + (1/65536)/2 = 1 - (1 / 65536)/2, carry bit to sdm2
+    if (numrator > 1.0 - (1.0 / 65536.0) / 2.0) {
+        sdm2++;
+    }
+    // If numrator is smaller than (1/65536)/2, keep sdm0 = sdm1 = 0, otherwise calculate sdm0 and sdm1
+    else if (numrator > (1.0 / 65536.0) / 2.0) {
+        // Get the closest sdm1
+        sdm1 = (int)(numrator * 65536.0 + 0.5) / 256;
+        // Get the closest sdm0
+        sdm0 = (int)(numrator * 65536.0 + 0.5) % 256;
+    }
+    uint32_t real_freq = (uint32_t)(rtc_xtal_freq * MHZ * (4 + sdm2 + (float)sdm1/256.0 + (float)sdm0/65536.0) / (((float)o_div + 2) * 2));
+    *_o_div = o_div;
+    *_sdm0 = sdm0;
+    *_sdm1 = sdm1;
+    *_sdm2 = sdm2;
+    return real_freq;
 }
 
 void rtc_clk_apll_coeff_set(uint32_t o_div, uint32_t sdm0, uint32_t sdm1, uint32_t sdm2)
 {
-    // TODO: IDF-8884
+    clk_ll_apll_set_config(o_div, sdm0, sdm1, sdm2);
+
+    /* calibration */
+    clk_ll_apll_set_calibration();
+
+    /* wait for calibration end */
+    while (!clk_ll_apll_calibration_is_done()) {
+        /* use esp_rom_delay_us so the RTC bus doesn't get flooded */
+        esp_rom_delay_us(1);
+    }
 }
 
 void rtc_dig_clk8m_enable(void)
@@ -484,13 +571,13 @@ bool rtc_dig_8m_enabled(void)
 }
 
 //------------------------------------MPLL-------------------------------------//
-void rtc_clk_mpll_disable(void)
+TCM_IRAM_ATTR void rtc_clk_mpll_disable(void)
 {
     clk_ll_mpll_disable();
     s_cur_mpll_freq = 0;
 }
 
-void rtc_clk_mpll_enable(void)
+TCM_IRAM_ATTR void rtc_clk_mpll_enable(void)
 {
     clk_ll_mpll_enable();
 }
@@ -508,7 +595,7 @@ void rtc_clk_mpll_configure(uint32_t xtal_freq, uint32_t mpll_freq)
     s_cur_mpll_freq = mpll_freq;
 }
 
-uint32_t rtc_clk_mpll_get_freq(void)
+TCM_IRAM_ATTR uint32_t rtc_clk_mpll_get_freq(void)
 {
     return s_cur_mpll_freq;
 }

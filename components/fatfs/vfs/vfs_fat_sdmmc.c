@@ -140,7 +140,7 @@ static esp_err_t s_f_mount(sdmmc_card_t *card, FATFS *fs, const char *drv, uint8
         }
 
         ESP_LOGW(TAG, "mounting again");
-        res = f_mount(fs, drv, 0);
+        res = f_mount(fs, drv, 1);
         if (res != FR_OK) {
             err = ESP_FAIL;
             ESP_LOGD(TAG, "f_mount failed after formatting (%d)", res);
@@ -292,7 +292,7 @@ esp_err_t esp_vfs_fat_sdmmc_mount(const char* base_path,
         s_saved_ctx_id = 0;
     }
 
-    ctx = calloc(sizeof(vfs_fat_sd_ctx_t), 1);
+    ctx = calloc(1, sizeof(vfs_fat_sd_ctx_t));
     if (!ctx) {
         CHECK_EXECUTE_RESULT(ESP_ERR_NO_MEM, "no mem");
     }
@@ -390,7 +390,7 @@ esp_err_t esp_vfs_fat_sdspi_mount(const char* base_path,
         s_saved_ctx_id = 0;
     }
 
-    ctx = calloc(sizeof(vfs_fat_sd_ctx_t), 1);
+    ctx = calloc(1, sizeof(vfs_fat_sd_ctx_t));
     if (!ctx) {
         CHECK_EXECUTE_RESULT(ESP_ERR_NO_MEM, "no mem");
     }

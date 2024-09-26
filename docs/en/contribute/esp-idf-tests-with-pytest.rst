@@ -33,11 +33,17 @@ On the host side, ESP-IDF employs the pytest framework (alongside certain pytest
 Installation
 ============
 
-All dependencies could be installed by running the ESP-IDF install script with the ``--enable-pytest`` argument:
+All basic dependencies could be installed by running the ESP-IDF install script with the ``--enable-pytest`` argument:
 
 .. code-block:: bash
 
     $ install.sh --enable-pytest
+
+Additional test script specific dependencies could be installed separately by running the ESP-IDF install script with the ``--enable-pytest-specific`` argument:
+
+.. code-block:: bash
+
+    $ install.sh --enable-test-specific
 
 Several mechanisms have been implemented to ensure the successful execution of the installation processes. If you encounter any issues during installation, please submit an issue report to our `GitHub issue tracker <https://github.com/espressif/esp-idf/issues>`__.
 
@@ -362,16 +368,32 @@ If you need to run a group of test cases, you may run:
 
 It would trigger all test cases with the ``[psram]`` tag.
 
-.. warning::
+If you need to run all test cases except for a specific groups, you may run:
 
-    You may also see that there are some test scripts with the following statements, which are deprecated. Please use the suggested one as above.
+.. code-block:: python
 
-    .. code-block:: python
+    def test_unity_single_dut(dut: IdfDut):
+        dut.run_all_single_board_cases(group='!psram')
 
-        def test_unity_single_dut(dut: IdfDut):
-            dut.expect_exact('Press ENTER to see the list of tests')
-            dut.write('*')
-            dut.expect_unity_test_output()
+This code will trigger all test cases except those with the [psram] tag.
+
+If you need to run a group of test cases filtered by specific attributes, you may run:
+
+.. code-block:: python
+
+  def test_rtc_xtal32k(dut: Dut) -> None:
+      dut.run_all_single_board_cases(attributes={'test_env': 'xtal32k'})
+
+This command will trigger all tests with the attribute ``test_env`` equal to ``xtal32k``.
+
+If you need to run tests by specific names, you may run:
+
+.. code-block:: python
+
+  def test_dut_run_all_single_board_cases(dut):
+      dut.run_all_single_board_cases(name=["normal_case1", "multiple_stages_test"])
+
+This command will trigger ``normal_case1`` and ``multiple_stages_test``
 
 We also provide a fixture ``case_tester`` to trigger all kinds of test cases easier. For example:
 

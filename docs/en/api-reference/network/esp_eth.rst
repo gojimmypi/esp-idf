@@ -165,6 +165,9 @@ The Ethernet driver is composed of two parts: MAC and PHY.
 
             * Force the PHY device to reset status (as the case **a** in the picture). **This could fail for some PHY device** (i.e., it still outputs signals to GPIO0 even in reset state).
 
+        .. warning::
+            If you want the **Ethernet to work with Wi-Fi**, don’t select ESP32 as source of ``REF_CLK`` as it would result in ``REF_CLK`` instability. Either disable Wi-Fi or use a PHY or an external oscillator as the ``REF_CLK`` source.
+
     .. only:: not esp32
 
         .. note::
@@ -191,7 +194,7 @@ The Ethernet driver is composed of two parts: MAC and PHY.
     .. only:: not SOC_EMAC_USE_MULTI_IO_MUX
 
         .. note::
-            Signals used in the data plane are fixed to specific GPIOs via IO_MUX, they can not be modified to other GPIOs. Signals used in the control plane can be routed to any free GPIOs via Matrix. Please refer to :doc:`ESP32-Ethernet-Kit <../../hw-reference/esp32/get-started-ethernet-kit>` for hardware design example.
+            Signals used in the data plane are fixed to specific GPIOs via IO_MUX, they can not be modified to other GPIOs. Signals used in the control plane can be routed to any free GPIOs via Matrix. Please refer to `ESP32-Ethernet-Kit <https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32/esp32-ethernet-kit/index.html>`_ for hardware design example.
 
     .. only:: SOC_EMAC_USE_MULTI_IO_MUX
 
@@ -571,7 +574,7 @@ The majority of PHY management functionality required by the ESP-IDF Ethernet dr
 3. Define chip-specific management call-back functions.
 4. Initialize parent IEEE 802.3 object and re-assign chip-specific management call-back functions.
 
-Once you finish the new custom PHY driver implementation, consider sharing it among other users via `IDF Component Registry <https://components.espressif.com/>`_.
+Once you finish the new custom PHY driver implementation, consider sharing it among other users via `ESP Component Registry <https://components.espressif.com/>`_.
 
 .. ---------------------------- API Reference ----------------------------------
 

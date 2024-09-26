@@ -5,14 +5,16 @@ SPI 接口的 LCD
 
 #. 创建 SPI 总线。详情请参阅 :doc:`SPI 主机 API 文档 </api-reference/peripherals/spi_master>`。
 
+    目前驱动支持 SPI， Quad SPI 和 Octal SPI（模拟 Intel 8080 时序）模式。
+
     .. code-block:: c
 
         spi_bus_config_t buscfg = {
             .sclk_io_num = EXAMPLE_PIN_NUM_SCLK,
             .mosi_io_num = EXAMPLE_PIN_NUM_MOSI,
             .miso_io_num = EXAMPLE_PIN_NUM_MISO,
-            .quadwp_io_num = -1, // 目前不支持 Quad SPI LCD 驱动
-            .quadhd_io_num = -1, // 目前不支持 Quad SPI LCD 驱动
+            .quadwp_io_num = -1,
+            .quadhd_io_num = -1,
             .max_transfer_sz = EXAMPLE_LCD_H_RES * 80 * sizeof(uint16_t), // 单次最多可传输 80 行像素（假设像素格式为 RGB565）
         };
         ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO)); // 启用 DMA
@@ -25,6 +27,8 @@ SPI 接口的 LCD
     - :cpp:member:`esp_lcd_panel_io_spi_config_t::spi_mode` 设置 SPI 模式。LCD 驱动程序使用此模式与 LCD 通信。有关 SPI 模式的详细信息，请参阅 :doc:`SPI 主机 API 文档 </api-reference/peripherals/spi_master>`。
     - :cpp:member:`esp_lcd_panel_io_spi_config_t::lcd_cmd_bits` 和 :cpp:member:`esp_lcd_panel_io_spi_config_t::lcd_param_bits` 分别设置 LCD 控制器芯片可识别的命令及参数的位宽。不同芯片对位宽要求不同，请提前参阅 LCD 规格书。
     - :cpp:member:`esp_lcd_panel_io_spi_config_t::trans_queue_depth` 设置 SPI 传输队列的深度。该值越大，可以排队的传输越多，但消耗的内存也越多。
+    - :cpp:member:`esp_lcd_panel_io_spi_config_t::cs_ena_pretrans` 设置 SPI 在传输之前应激活 CS 信号线的 SPI 位周期数 （0-16）。
+    - :cpp:member:`esp_lcd_panel_io_spi_config_t::cs_ena_posttrans` 设置 SPI 在传输之后保持激活 CS 信号线的 SPI 位周期数 （0-16）。
 
     .. code-block:: c
 

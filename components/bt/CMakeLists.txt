@@ -4,29 +4,19 @@ if(${target} STREQUAL "linux")
     return() # This component is not supported by the POSIX/Linux simulator
 endif()
 
+if(CONFIG_IDF_TARGET_ESP32S3)
+    set(target_name "esp32c3")
+elseif(CONFIG_IDF_TARGET_ESP32C61)
+    set(target_name "esp32c6")
+else()
+    set(target_name "${idf_target}")
+endif()
+
 # API headers that are used in the docs are also compiled
 # even if CONFIG_BT_ENABLED=n as long as CONFIG_IDF_DOC_BUILD=y
 
-if(CONFIG_IDF_TARGET_ESP32)
-    set(target_specific_include_dirs include/esp32/include)
-
-elseif(CONFIG_IDF_TARGET_ESP32C3)
-    set(target_specific_include_dirs include/esp32c3/include)
-
-elseif(CONFIG_IDF_TARGET_ESP32S3)
-    set(target_specific_include_dirs include/esp32c3/include)
-
-elseif(CONFIG_IDF_TARGET_ESP32C2)
-    set(target_specific_include_dirs include/esp32c2/include)
-
-elseif(CONFIG_IDF_TARGET_ESP32C6)
-    set(target_specific_include_dirs include/esp32c6/include)
-
-elseif(CONFIG_IDF_TARGET_ESP32H2)
-    set(target_specific_include_dirs include/esp32h2/include)
-
-elseif(CONFIG_IDF_TARGET_ESP32C5)
-    set(target_specific_include_dirs include/esp32c5/include)
+if(CONFIG_SOC_BT_SUPPORTED)
+    set(target_specific_include_dirs include/${target_name}/include)
 endif()
 
 set(common_include_dirs
@@ -76,34 +66,19 @@ if(CONFIG_BT_ENABLED)
     set(include_dirs "")
     set(ldscripts "linker_common.lf")
     if(CONFIG_BT_CONTROLLER_ENABLED)
+        list(APPEND srcs "controller/${target_name}/bt.c")
+
         if(CONFIG_IDF_TARGET_ESP32)
-            list(APPEND srcs "controller/esp32/bt.c"
-                             "controller/esp32/hli_api.c"
+            list(APPEND srcs "controller/esp32/hli_api.c"
                              "controller/esp32/hli_vectors.S")
             list(APPEND ldscripts "linker_rw_bt_controller.lf")
-
         elseif(CONFIG_IDF_TARGET_ESP32C3)
-            list(APPEND srcs "controller/esp32c3/bt.c")
             list(APPEND ldscripts "linker_rw_bt_controller.lf")
-
         elseif(CONFIG_IDF_TARGET_ESP32S3)
-            list(APPEND srcs "controller/esp32c3/bt.c")
             list(APPEND ldscripts "linker_rw_bt_controller.lf")
-
         elseif(CONFIG_IDF_TARGET_ESP32C2)
-            list(APPEND srcs "controller/esp32c2/bt.c")
             set(ldscripts "linker_esp32c2.lf")
-
-        elseif(CONFIG_IDF_TARGET_ESP32C6)
-            list(APPEND srcs "controller/esp32c6/bt.c")
-            list(APPEND ldscripts "linker_esp_ble_controller.lf")
-
-        elseif(CONFIG_IDF_TARGET_ESP32H2)
-            list(APPEND srcs "controller/esp32h2/bt.c")
-            list(APPEND ldscripts "linker_esp_ble_controller.lf")
-
-        elseif(CONFIG_IDF_TARGET_ESP32C5)
-            list(APPEND srcs "controller/esp32c5/bt.c")
+        else()
             list(APPEND ldscripts "linker_esp_ble_controller.lf")
         endif()
 
@@ -117,6 +92,7 @@ if(CONFIG_BT_ENABLED)
             common/btc/include
             common/include
             porting/mem/
+            porting/include
         )
     list(APPEND include_dirs ${common_include_dirs})
 
@@ -182,6 +158,8 @@ if(CONFIG_BT_ENABLED)
             host/bluedroid/stack/avdt/include
             host/bluedroid/stack/a2dp/include
             host/bluedroid/stack/rfcomm/include
+            host/bluedroid/stack/obex/include
+            host/bluedroid/stack/goep/include
             host/bluedroid/stack/include
             host/bluedroid/common/include
             host/bluedroid/config/include)
@@ -209,6 +187,8 @@ if(CONFIG_BT_ENABLED)
                    "host/bluedroid/bta/av/bta_av_aact.c"
                    "host/bluedroid/bta/av/bta_av_act.c"
                    "host/bluedroid/bta/av/bta_av_api.c"
+                   "host/bluedroid/bta/av/bta_av_ca_act.c"
+                   "host/bluedroid/bta/av/bta_av_ca_sm.c"
                    "host/bluedroid/bta/av/bta_av_cfg.c"
                    "host/bluedroid/bta/av/bta_av_ci.c"
                    "host/bluedroid/bta/av/bta_av_main.c"
@@ -404,6 +384,8 @@ if(CONFIG_BT_ENABLED)
                    "host/bluedroid/stack/gatt/gatt_sr.c"
                    "host/bluedroid/stack/gatt/gatt_sr_hash.c"
                    "host/bluedroid/stack/gatt/gatt_utils.c"
+                   "host/bluedroid/stack/goep/goepc_api.c"
+                   "host/bluedroid/stack/goep/goepc_main.c"
                    "host/bluedroid/stack/hcic/hciblecmds.c"
                    "host/bluedroid/stack/hcic/hcicmds.c"
                    "host/bluedroid/stack/l2cap/l2c_api.c"
@@ -415,6 +397,9 @@ if(CONFIG_BT_ENABLED)
                    "host/bluedroid/stack/l2cap/l2c_ucd.c"
                    "host/bluedroid/stack/l2cap/l2c_utils.c"
                    "host/bluedroid/stack/l2cap/l2cap_client.c"
+                   "host/bluedroid/stack/obex/obex_api.c"
+                   "host/bluedroid/stack/obex/obex_main.c"
+                   "host/bluedroid/stack/obex/obex_tl_l2cap.c"
                    "host/bluedroid/stack/rfcomm/port_api.c"
                    "host/bluedroid/stack/rfcomm/port_rfc.c"
                    "host/bluedroid/stack/rfcomm/port_utils.c"
@@ -573,29 +558,51 @@ if(CONFIG_BT_ENABLED)
 
 
     if(CONFIG_BT_LE_CONTROLLER_NPL_OS_PORTING_SUPPORT)
+        list(APPEND srcs
+                "porting/npl/freertos/src/npl_os_freertos.c"
+                "porting/mem/os_msys_init.c"
+                "porting/transport/src/hci_transport.c"
+        )
+
+        if(CONFIG_BT_CONTROLLER_DISABLED)
             list(APPEND srcs
-                    "porting/npl/freertos/src/npl_os_freertos.c"
-                    "porting/mem/os_msys_init.c"
+                "host/nimble/nimble/porting/nimble/src/hal_uart.c"
             )
-
-            if(CONFIG_BT_CONTROLLER_DISABLED)
+        elseif(CONFIG_BT_LE_HCI_INTERFACE_USE_RAM)
+            if(CONFIG_BT_NIMBLE_ENABLED)
                 list(APPEND srcs
-                        "host/nimble/nimble/porting/nimble/src/hal_uart.c"
-                    )
-            endif()
-            list(APPEND include_dirs
-                    porting/include
-                    porting/npl/freertos/include
-                    porting/transport/include
-            )
-
-            if(CONFIG_BT_LE_HCI_INTERFACE_USE_UART)
+                    "porting/transport/driver/vhci/hci_driver_nimble.c"
+                    "host/nimble/nimble/nimble/transport/esp_ipc/src/hci_esp_ipc.c"
+                )
+            else()
                 list(APPEND srcs
-                        "porting/transport/uart/hci_uart.c"
-                    )
+                    "porting/transport/driver/vhci/hci_driver_standard.c"
+                )
             endif()
+        elseif(CONFIG_BT_LE_HCI_INTERFACE_USE_UART)
+                list(APPEND srcs
+                    "porting/transport/driver/common/hci_driver_util.c"
+                    "porting/transport/driver/common/hci_driver_h4.c"
+                    "porting/transport/driver/common/hci_driver_mem.c"
+                    "porting/transport/driver/uart/hci_driver_uart_config.c"
+                )
+            if(CONFIG_BT_LE_UART_HCI_DMA_MODE)
+                list(APPEND srcs
+                    "porting/transport/driver/uart/hci_driver_uart_dma.c"
+                )
+            else()
+                list(APPEND srcs
+                    "porting/transport/driver/uart/hci_driver_uart.c"
+                )
+            endif()
+        endif()
+
+        list(APPEND include_dirs
+                porting/include
+                porting/npl/freertos/include
+                porting/transport/include
+        )
     endif()
-
 
     if(NOT (CONFIG_BT_LE_CRYPTO_STACK_MBEDTLS OR CONFIG_BT_NIMBLE_CRYPTO_STACK_MBEDTLS))
         list(APPEND include_dirs
@@ -621,7 +628,6 @@ if(CONFIG_BT_ENABLED)
     if(CONFIG_BT_NIMBLE_ENABLED)
 
         list(APPEND include_dirs
-
                     host/nimble/nimble/nimble/host/include
                     host/nimble/nimble/nimble/include
                     host/nimble/nimble/nimble/host/services/ans/include
@@ -639,6 +645,7 @@ if(CONFIG_BT_ENABLED)
                     host/nimble/nimble/nimble/host/services/tps/include
                     host/nimble/nimble/nimble/host/services/hid/include
                     host/nimble/nimble/nimble/host/services/sps/include
+                    host/nimble/nimble/nimble/host/services/cte/include
                     host/nimble/nimble/nimble/host/util/include
                     host/nimble/nimble/nimble/host/store/ram/include
                     host/nimble/nimble/nimble/host/store/config/include
@@ -661,6 +668,7 @@ if(CONFIG_BT_ENABLED)
                     "host/nimble/nimble/nimble/host/services/cts/src/ble_svc_cts.c"
                     "host/nimble/nimble/nimble/host/services/hid/src/ble_svc_hid.c"
                     "host/nimble/nimble/nimble/host/services/sps/src/ble_svc_sps.c"
+                    "host/nimble/nimble/nimble/host/services/cte/src/ble_svc_cte.c"
                     "host/nimble/nimble/nimble/host/src/ble_hs_conn.c"
                     "host/nimble/nimble/nimble/host/src/ble_store_util.c"
                     "host/nimble/nimble/nimble/host/src/ble_sm.c"
@@ -725,10 +733,12 @@ if(CONFIG_BT_ENABLED)
                 "host/nimble/nimble/porting/npl/freertos/src/nimble_port_freertos.c"
                 "host/nimble/port/src/nvs_port.c"
             )
+
             list(APPEND include_dirs
                 host/nimble/nimble/porting/nimble/include
                 host/nimble/port/include
                 host/nimble/nimble/nimble/transport/include
+                host/nimble/nimble/nimble/include
             )
 
             if(CONFIG_BT_CONTROLLER_DISABLED)
@@ -762,6 +772,7 @@ if(CONFIG_BT_ENABLED)
         if(CONFIG_BT_NIMBLE_LEGACY_VHCI_ENABLE AND CONFIG_BT_CONTROLLER_ENABLED)
             list(APPEND srcs
                 "host/nimble/esp-hci/src/esp_nimble_hci.c"
+                "host/nimble/nimble/nimble/transport/esp_ipc_legacy/src/hci_esp_ipc_legacy.c"
             )
             list(APPEND include_dirs ${nimble_hci_include_dirs})
         endif()
@@ -845,7 +856,16 @@ if(CONFIG_BT_ENABLED)
                 "${CMAKE_CURRENT_LIST_DIR}/controller/lib_esp32c3_family/esp32s3")
         target_link_libraries(${COMPONENT_LIB} PUBLIC btdm_app)
     elseif(CONFIG_BT_CONTROLLER_ENABLED)
-        add_prebuilt_library(libble_app "controller/lib_${target}/${target}-bt-lib/libble_app.a")
+        if(CONFIG_IDF_TARGET_ESP32C6)
+            add_prebuilt_library(libble_app
+                "${CMAKE_CURRENT_LIST_DIR}/controller/lib_esp32c6/esp32c6-bt-lib/esp32c6/libble_app.a")
+        elseif(CONFIG_IDF_TARGET_ESP32C61)
+            add_prebuilt_library(libble_app
+                "${CMAKE_CURRENT_LIST_DIR}/controller/lib_esp32c6/esp32c6-bt-lib/esp32c61/libble_app.a")
+        else()
+            add_prebuilt_library(libble_app
+                 "controller/lib_${target_name}/${target_name}-bt-lib/libble_app.a")
+        endif()
         target_link_libraries(${COMPONENT_LIB} PRIVATE libble_app)
     endif()
 
@@ -876,7 +896,7 @@ if(CONFIG_BLE_MESH)
         add_prebuilt_library(ble_mesh "esp_ble_mesh/lib/lib/esp32h2/libble_mesh.a")
         target_link_libraries(${COMPONENT_LIB} PRIVATE ble_mesh)
     elseif(CONFIG_IDF_TARGET_ESP32C5)
-        add_prebuilt_library(ble_mesh "esp_ble_mesh/lib/lib/esp32C5/libble_mesh.a")
+        add_prebuilt_library(ble_mesh "esp_ble_mesh/lib/lib/esp32c5/libble_mesh.a")
         target_link_libraries(${COMPONENT_LIB} PRIVATE ble_mesh)
     endif()
 endif()

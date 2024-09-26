@@ -2385,7 +2385,12 @@ void bta_dm_queue_search (tBTA_DM_MSG *p_data)
         osi_free(bta_dm_search_cb.p_search_queue);
     }
 
-    bta_dm_search_cb.p_search_queue = (tBTA_DM_MSG *)osi_malloc(sizeof(tBTA_DM_API_SEARCH));
+    tBTA_DM_API_SEARCH *search_queue = osi_malloc(sizeof(tBTA_DM_API_SEARCH));
+    if (search_queue == NULL) {
+        APPL_TRACE_ERROR("%s: couldn't allocate memory", __func__);
+        return;
+    }
+    bta_dm_search_cb.p_search_queue = (tBTA_DM_MSG *) search_queue;
     memcpy(bta_dm_search_cb.p_search_queue, p_data, sizeof(tBTA_DM_API_SEARCH));
 
 }
@@ -2406,7 +2411,12 @@ void bta_dm_queue_disc (tBTA_DM_MSG *p_data)
         osi_free(bta_dm_search_cb.p_search_queue);
     }
 
-    bta_dm_search_cb.p_search_queue = (tBTA_DM_MSG *)osi_malloc(sizeof(tBTA_DM_API_DISCOVER));
+    tBTA_DM_API_DISCOVER *search_queue = osi_malloc(sizeof(tBTA_DM_API_DISCOVER));
+    if (search_queue == NULL) {
+        APPL_TRACE_ERROR("%s: couldn't allocate memory", __func__);
+        return;
+    }
+    bta_dm_search_cb.p_search_queue = (tBTA_DM_MSG *)search_queue;
     memcpy(bta_dm_search_cb.p_search_queue, p_data, sizeof(tBTA_DM_API_DISCOVER));
 }
 #endif  ///SDP_INCLUDED == TRUE
@@ -5419,6 +5429,10 @@ void bta_dm_ble_scan (tBTA_DM_MSG *p_data)
             status = (status == BTM_CMD_STARTED ? BTA_SUCCESS : BTA_FAILURE);
             p_data->ble_scan.p_stop_scan_cback(status);
         }
+
+        // reset BLE scan link state when stop scan
+        btm_ble_clear_topology_mask(BTM_BLE_STATE_ACTIVE_SCAN_BIT);
+        btm_ble_clear_topology_mask(BTM_BLE_STATE_PASSIVE_SCAN_BIT);
     }
 }
 

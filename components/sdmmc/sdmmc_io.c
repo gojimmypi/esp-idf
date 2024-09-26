@@ -364,7 +364,9 @@ esp_err_t sdmmc_io_rw_extended(sdmmc_card_t* card, int func,
 
     err = sdmmc_send_cmd(card, &cmd);
 
-    if (arg & SD_ARG_CMD53_READ &&
+    // Cannot do a normal bitmask check (arg & SD_ARG_CMD53_READ)
+    // since SD_ARG_CMD53_READ (0<<31) is 0
+    if (!(arg & SD_ARG_CMD53_WRITE) &&
             datalen > 0 && cmd.data == card->host.dma_aligned_buffer) {
         assert(datalen <= SDMMC_IO_BLOCK_SIZE);
         memcpy(datap, card->host.dma_aligned_buffer, datalen);
@@ -381,11 +383,15 @@ esp_err_t sdmmc_io_rw_extended(sdmmc_card_t* card, int func,
 esp_err_t sdmmc_io_read_bytes(sdmmc_card_t* card, uint32_t function,
         uint32_t addr, void* dst, size_t size)
 {
-    uint32_t arg = SD_ARG_CMD53_READ | SD_ARG_CMD53_INCREMENT;
-    //Extract and unset the bit used to indicate the OP Code (inverted logic)
+    uint32_t arg = SD_ARG_CMD53_READ;
+    bool incr_addr = true;
+    //Extract and unset the bit used to indicate the OP Code
     if (addr & SDMMC_IO_FIXED_ADDR) {
-        arg &= ~SD_ARG_CMD53_INCREMENT;
         addr &= ~SDMMC_IO_FIXED_ADDR;
+        incr_addr = false;
+    }
+    if (incr_addr) {
+        arg |= SD_ARG_CMD53_INCREMENT;
     }
 
     /* host quirk: SDIO transfer with length not divisible by 4 bytes
@@ -405,7 +411,9 @@ esp_err_t sdmmc_io_read_bytes(sdmmc_card_t* card, uint32_t function,
         }
         pc_dst += will_transfer;
         size -= will_transfer;
-        addr += will_transfer;
+        if (incr_addr) {
+            addr += will_transfer;
+        }
     }
     return ESP_OK;
 }
@@ -413,11 +421,15 @@ esp_err_t sdmmc_io_read_bytes(sdmmc_card_t* card, uint32_t function,
 esp_err_t sdmmc_io_write_bytes(sdmmc_card_t* card, uint32_t function,
         uint32_t addr, const void* src, size_t size)
 {
-    uint32_t arg = SD_ARG_CMD53_WRITE | SD_ARG_CMD53_INCREMENT;
-    //Extract and unset the bit used to indicate the OP Code (inverted logic)
+    uint32_t arg = SD_ARG_CMD53_WRITE;
+    bool incr_addr = true;
+    //Extract and unset the bit used to indicate the OP Code
     if (addr & SDMMC_IO_FIXED_ADDR) {
-        arg &= ~SD_ARG_CMD53_INCREMENT;
         addr &= ~SDMMC_IO_FIXED_ADDR;
+        incr_addr = false;
+    }
+    if (incr_addr) {
+        arg |= SD_ARG_CMD53_INCREMENT;
     }
 
     /* same host quirk as in sdmmc_io_read_bytes */
@@ -434,7 +446,9 @@ esp_err_t sdmmc_io_write_bytes(sdmmc_card_t* card, uint32_t function,
         }
         pc_src += will_transfer;
         size -= will_transfer;
-        addr += will_transfer;
+        if (incr_addr) {
+            addr += will_transfer;
+        }
     }
     return ESP_OK;
 }
@@ -660,7 +674,7 @@ static bool check_tuples_in_buffer(uint8_t* buf, int buffer_size, int* inout_cis
 esp_err_t sdmmc_io_get_cis_data(sdmmc_card_t* card, uint8_t* out_buffer, size_t buffer_size, size_t* inout_cis_size)
 {
     esp_err_t ret = ESP_OK;
-    WORD_ALIGNED_ATTR uint8_t buf[CIS_GET_MINIMAL_SIZE];
+    WORD_ALIGNED_ATTR uint8_t buf[CIS_GET_MINIMAL_SIZE] = {0};
 
     /* Pointer to size is a mandatory parameter */
     assert(inout_cis_size);

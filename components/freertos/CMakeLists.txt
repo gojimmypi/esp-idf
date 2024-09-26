@@ -95,6 +95,7 @@ endif()
 # Add ESP-additions source files
 list(APPEND srcs
     "esp_additions/freertos_compatibility.c"
+    "esp_additions/idf_additions_event_groups.c"
     "esp_additions/idf_additions.c")
 
 if(arch STREQUAL "linux")
@@ -248,7 +249,7 @@ else()
         idf_component_optional_requires(PRIVATE esp_pm)
     endif()
 
-    if(CONFIG_IDF_TARGET_ESP32P4 AND NOT CONFIG_FREERTOS_SMP AND
+    if(NOT CONFIG_FREERTOS_SMP AND
        CONFIG_COMPILER_STATIC_ANALYZER AND CMAKE_C_COMPILER_ID STREQUAL "GNU")  # suppress false-positive warning
         set_source_files_properties(
             "${kernel_impl}/queue.c"

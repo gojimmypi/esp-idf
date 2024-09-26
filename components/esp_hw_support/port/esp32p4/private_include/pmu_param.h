@@ -16,6 +16,10 @@
 extern "C" {
 #endif
 
+#define HP_CALI_ACTIVE_DCM_VSET_DEFAULT     27 // For DCDC, about 1.25v
+#define HP_CALI_ACTIVE_DBIAS_DEFAULT        24 // For HP regulator
+#define LP_CALI_DBIAS                       29 // For LP regulator
+
 // FOR  XTAL FORCE PU IN SLEEP
 #define PMU_PD_CUR_SLEEP_ON    0
 #define PMU_BIASSLP_SLEEP_ON   0
@@ -35,6 +39,9 @@ extern "C" {
 #define PMU_DBG_ATTEN_LIGHTSLEEP_DEFAULT    0
 #define PMU_HP_DBIAS_LIGHTSLEEP_0V6 1
 #define PMU_LP_DBIAS_LIGHTSLEEP_0V7 12
+
+// FOR LIGHTSLEEP: XTAL FORCE PU
+#define PMU_DBG_ATTEN_ACTIVE_DEFAULT    0
 
 // FOR DEEPSLEEP
 #define PMU_DBG_HP_DEEPSLEEP    0
@@ -296,7 +303,7 @@ typedef struct {
             .bod_source_sel = 0,                                            \
             .vddbat_mode    = 0,                                            \
             .peri_pd_en    = ((pd_flags) & PMU_SLEEP_PD_LP_PERIPH) ? 1 : 0, \
-            .mem_dslp      = 1                                              \
+            .mem_dslp      = 0                                              \
         },                                                                  \
         .clk_power = {                                                      \
             .xpd_lppll     = 0,\
@@ -314,9 +321,18 @@ typedef struct {
     pmu_hp_sys_cntl_reg_t   syscntl;
 } pmu_sleep_digital_config_t;
 
+
+#define PMU_SLEEP_DIGITAL_DSLP_CONFIG_DEFAULT(pd_flags) {               \
+    .syscntl = {                                                        \
+        .dig_pad_slp_sel = 0,                                           \
+        .lp_pad_hold_all = (pd_flags & PMU_SLEEP_PD_LP_PERIPH) ? 1 : 0, \
+    }                                                                   \
+}
+
 #define PMU_SLEEP_DIGITAL_LSLP_CONFIG_DEFAULT(pd_flags) {               \
     .syscntl = {                                                        \
-        .dig_pad_slp_sel = ((pd_flags) & PMU_SLEEP_PD_TOP) ? 0 : 1,     \
+        .dig_pad_slp_sel = (pd_flags & PMU_SLEEP_PD_TOP) ? 0 : 1,       \
+        .lp_pad_hold_all = (pd_flags & PMU_SLEEP_PD_LP_PERIPH) ? 1 : 0, \
     }                                                                   \
 }
 

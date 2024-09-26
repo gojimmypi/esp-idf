@@ -89,6 +89,15 @@ static inline void gpio_ll_pullup_en(gpio_dev_t *hw, uint32_t gpio_num)
 __attribute__((always_inline))
 static inline void gpio_ll_pullup_dis(gpio_dev_t *hw, uint32_t gpio_num)
 {
+    // The pull-up value of the USB pins are controlled by the pins’ pull-up value together with USB pull-up value
+    // USB DP pin is default to PU enabled
+    // Note that esp32C5 has supported USB_EXCHG_PINS feature. If this efuse is burnt, the gpio pin
+    // which should be checked is USB_INT_PHY0_DM_GPIO_NUM instead.
+    // TODO: read the specific efuse with efuse_ll.h
+    if (gpio_num == USB_INT_PHY0_DP_GPIO_NUM) {
+        USB_SERIAL_JTAG.conf0.pad_pull_override = 1;
+        USB_SERIAL_JTAG.conf0.dp_pullup = 0;
+    }
     IO_MUX.gpio[gpio_num].fun_wpu = 0;
 }
 
@@ -112,15 +121,7 @@ static inline void gpio_ll_pulldown_en(gpio_dev_t *hw, uint32_t gpio_num)
 __attribute__((always_inline))
 static inline void gpio_ll_pulldown_dis(gpio_dev_t *hw, uint32_t gpio_num)
 {
-    // The pull-up value of the USB pins are controlled by the pins’ pull-up value together with USB pull-up value
-    // USB DP pin is default to PU enabled
-    // Note that esp32C5 has supported USB_EXCHG_PINS feature. If this efuse is burnt, the gpio pin
-    // which should be checked is USB_INT_PHY0_DM_GPIO_NUM instead.
-    // TODO: read the specific efuse with efuse_ll.h
-    if (gpio_num == USB_INT_PHY0_DP_GPIO_NUM) {
-        USB_SERIAL_JTAG.conf0.pad_pull_override = 1;
-        USB_SERIAL_JTAG.conf0.dp_pullup = 0;
-    }
+
     IO_MUX.gpio[gpio_num].fun_wpd = 0;
 }
 
@@ -297,8 +298,6 @@ __attribute__((always_inline))
 static inline void gpio_ll_output_disable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     hw->enable_w1tc.enable_w1tc = (0x1 << gpio_num);
-    // Ensure no other output signal is routed via GPIO matrix to this pin
-    hw->func_out_sel_cfg[gpio_num].out_sel = SIG_GPIO_OUT_IDX;
 }
 
 /**
@@ -333,6 +332,21 @@ static inline void gpio_ll_od_disable(gpio_dev_t *hw, uint32_t gpio_num)
 static inline void gpio_ll_od_enable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     hw->pin[gpio_num].pad_driver = 1;
+}
+
+/**
+ * @brief Disconnect any peripheral output signal routed via GPIO matrix to the pin
+ *
+ * @param  hw Peripheral GPIO hardware instance address.
+ * @param  gpio_num GPIO number
+ */
+__attribute__((always_inline))
+static inline void gpio_ll_matrix_out_default(gpio_dev_t *hw, uint32_t gpio_num)
+{
+    gpio_func_out_sel_cfg_reg_t reg = {
+      .out_sel = SIG_GPIO_OUT_IDX,
+    };
+    hw->func_out_sel_cfg[gpio_num].val = reg.val;
 }
 
 /**
@@ -485,19 +499,6 @@ static inline void gpio_ll_iomux_func_sel(uint32_t pin_name, uint32_t func)
         USB_SERIAL_JTAG.conf0.usb_pad_enable = 0;
     }
     PIN_FUNC_SELECT(pin_name, func);
-}
-
-/**
- * @brief  Control the pin in the IOMUX
- *
- * @param  bmap   write mask of control value
- * @param  val    Control value
- * @param  shift  write mask shift of control value
- */
-__attribute__((always_inline))
-static inline void gpio_ll_set_pin_ctrl(uint32_t val, uint32_t bmap, uint32_t shift)
-{
-    SET_PERI_REG_BITS(PIN_CTRL, bmap, val, shift);
 }
 
 /**

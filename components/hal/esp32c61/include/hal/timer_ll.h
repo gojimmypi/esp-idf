@@ -17,8 +17,6 @@
 #include "soc/pcr_struct.h"
 #include "soc/soc_etm_source.h"
 
-// TODO: [ESP32C61] IDF-9306, inherit from c6
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -26,6 +24,7 @@ extern "C" {
 // Get timer group register base address with giving group number
 #define TIMER_LL_GET_HW(group_id) ((group_id == 0) ? (&TIMERG0) : (&TIMERG1))
 #define TIMER_LL_EVENT_ALARM(timer_id) (1 << (timer_id))
+#define TIMER_LL_SLEEP_RETENTION_MODULE_ID(group_id) ((group_id == 0) ? SLEEP_RETENTION_MODULE_TG0_TIMER: SLEEP_RETENTION_MODULE_TG1_TIMER)
 
 #define TIMER_LL_ETM_TASK_TABLE(group, timer, task)                                        \
     (uint32_t [2][1][GPTIMER_ETM_TASK_MAX]){{{                                             \
@@ -113,10 +112,10 @@ static inline void timer_ll_set_clock_source(timg_dev_t *hw, uint32_t timer_num,
     case GPTIMER_CLK_SRC_XTAL:
         clk_id = 0;
         break;
-    case GPTIMER_CLK_SRC_PLL_F80M:
+    case GPTIMER_CLK_SRC_RC_FAST:
         clk_id = 1;
         break;
-    case GPTIMER_CLK_SRC_RC_FAST:
+    case GPTIMER_CLK_SRC_PLL_F80M:
         clk_id = 2;
         break;
     default:

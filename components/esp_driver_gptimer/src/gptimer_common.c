@@ -6,8 +6,10 @@
 
 #include "esp_check.h"
 #include "esp_clk_tree.h"
+#include "esp_private/esp_clk_tree_common.h"
 #include "esp_private/gptimer.h"
 #include "gptimer_priv.h"
+#include "soc/soc_caps.h"
 
 static const char *TAG = "gptimer";
 
@@ -196,6 +198,7 @@ esp_err_t gptimer_select_periph_clock(gptimer_t *timer, gptimer_clock_source_t s
     }
 #endif // CONFIG_PM_ENABLE
 
+    esp_clk_tree_enable_src((soc_module_clk_t)src_clk, true);
     // !!! HARDWARE SHARED RESOURCE !!!
     // on some ESP chip, different peripheral's clock source setting are mixed in the same register
     // so we need to make this done in an atomic way
@@ -224,5 +227,12 @@ esp_err_t gptimer_get_pm_lock(gptimer_handle_t timer, esp_pm_lock_handle_t *ret_
 {
     ESP_RETURN_ON_FALSE(timer && ret_pm_lock, ESP_ERR_INVALID_ARG, TAG, "invalid argument");
     *ret_pm_lock = timer->pm_lock;
+    return ESP_OK;
+}
+
+int gptimer_get_group_id(gptimer_handle_t timer, int *group_id)
+{
+    ESP_RETURN_ON_FALSE(timer && group_id, ESP_ERR_INVALID_ARG, TAG, "invalid argument");
+    *group_id = timer->group->group_id;
     return ESP_OK;
 }

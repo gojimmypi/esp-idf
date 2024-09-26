@@ -138,7 +138,6 @@
 #define  APB_CLK_FREQ                                ( 40*1000000 )
 #define  MODEM_REQUIRED_MIN_APB_CLK_FREQ             ( 80*1000000 )
 #define  REF_CLK_FREQ                                ( 1000000 )
-#define  GPIO_MATRIX_DELAY_NS                        0
 //}}
 
 /* Overall memory map */
@@ -154,9 +153,9 @@
 #define SOC_DROM_LOW    SOC_IROM_LOW
 #define SOC_DROM_HIGH   SOC_IROM_HIGH
 #define SOC_IROM_MASK_LOW  0x40000000
-#define SOC_IROM_MASK_HIGH 0x40040000
+#define SOC_IROM_MASK_HIGH 0x40050000
 #define SOC_DROM_MASK_LOW  0x40000000
-#define SOC_DROM_MASK_HIGH 0x40040000
+#define SOC_DROM_MASK_HIGH 0x40050000
 #define SOC_IRAM_LOW    0x40800000
 #define SOC_IRAM_HIGH   0x40860000
 #define SOC_DRAM_LOW    0x40800000
@@ -198,9 +197,9 @@
 #define SOC_PERIPHERAL_LOW 0x60000000
 #define SOC_PERIPHERAL_HIGH 0x60100000
 
-// Debug region, not used by software
-#define SOC_DEBUG_LOW 0x20000000
-#define SOC_DEBUG_HIGH 0x28000000
+// CPU sub-system region, contains interrupt config registers
+#define SOC_CPU_SUBSYSTEM_LOW 0x20000000
+#define SOC_CPU_SUBSYSTEM_HIGH 0x30000000
 
 // Start (highest address) of ROM boot stack, only relevant during early boot
 #define SOC_ROM_STACK_START         0x4085e9a0
