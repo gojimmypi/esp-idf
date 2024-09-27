@@ -6,7 +6,8 @@ See [platform-espressif32/issues/1398](https://github.com/platformio/platform-es
 
 - [ ] Fork the IDF version you want to use. 
 - [ ] Do your changes. 
-- [ ] Add a valid `package.json` and `version.txt` in the root. 
+- [ ] Add a valid `package.json` and `version.txt` in the root.
+- [ ] Update the [.github/workflows/release_zips.yml](.github/workflows/release_zips.yml): `uses: gojimmypi/github-actions/release_zips@release_idf`
 - [ ] Create a UNIQUE tag. It MUST have `v` prefix! Ensure proper branch is selected.
 - [ ] Create a release. The github function release will NOT work since it does not include the git submodules. The generated release can be used with platform_packages
 - [ ] Confirm action is running at https://github.com/gojimmypi/esp-idf/actions (wait ~15 minutes to complete)
