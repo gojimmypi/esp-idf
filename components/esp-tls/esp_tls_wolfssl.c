@@ -27,16 +27,7 @@
     #warning "Unknown wolfSSL version. Check build system."
 #endif
 
-#ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
-    /* Note these are also set in wolfcrypt/src/port/Espressif/esp_crt_bundle.c
-     * to avoid conflicts with other cert bundles.
-     * Ensure they exactly match here: */
-    #define BUNDLE_HEADER_OFFSET 2
-    #define CRT_HEADER_OFFSET 2
-
-    #include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h>
-    #include <esp_task_wdt.h>
-#endif
+#include <wolfssl/wolfcrypt/port/Espressif/esp_crt_bundle.h>
 
 #include <http_parser.h>
 #include "esp_tls_wolfssl.h"
@@ -785,7 +776,9 @@ void esp_wolfssl_cleanup(esp_tls_t *tls)
     tls->conf.priv_ssl = NULL;
     tls->conf.priv_ctx = NULL;
 #endif
+#ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
     wolfSSL_bundle_cleanup();
+#endif
     wolfSSL_Cleanup();
 }
 
