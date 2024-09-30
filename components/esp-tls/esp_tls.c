@@ -715,11 +715,17 @@ int esp_tls_server_session_create(esp_tls_cfg_server_t *cfg, int sockfd, esp_tls
 /**
  * @brief      Close the server side TLS/SSL connection and free any allocated resources.
  */
+#ifdef CONFIG_ESP_TLS_USING_WOLFSSL
 int esp_tls_server_session_delete(esp_tls_t *tls)
+    {
+        return _esp_tls_server_session_delete(tls);
+    }
+#else
+void esp_tls_server_session_delete(esp_tls_t *tls)
 {
     return _esp_tls_server_session_delete(tls);
 }
-
+#endif
 ssize_t esp_tls_get_bytes_avail(esp_tls_t *tls)
 {
     return _esp_tls_get_bytes_avail(tls);
