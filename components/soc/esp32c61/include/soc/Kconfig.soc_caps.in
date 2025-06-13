@@ -31,10 +31,6 @@ config SOC_GPTIMER_SUPPORTED
     bool
     default y
 
-config SOC_BT_SUPPORTED
-    bool
-    default y
-
 config SOC_USB_SERIAL_JTAG_SUPPORTED
     bool
     default y
@@ -44,14 +40,6 @@ config SOC_ASYNC_MEMCPY_SUPPORTED
     default y
 
 config SOC_TEMP_SENSOR_SUPPORTED
-    bool
-    default y
-
-config SOC_PHY_SUPPORTED
-    bool
-    default y
-
-config SOC_WIFI_SUPPORTED
     bool
     default y
 
@@ -183,6 +171,10 @@ config SOC_XTAL_SUPPORT_40M
     bool
     default y
 
+config SOC_XTAL_CLOCK_PATH_DEPENDS_ON_TOP_DOMAIN
+    bool
+    default y
+
 config SOC_ADC_DIG_CTRL_SUPPORTED
     bool
     default y
@@ -200,8 +192,8 @@ config SOC_ADC_DMA_SUPPORTED
     default y
 
 config SOC_ADC_PERIPH_NUM
-    bool
-    default y
+    int
+    default 1
 
 config SOC_ADC_MAX_CHANNEL_NUM
     int
@@ -300,6 +292,10 @@ config SOC_CPU_INTR_NUM
     default 32
 
 config SOC_CPU_HAS_FLEXIBLE_INTC
+    bool
+    default y
+
+config SOC_CPU_SUPPORT_WFE
     bool
     default y
 
@@ -592,14 +588,6 @@ config SOC_I2S_SUPPORTS_PCM2PDM
     default y
 
 config SOC_I2S_SUPPORTS_PDM_RX
-    bool
-    default y
-
-config SOC_I2S_SUPPORTS_PDM2PCM
-    bool
-    default y
-
-config SOC_I2S_SUPPORTS_PDM_RX_HP_FILTER
     bool
     default y
 
@@ -1023,6 +1011,26 @@ config SOC_UART_SUPPORT_FSM_TX_WAIT_SEND
     bool
     default y
 
+config SOC_UART_WAKEUP_CHARS_SEQ_MAX_LEN
+    int
+    default 5
+
+config SOC_UART_WAKEUP_SUPPORT_ACTIVE_THRESH_MODE
+    bool
+    default y
+
+config SOC_UART_WAKEUP_SUPPORT_FIFO_THRESH_MODE
+    bool
+    default y
+
+config SOC_UART_WAKEUP_SUPPORT_START_BIT_MODE
+    bool
+    default y
+
+config SOC_UART_WAKEUP_SUPPORT_CHAR_SEQ_MODE
+    bool
+    default y
+
 config SOC_COEX_HW_PTI
     bool
     default y
@@ -1107,6 +1115,10 @@ config SOC_PM_SUPPORT_PMU_MODEM_STATE
     bool
     default y
 
+config SOC_PM_SUPPORT_PMU_CLK_ICG
+    bool
+    default y
+
 config SOC_PM_CPU_RETENTION_BY_SW
     bool
     default y
@@ -1116,10 +1128,6 @@ config SOC_PM_MODEM_RETENTION_BY_REGDMA
     default y
 
 config SOC_EXT_MEM_CACHE_TAG_IN_CPU_DOMAIN
-    bool
-    default y
-
-config SOC_PM_MMU_TABLE_RETENTION_WHEN_TOP_PD
     bool
     default y
 
@@ -1136,6 +1144,10 @@ config SOC_PM_PAU_REGDMA_LINK_WIFIMAC
     default y
 
 config SOC_PM_PAU_REGDMA_UPDATE_CACHE_BEFORE_WAIT_COMPARE
+    bool
+    default y
+
+config SOC_PM_PMU_MIN_SLP_SLOW_CLK_CYCLE_FIXED
     bool
     default y
 
@@ -1171,10 +1183,6 @@ config SOC_RCC_IS_INDEPENDENT
     bool
     default y
 
-config SOC_CLK_ANA_I2C_MST_HAS_ROOT_GATE
-    bool
-    default y
-
 config SOC_TEMPERATURE_SENSOR_SUPPORT_FAST_RC
     bool
     default y
@@ -1192,77 +1200,5 @@ config SOC_TEMPERATURE_SENSOR_SUPPORT_SLEEP_RETENTION
     default y
 
 config SOC_TEMPERATURE_SENSOR_UNDER_PD_TOP_DOMAIN
-    bool
-    default y
-
-config SOC_WIFI_HW_TSF
-    bool
-    default y
-
-config SOC_WIFI_FTM_SUPPORT
-    bool
-    default n
-
-config SOC_WIFI_GCMP_SUPPORT
-    bool
-    default y
-
-config SOC_WIFI_WAPI_SUPPORT
-    bool
-    default y
-
-config SOC_WIFI_CSI_SUPPORT
-    bool
-    default y
-
-config SOC_WIFI_MESH_SUPPORT
-    bool
-    default y
-
-config SOC_WIFI_HE_SUPPORT
-    bool
-    default y
-
-config SOC_WIFI_MAC_VERSION_NUM
-    int
-    default 3
-
-config SOC_BLE_SUPPORTED
-    bool
-    default y
-
-config SOC_BLE_MESH_SUPPORTED
-    bool
-    default y
-
-config SOC_ESP_NIMBLE_CONTROLLER
-    bool
-    default y
-
-config SOC_BLE_50_SUPPORTED
-    bool
-    default y
-
-config SOC_BLE_DEVICE_PRIVACY_SUPPORTED
-    bool
-    default y
-
-config SOC_BLE_POWER_CONTROL_SUPPORTED
-    bool
-    default y
-
-config SOC_BLE_PERIODIC_ADV_ENH_SUPPORTED
-    bool
-    default y
-
-config SOC_BLUFI_SUPPORTED
-    bool
-    default y
-
-config SOC_BLE_MULTI_CONN_OPTIMIZATION
-    bool
-    default y
-
-config SOC_PHY_COMBO_MODULE
     bool
     default y

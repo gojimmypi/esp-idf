@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -148,6 +148,7 @@ typedef enum {
     // For digital domain: peripherals
     SOC_MOD_CLK_PLL_F20M,                      /*!< PLL_F20M_CLK is derived from SPLL (clock gating + default divider 24), its default frequency is 20MHz */
     SOC_MOD_CLK_PLL_F25M,                      /*!< PLL_F25M_CLK is derived from MPLL (clock gating + configurable divider), it will have a frequency of 25MHz */
+    SOC_MOD_CLK_PLL_F50M,                      /*!< PLL_F50M_CLK is derived from MPLL (clock gating + configurable divider 10), it will have a frequency of 50MHz */
     SOC_MOD_CLK_PLL_F80M,                      /*!< PLL_F80M_CLK is derived from SPLL (clock gating + default divider 6), its default frequency is 80MHz */
     SOC_MOD_CLK_PLL_F160M,                     /*!< PLL_F160M_CLK is derived from SPLL (clock gating + default divider 3), its default frequency is 160MHz */
     SOC_MOD_CLK_PLL_F240M,                     /*!< PLL_F240M_CLK is derived from SPLL (clock gating + default divider 2), its default frequency is 240MHz */
@@ -596,16 +597,14 @@ typedef enum {
 /**
  * @brief Array initializer for all supported clock sources of TWAI
  */
-#define SOC_TWAI_CLKS {SOC_MOD_CLK_XTAL, SOC_MOD_CLK_RC_FAST}
+#define SOC_TWAI_CLKS {SOC_MOD_CLK_XTAL}
 
 /**
  * @brief TWAI clock source
  */
 typedef enum {
     TWAI_CLK_SRC_XTAL = SOC_MOD_CLK_XTAL,           /*!< Select XTAL as the source clock */
-#if SOC_CLK_TREE_SUPPORTED
     TWAI_CLK_SRC_RC_FAST = SOC_MOD_CLK_RC_FAST,     /*!< Select RC_FAST as the source clock */
-#endif
     TWAI_CLK_SRC_DEFAULT = SOC_MOD_CLK_XTAL,        /*!< Select XTAL as the default clock choice */
 } soc_periph_twai_clk_src_t;
 
@@ -735,6 +734,19 @@ typedef enum {
     TEMPERATURE_SENSOR_CLK_SRC_LP_PERI = SOC_MOD_CLK_LP_PERI,     /*!< Select LP_PERI as the source clock */
     TEMPERATURE_SENSOR_CLK_SRC_DEFAULT = SOC_MOD_CLK_LP_PERI,    /*!< Select LP_PERI as the default choice */
 } soc_periph_temperature_sensor_clk_src_t;
+
+//////////////////////////////////////////////////I3C Master///////////////////////////////////////////////////////////
+
+/**
+ * @brief Array initializer for all supported clock sources of I3C master
+ */
+#define SOC_I3C_MASTER_CLKS {SOC_MOD_CLK_XTAL, SOC_MOD_CLK_PLL_F160M}
+
+typedef enum {
+    I3C_MASTER_CLK_SRC_XTAL = SOC_MOD_CLK_XTAL,
+    I3C_MASTER_CLK_SRC_PLL_F160M = SOC_MOD_CLK_PLL_F160M,
+    I3C_MASTER_CLK_SRC_DEFAULT = SOC_MOD_CLK_XTAL,
+} soc_periph_i3c_master_clk_src_t;
 
 //////////////////////////////////////////////////EMAC PTP///////////////////////////////////////////////////////////////
 

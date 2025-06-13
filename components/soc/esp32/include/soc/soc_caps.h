@@ -1,6 +1,6 @@
 
 /*
- * SPDX-FileCopyrightText: 2020-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -54,9 +54,9 @@
 
 // Define warning strings here for ECO-ed features to show error when they are used without being
 // defined correctly
-#define SOC_BROWNOUT_RESET_SUPPORTED    "Not determined"
-#define SOC_TWAI_BRP_DIV_SUPPORTED      "Not determined"
-#define SOC_DPORT_WORKAROUND            "Not determined"
+#define SOC_BROWNOUT_RESET_SUPPORTED    "Not determined" // [gen_soc_caps:ignore]
+#define SOC_TWAI_BRP_DIV_SUPPORTED      "Not determined" // [gen_soc_caps:ignore]
+#define SOC_DPORT_WORKAROUND            "Not determined" // [gen_soc_caps:ignore]
 #endif
 
 /*-------------------------- COMMON CAPS ---------------------------------------*/
@@ -107,7 +107,7 @@
 #define SOC_PM_SUPPORTED            1
 
 #if SOC_CAPS_ECO_VER < 200
-#define SOC_DPORT_WORKAROUND                   1
+#define SOC_DPORT_WORKAROUND                   1  // [gen_soc_caps:ignore]
 #endif // SOC_CAPS_ECO_VER < 200
 #define SOC_DPORT_WORKAROUND_DIS_INTERRUPT_LVL (5U)
 
@@ -162,7 +162,7 @@
 
 #define SOC_CPU_BREAKPOINTS_NUM             2
 #define SOC_CPU_WATCHPOINTS_NUM             2
-#define SOC_CPU_WATCHPOINT_MAX_REGION_SIZE  64 // bytes
+#define SOC_CPU_WATCHPOINT_MAX_REGION_SIZE  0x40 // bytes
 
 /*-------------------------- DAC CAPS ----------------------------------------*/
 #define SOC_DAC_CHAN_NUM              2
@@ -329,14 +329,21 @@
 #define SOC_TIMER_GROUP_TOTAL_TIMERS      (4)
 #define SOC_TIMER_GROUP_SUPPORT_APB       (1)
 
+/*-------------------------- LP_TIMER CAPS ----------------------------------*/
+#define SOC_LP_TIMER_BIT_WIDTH_LO           32 // Bit width of lp_timer low part
+#define SOC_LP_TIMER_BIT_WIDTH_HI           16 // Bit width of lp_timer high part
+
 /*-------------------------- TOUCH SENSOR CAPS -------------------------------*/
 #define SOC_TOUCH_SENSOR_VERSION            (1U)     /*!<Hardware version of touch sensor */
 #define SOC_TOUCH_SENSOR_NUM                (10)
+#define SOC_TOUCH_MIN_CHAN_ID               (0U)    /*!< Touch minimum channel number */
+#define SOC_TOUCH_MAX_CHAN_ID               (9)     /*!< Touch maximum channel number */
 #define SOC_TOUCH_SUPPORT_SLEEP_WAKEUP      (1)
 #define SOC_TOUCH_SAMPLE_CFG_NUM            (1U)    /*!< The sample configuration number in total, each sampler can be used to sample on one frequency */
 
 /*-------------------------- TWAI CAPS ---------------------------------------*/
-#define SOC_TWAI_CONTROLLER_NUM         1UL
+#define SOC_TWAI_CONTROLLER_NUM         1U
+#define SOC_TWAI_MASK_FILTER_NUM        1U
 #define SOC_TWAI_BRP_MIN                2
 #if SOC_CAPS_ECO_VER >= 200
 #  define SOC_TWAI_BRP_MAX              256
@@ -355,6 +362,8 @@
 #define SOC_UART_SUPPORT_REF_TICK   (1)         /*!< Support REF_TICK as the clock source */
 #define SOC_UART_FIFO_LEN           (128)       /*!< The UART hardware FIFO length */
 #define SOC_UART_BITRATE_MAX        (5000000)   /*!< Max bit rate supported by UART */
+
+#define SOC_UART_WAKEUP_SUPPORT_ACTIVE_THRESH_MODE (1)
 
 /*-------------------------- SPIRAM CAPS -------------------------------------*/
 #define SOC_SPIRAM_SUPPORTED    1
@@ -377,7 +386,7 @@
 
 /*--------------------------- MPI CAPS ---------------------------------------*/
 #define SOC_MPI_MEM_BLOCKS_NUM (4)
-#define SOC_MPI_OPERATIONS_NUM (1)
+#define SOC_MPI_OPERATIONS_NUM (1U)
 
 /*--------------------------- RSA CAPS ---------------------------------------*/
 #define SOC_RSA_MAX_BIT_LEN    (4096)
@@ -394,7 +403,7 @@
  * Hence, for now we are handling this special capability in bootloader "security" configuration itself.
  */
 #define SOC_SECURE_BOOT_V1                  1
-#define SOC_EFUSE_SECURE_BOOT_KEY_DIGESTS   1
+#define SOC_EFUSE_SECURE_BOOT_KEY_DIGESTS   (1U)
 
 /*-------------------------- Flash Encryption CAPS----------------------------*/
 #define SOC_FLASH_ENCRYPTED_XTS_AES_BLOCK_MAX   (32)
@@ -433,8 +442,9 @@
 /* On ESP32, clock/cmd/data pins use IO MUX.
  * Card detect, write protect, interrupt use GPIO Matrix on all chips.
  */
-#define SOC_SDMMC_USE_IOMUX  1
-#define SOC_SDMMC_NUM_SLOTS  2
+#define SOC_SDMMC_USE_IOMUX          1
+#define SOC_SDMMC_NUM_SLOTS          2
+#define SOC_SDMMC_DATA_WIDTH_MAX     8
 
 /*-------------------------- WI-FI HARDWARE CAPS -------------------------------*/
 #define SOC_WIFI_WAPI_SUPPORT                   (1)    /*!< Support WAPI */

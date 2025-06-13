@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -108,8 +108,8 @@ esp_err_t esp_cache_msync(void *addr, size_t size, int flags)
     }
     uint32_t cache_line_size = cache_hal_get_cache_line_size(cache_level, cache_type);
     if ((flags & ESP_CACHE_MSYNC_FLAG_UNALIGNED) == 0) {
-        bool aligned_addr = (((uint32_t)addr % cache_line_size) == 0);
-        ESP_RETURN_ON_FALSE_ISR(aligned_addr, ESP_ERR_INVALID_ARG, TAG, "start address: 0x%" PRIx32 " is not aligned with cache line size (0x%" PRIx32 ")B", (uint32_t)addr, cache_line_size);
+        bool aligned_addr = (((uint32_t)addr % cache_line_size) == 0) && ((size % cache_line_size) == 0);
+        ESP_RETURN_ON_FALSE_ISR(aligned_addr, ESP_ERR_INVALID_ARG, TAG, "start address: 0x%" PRIx32 ", or the size: 0x%" PRIx32 " is(are) not aligned with cache line size (0x%" PRIx32 ")B", (uint32_t)addr, (uint32_t)size, cache_line_size);
     }
 
     s_acquire_mutex_from_task_context();
@@ -146,6 +146,42 @@ esp_err_t esp_cache_msync(void *addr, size_t size, int flags)
 
     return ESP_OK;
 }
+
+void esp_cache_suspend_ext_mem_cache(void)
+{
+#if (CONFIG_SPIRAM && SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE)
+    /**
+     * before suspending the external mem cache, writeback internal mem cache content back to external mem cache
+     * to avoid stuck issue caused by internal mem cache auto-writeback
+     */
+    cache_ll_writeback_all(CACHE_LL_LEVEL_INT_MEM, CACHE_TYPE_DATA, CACHE_LL_ID_ALL);
+#endif
+    cache_hal_suspend(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
+}
+
+void esp_cache_resume_ext_mem_cache(void)
+{
+    cache_hal_resume(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
+}
+
+#if SOC_CACHE_FREEZE_SUPPORTED
+void esp_cache_freeze_ext_mem_cache(void)
+{
+#if (CONFIG_SPIRAM && SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE)
+    /**
+     * before freezing the external mem cache, writeback internal mem cache content back to external mem cache
+     * to avoid stuck issue caused by internal mem cache auto-writeback
+     */
+    cache_ll_writeback_all(CACHE_LL_LEVEL_INT_MEM, CACHE_TYPE_DATA, CACHE_LL_ID_ALL);
+#endif
+    cache_hal_freeze(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
+}
+
+void esp_cache_unfreeze_ext_mem_cache(void)
+{
+    cache_hal_unfreeze(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
+}
+#endif  //#if SOC_CACHE_FREEZE_SUPPORTED
 
 //The esp_cache_aligned_malloc function is marked deprecated but also called by other
 //(also deprecated) functions in this file. In order to work around that generating warnings, it's

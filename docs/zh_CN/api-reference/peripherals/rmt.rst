@@ -162,8 +162,8 @@ RMT 发射器可以生成载波信号，并将其调制到消息信号上。载�
 
 - :cpp:member:`rmt_carrier_config_t::frequency_hz` 设置载波频率，单位为 Hz。
 - :cpp:member:`rmt_carrier_config_t::duty_cycle` 设置载波占空比。
-- :cpp:member:`rmt_carrier_config_t::polarity_active_low` 设置载波极性，即应用载波的电平。
-- :cpp:member:`rmt_carrier_config_t::always_on` 设置是否在数据发送完成后仍输出载波，该配置仅适用于 TX 通道。
+- :cpp:member:`rmt_carrier_config_t::extra_rmt_carrier_config_flags::polarity_active_low` 设置载波极性，即应用载波的电平。
+- :cpp:member:`rmt_carrier_config_t::extra_rmt_carrier_config_flags::always_on` 设置是否在数据发送完成后仍输出载波，该配置仅适用于 TX 通道。
 
 .. note::
 
@@ -218,7 +218,7 @@ RMT 发射器可以生成载波信号，并将其调制到消息信号上。载�
 
 - :cpp:member:`rmt_rx_done_event_data_t::received_symbols` 指向接收到的 RMT 符号，这些符号存储在 :cpp:func:`rmt_receive` 函数的 ``buffer`` 参数中，在回调函数返回前不应释放此接收缓冲区。如果你还启用了部分接收的功能，则这个用户缓冲区会被用作“二级缓冲区”，其中的内容可以被随后传入的数据覆盖。在这种情况下，如果你想要保存或者稍后处理一些数据，则需要将接收到的数据复制到其他位置。
 - :cpp:member:`rmt_rx_done_event_data_t::num_symbols` 表示接收到的 RMT 符号数量，该值不会超过 :cpp:func:`rmt_receive` 函数的 ``buffer_size`` 参数。如果 ``buffer_size`` 不足以容纳所有接收到的 RMT 符号，驱动程序将只保存缓冲区能够容纳的最大数量的符号，并丢弃或忽略多余的符号。
-- :cpp:member:`rmt_rx_done_event_data_t::is_last` 指示收到的数据包是否是当前的接收任务中的最后一个。这个标志在你使能 :cpp:member:`rmt_receive_config_t::extra_rmt_receive_flags::en_partial_rx` 部分接收功能时非常有用。
+- :cpp:member:`rmt_rx_done_event_data_t::extra_rmt_rx_done_event_flags::is_last` 指示收到的数据包是否是当前的接收任务中的最后一个。这个标志在你使能 :cpp:member:`rmt_receive_config_t::extra_rmt_receive_flags::en_partial_rx` 部分接收功能时非常有用。
 
 .. _rmt-enable-and-disable-channel:
 
@@ -334,7 +334,7 @@ RMT 是一种特殊的通信外设，无法像 SPI 和 I2C 那样发送原始字
 
 - :cpp:member:`rmt_receive_config_t::signal_range_min_ns` 指定高电平或低电平有效脉冲的最小持续时间。如果脉冲宽度小于指定值，硬件会将其视作干扰信号并忽略。
 - :cpp:member:`rmt_receive_config_t::signal_range_max_ns` 指定高电平或低电平有效脉冲的最大持续时间。如果脉冲宽度大于指定值，接收器会将其视作 **停止信号**，并立即生成接收完成事件。
-- 如果传入的数据包很长，无法一次性保存在用户缓冲区中，可以通过将 :cpp:member:`rmt_receive_config_t::extra_rmt_receive_flags::en_partial_rx` 设置为 ``true`` 来开启部分接收功能。在这种情况下，当用户缓冲区快满的时候，驱动会多次调用 :cpp:member:`rmt_rx_event_callbacks_t::on_recv_done` 回调函数来通知用户去处理已经收到的数据。你可以检查 :cpp:member::`rmt_rx_done_event_data_t::is_last` 的值来了解当前事务是否已经结束。请注意，并不是所有 ESP 系列芯片都支持这个功能，它依赖硬件提供的 “ping-pong 接收” 或者 “DMA 接收” 的能力。
+- 如果传入的数据包很长，无法一次性保存在用户缓冲区中，可以通过将 :cpp:member:`rmt_receive_config_t::extra_rmt_receive_flags::en_partial_rx` 设置为 ``true`` 来开启部分接收功能。在这种情况下，当用户缓冲区快满的时候，驱动会多次调用 :cpp:member:`rmt_rx_event_callbacks_t::on_recv_done` 回调函数来通知用户去处理已经收到的数据。你可以检查 :cpp:member:`rmt_rx_done_event_data_t::extra_rmt_rx_done_event_flags::is_last` 的值来了解当前事务是否已经结束。请注意，并不是所有 ESP 系列芯片都支持这个功能，它依赖硬件提供的 “ping-pong 接收” 或者 “DMA 接收” 的能力。
 
 根据以上配置调用 :cpp:func:`rmt_receive` 后，RMT 接收器会启动 RX 机制。注意，以上配置均针对特定事务存在，也就是说，要开启新一轮的接收时，需要再次设置 :cpp:type:`rmt_receive_config_t` 选项。接收器会将传入信号以 :cpp:type:`rmt_symbol_word_t` 的格式保存在内部内存块或 DMA 缓冲区中。
 
@@ -349,6 +349,10 @@ RMT 是一种特殊的通信外设，无法像 SPI 和 I2C 那样发送原始字
 应在 :cpp:func:`rmt_receive` 函数的 ``buffer`` 参数中提供复制目标。如果由于缓冲区大小不足而导致缓冲区溢出，接收器仍可继续工作，但会丢弃溢出的符号，并报告此错误信息： ``user buffer too small, received symbols truncated``。请注意 ``buffer`` 参数的生命周期，确保在接收器完成或停止工作前不会回收缓冲区。
 
 当接收器完成工作，即接收到持续时间大于 :cpp:member:`rmt_receive_config_t::signal_range_max_ns` 的信号时，驱动程序将停止接收器。如有需要，应再次调用 :cpp:func:`rmt_receive` 重新启动接收器。在 :cpp:member:`rmt_rx_event_callbacks_t::on_recv_done` 的回调中可以获取接收到的数据。要获取更多有关详情，请参阅 :ref:`rmt-register-event-callbacks`。
+
+.. note::
+
+    调用 :cpp:func:`rmt_receive` 函数后， 实际接收会在第一次电平跳变的时候开始。如果需要获取开始接收的时间，可以在 RMT RX 通道的 GPIO 上注册 GPIO 中断，详情请参阅 :doc:`GPIO 文档 </api-reference/peripherals/gpio>`。
 
 .. code:: c
 
@@ -442,6 +446,22 @@ RMT 编码器是 RMT TX 事务的一部分，用于在特定时间生成正确�
 - :cpp:member:`rmt_simple_encoder_config_t::min_chunk_size` 指定了编码器始终能够写入一些数据的最小空闲空间，以符号为单位。换句话说，当传递给编码器的空闲空间达到这个数量时，它不应该返回 0（除非编码器已经完成了符号的编码）。
 
 简易回调编码器的功能通常可以通过链式组合其他编码器来实现，但相比编码器链，简易回调编码器更易于理解和维护。
+
+.. only:: SOC_BITSCRAMBLER_SUPPORTED and SOC_RMT_SUPPORT_DMA
+
+    .. _rmt-bitscrambler-encoder:
+
+    比特调节 (BitScrambler) 编码器
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    当 RMT 的发送通道开启了 DMA, 我们可以通过编写 :doc:`比特调节器 </api-reference/peripherals/bitscrambler>` 汇编代码来控制 DMA 通路上的数据，进而实现一些简单的编码工作。相较于使用 CPU 做编码工作，比特调节器的性能更高，且不会占用 CPU 资源，但是受限于 BitScrambler 有限的指令存储器空间，它无法实现复杂的编码工作。此外，比特调节器程序的输出流数据格式必须符合 :cpp:type:`rmt_symbol_word_t` 结构。
+
+    调用 :cpp:func:`rmt_new_bitscrambler_encoder` 可以创建一个比特调节器编码器。该函数的配置参数为 :cpp:type:`rmt_bs_encoder_config_t` 结构体，包含以下配置项：
+        - :cpp:member:`rmt_bs_encoder_config_t::program_bin` 指向比特调节器程序的二进制文件的指针。该二进制文件必须符合比特调节器的汇编语言规范，并且在运行时会被加载到比特调节器的指令存储器中。如何编写并编译比特调节器程序请参考 :doc:`比特调节器编程指南 </api-reference/peripherals/bitscrambler>`。
+
+    .. note::
+
+        比特调节编码器**必须**配合开启了 DMA 的 RMT 通道使用。
 
 自定义 NEC 协议的 RMT 编码器
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -567,13 +587,15 @@ Cache 安全
 
 默认情况下，禁用 cache 时，写入/擦除主 flash 等原因将导致 RMT 中断延迟，事件回调函数也将延迟执行。在实时应用程序中，应避免此类情况。此外，当 RMT 事务依赖 **交替** 中断连续编码或复制 RMT 符号时，上述中断延迟将导致不可预测的结果。
 
-因此，可以启用 Kconfig 选项 :ref:`CONFIG_RMT_ISR_CACHE_SAFE`，该选项：
+因此，可以启用 Kconfig 选项 :ref:`CONFIG_RMT_TX_ISR_CACHE_SAFE` 和 :ref:`CONFIG_RMT_RX_ISR_CACHE_SAFE`，该选项：
 
 1. 支持在禁用 cache 时启用所需中断
 2. 支持将 ISR 使用的所有函数存放在 IRAM 中 [2]_
 3. 支持将驱动程序实例存放在 DRAM 中，以防其意外映射到 PSRAM 中
 
 启用该选项可以保证 cache 禁用时的中断运行，但会相应增加 IRAM 占用。
+
+请注意，当 :ref:`CONFIG_RMT_TX_ISR_CACHE_SAFE` 使能后，你必须将编码器函数 (主要是 :cpp:member:`rmt_encoder_t::encode` 和 :cpp:member:`rmt_encoder_t::reset`) 放进 IRAM 中。建议你使用 :c:macro:`RMT_ENCODER_FUNC_ATTR` 来装饰你的编码器函数。
 
 另外一个 Kconfig 选项 :ref:`CONFIG_RMT_RECV_FUNC_IN_IRAM` 可以将 :cpp:func:`rmt_receive` 函数放进内部的 IRAM 中，从而当 flash cache 被关闭的时候，这个函数也能够被使用。
 
@@ -594,7 +616,7 @@ RMT 驱动程序会确保工厂函数 :cpp:func:`rmt_new_tx_channel`、:cpp:func
 Kconfig 选项
 ^^^^^^^^^^^^^^^
 
-- :ref:`CONFIG_RMT_ISR_CACHE_SAFE` 控制默认 ISR 处理程序能否在禁用 cache 的情况下工作。详情请参阅 :ref:`rmt-cache-safe`。
+- :ref:`CONFIG_RMT_TX_ISR_CACHE_SAFE` 和 :ref:`CONFIG_RMT_RX_ISR_CACHE_SAFE` 控制默认 ISR 处理程序能否在禁用 cache 的情况下工作。详情请参阅 :ref:`rmt-cache-safe`。
 - :ref:`CONFIG_RMT_ENABLE_DEBUG_LOG` 用于启用调试日志输出，启用此选项将增加固件的二进制文件大小。
 - :ref:`CONFIG_RMT_RECV_FUNC_IN_IRAM` 用于控制 RMT 接收函数被链接到系统存储的哪个位置（IRAM 还是 Flash）。详情请参阅 :ref:`rmt-cache-safe`。
 

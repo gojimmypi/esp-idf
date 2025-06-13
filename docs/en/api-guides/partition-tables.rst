@@ -69,9 +69,9 @@ The CSV format is the same format as printed in the summaries shown above. Howev
     ota_1,    app,  ota_1,    ,         1M
     nvs_key,  data, nvs_keys, ,        0x1000
 
-* Whitespace between fields is ignored, and so is any line starting with # (comments).
+* Whitespace between fields is ignored, and so is any line starting with ``#`` (comments).
 * Each non-comment line in the CSV file is a partition definition.
-* The ``Offset`` field for each partition is empty. The ``gen_esp32part.py`` tool fills in each blank offset, starting after the partition table and making sure each partition is aligned correctly.
+* If you change the value of :ref:`CONFIG_PARTITION_TABLE_OFFSET`, you should update any fixed ``Offset`` in your CSV file to avoid overlaps with the new partition table location. Alternatively, leaving the ``Offset`` field blank allows the ``gen_esp32part.py`` tool to automatically calculate the correct offset based on the current partition table offset and alignment requirements.
 
 Here is an example of a CSV partition table that includes bootloader and partition table partitions:
 
@@ -176,6 +176,7 @@ See enum :cpp:type:`esp_partition_subtype_t` for the full list of subtypes defin
         - The NVS API can also be used for other application data.
         - It is strongly recommended that you include an NVS partition of at least 0x3000 bytes in your project.
         - If using NVS API to store a lot of data, increase the NVS partition size from the default 0x6000 bytes.
+        - When NVS is used to store factory settings, it is recommended to keep these settings in a separate read-only NVS partition. The minimal size of a read-only NVS partition is 0x1000 bytes. See :ref:`read-only-nvs` for more details. ESP-IDF provides :doc:`NVS Partition Generator Utility </api-reference/storage/nvs_partition_gen>` to generate NVS partitions with factory settings and to flash them along with the application.
     - ``nvs_keys`` (4) is for the NVS key partition. See :doc:`Non-Volatile Storage (NVS) API <../api-reference/storage/nvs_flash>` for more details.
 
         - It is used to store NVS encryption keys when `NVS Encryption` feature is enabled.
@@ -184,7 +185,6 @@ See enum :cpp:type:`esp_partition_subtype_t` for the full list of subtypes defin
     .. only:: esp32c6
 
             - ``tee_ota`` (0x90) is the :ref:`TEE OTA data partition <tee-ota-data-partition>` which stores information about the currently selected TEE OTA app slot. This partition should be 0x2000 bytes in size. Refer to the :doc:`TEE OTA documentation <../security/tee/tee-ota>` for more details.
-            - ``tee_sec_stg`` (0x91) is the TEE secure storage partition which stores encrypted data that can only be accessed by the TEE application. This partition is used by the :doc:`TEE Secure Storage <../security/tee/tee-sec-storage>` to store sensitive data like cryptographic keys. The size of this partition depends on the application requirements.
 
     - There are other predefined data subtypes for data storage supported by ESP-IDF. These include:
 
@@ -224,7 +224,9 @@ Offset & Size
     - Sizes and offsets can be specified as decimal numbers, hex numbers with the prefix 0x, or size multipliers K or M (1024 and 1024*1024 bytes).
     - For ``bootloader`` and ``partition_table`` types, specifying ``N/A`` for size and offset in the CSV file means that these values are automatically determined by the tool and cannot be manually defined. This requires setting the ``--offset`` and ``--primary-partition-offset`` arguments of ``gen_esp32part.py``.
 
-If you want the partitions in the partition table to work relative to any placement (:ref:`CONFIG_PARTITION_TABLE_OFFSET`) of the table itself, leave the offset field (in CSV file) for all partitions blank. Similarly, if changing the partition table offset then be aware that all blank partition offsets may change to match, and that any fixed offsets may now collide with the partition table (causing an error).
+.. note::
+
+    If you want the partitions in the partition table to work relative to any placement (:ref:`CONFIG_PARTITION_TABLE_OFFSET`) of the table itself, leave the offset field (in CSV file) for all partitions blank. Similarly, if changing the partition table offset, then be aware that all blank partition offsets may change to match, and that any fixed offsets may now collide with the partition table (causing an error).
 
 Flags
 ~~~~~

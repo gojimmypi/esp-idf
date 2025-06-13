@@ -23,6 +23,10 @@ config SOC_UART_SUPPORTED
     bool
     default y
 
+config SOC_UHCI_SUPPORTED
+    bool
+    default y
+
 config SOC_GDMA_SUPPORTED
     bool
     default y
@@ -240,6 +244,10 @@ config SOC_PM_SUPPORTED
     default y
 
 config SOC_XTAL_SUPPORT_32M
+    bool
+    default y
+
+config SOC_XTAL_CLOCK_PATH_DEPENDS_ON_TOP_DOMAIN
     bool
     default y
 
@@ -947,6 +955,10 @@ config SOC_PARLIO_TRANS_BIT_ALIGN
     bool
     default y
 
+config SOC_PARLIO_TX_SUPPORT_LOOP_TRANSMISSION
+    bool
+    default y
+
 config SOC_PARLIO_SUPPORT_SLEEP_RETENTION
     bool
     default y
@@ -1211,6 +1223,10 @@ config SOC_TWAI_CONTROLLER_NUM
     int
     default 1
 
+config SOC_TWAI_MASK_FILTER_NUM
+    int
+    default 1
+
 config SOC_TWAI_CLK_SUPPORT_XTAL
     bool
     default y
@@ -1315,6 +1331,18 @@ config SOC_ECDSA_USES_MPI
     bool
     default y
 
+config SOC_ECDSA_SUPPORT_DETERMINISTIC_MODE
+    bool
+    default y
+
+config SOC_ECDSA_SUPPORT_HW_DETERMINISTIC_LOOP
+    bool
+    default y
+
+config SOC_ECDSA_P192_CURVE_DEFAULT_DISABLED
+    bool
+    default y
+
 config SOC_UART_NUM
     int
     default 2
@@ -1350,6 +1378,30 @@ config SOC_UART_SUPPORT_FSM_TX_WAIT_SEND
 config SOC_UART_SUPPORT_SLEEP_RETENTION
     bool
     default y
+
+config SOC_UART_WAKEUP_CHARS_SEQ_MAX_LEN
+    int
+    default 5
+
+config SOC_UART_WAKEUP_SUPPORT_ACTIVE_THRESH_MODE
+    bool
+    default y
+
+config SOC_UART_WAKEUP_SUPPORT_FIFO_THRESH_MODE
+    bool
+    default y
+
+config SOC_UART_WAKEUP_SUPPORT_START_BIT_MODE
+    bool
+    default y
+
+config SOC_UART_WAKEUP_SUPPORT_CHAR_SEQ_MODE
+    bool
+    default y
+
+config SOC_UHCI_NUM
+    int
+    default 1
 
 config SOC_COEX_HW_PTI
     bool
@@ -1447,6 +1499,10 @@ config SOC_PM_RETENTION_SW_TRIGGER_REGDMA
     bool
     default y
 
+config SOC_PM_SUPPORT_PMU_CLK_ICG
+    bool
+    default y
+
 config SOC_CLK_RC_FAST_SUPPORT_CALIBRATION
     bool
     default y
@@ -1476,10 +1532,6 @@ config SOC_MODEM_CLOCK_IS_INDEPENDENT
     default y
 
 config SOC_RCC_IS_INDEPENDENT
-    bool
-    default y
-
-config SOC_CLK_ANA_I2C_MST_HAS_ROOT_GATE
     bool
     default y
 
@@ -1540,6 +1592,10 @@ config SOC_BLE_MULTI_CONN_OPTIMIZATION
     default y
 
 config SOC_BLE_PERIODIC_ADV_ENH_SUPPORTED
+    bool
+    default y
+
+config SOC_BLE_CTE_SUPPORTED
     bool
     default y
 

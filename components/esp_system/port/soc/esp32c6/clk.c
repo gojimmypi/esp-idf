@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -45,7 +45,6 @@
 #include "esp_private/periph_ctrl.h"
 #include "esp_private/esp_clk.h"
 #include "esp_private/esp_pmu.h"
-#include "esp_private/ocode_init.h"
 #include "esp_rom_uart.h"
 #include "esp_rom_sys.h"
 
@@ -72,9 +71,6 @@ void esp_rtc_init(void)
 
 #if !CONFIG_IDF_ENV_FPGA
     pmu_init();
-    if (esp_rom_get_reset_reason(0) == RESET_REASON_CHIP_POWER_ON) {
-        esp_ocode_calib_init();
-    }
 #endif
 }
 
@@ -185,11 +181,11 @@ static void select_rtc_slow_clk(soc_rtc_slow_clk_src_t rtc_slow_clk_src)
             rtc_clk_rc32k_enable(true);
         }
         rtc_clk_slow_src_set(rtc_slow_clk_src);
-
         // Disable unused clock sources after clock source switching is complete.
         // Regardless of the clock source selection, the internal 136K clock source will always keep on.
-        if (rtc_slow_clk_src != SOC_RTC_SLOW_CLK_SRC_XTAL32K && rtc_slow_clk_src != SOC_RTC_SLOW_CLK_SRC_OSC_SLOW) {
+        if ((rtc_slow_clk_src != SOC_RTC_SLOW_CLK_SRC_XTAL32K) && (rtc_slow_clk_src != SOC_RTC_SLOW_CLK_SRC_OSC_SLOW)) {
             rtc_clk_32k_enable(false);
+            rtc_clk_32k_disable_external();
         }
         if (rtc_slow_clk_src != SOC_RTC_SLOW_CLK_SRC_RC32K) {
             rtc_clk_rc32k_enable(false);
@@ -228,7 +224,7 @@ __attribute__((weak)) void esp_perip_clk_init(void)
      * precision sleep clock (for example, the BLE needs to use the main XTAL
      * oscillator (40 MHz) to provide the clock during the sleep process in some
      * scenarios), the module needs to switch to the required clock source by
-     * itself. */ //TODO - WIFI-5233
+     * itself. */
     soc_rtc_slow_clk_src_t rtc_slow_clk_src = rtc_clk_slow_src_get();
     modem_clock_lpclk_src_t modem_lpclk_src = (modem_clock_lpclk_src_t)(\
                                                                         (rtc_slow_clk_src == SOC_RTC_SLOW_CLK_SRC_RC_SLOW)  ? MODEM_CLOCK_LPCLK_SRC_RC_SLOW \
@@ -255,8 +251,8 @@ __attribute__((weak)) void esp_perip_clk_init(void)
         rmt_ll_enable_group_clock(0, false);
         ledc_ll_enable_clock(&LEDC, false);
         ledc_ll_enable_bus_clock(false);
-        timer_ll_enable_clock(&TIMERG0, 0, false);
-        timer_ll_enable_clock(&TIMERG1, 0, false);
+        timer_ll_enable_clock(0, 0, false);
+        timer_ll_enable_clock(1, 0, false);
         _timer_ll_enable_bus_clock(0, false);
         _timer_ll_enable_bus_clock(1, false);
         twai_ll_enable_clock(0, false);
@@ -291,11 +287,14 @@ __attribute__((weak)) void esp_perip_clk_init(void)
         periph_ll_disable_clk_set_rst(PERIPH_ASSIST_DEBUG_MODULE);
 #endif
         periph_ll_disable_clk_set_rst(PERIPH_RSA_MODULE);
+#if !CONFIG_SECURE_ENABLE_TEE
+        // NOTE: [ESP-TEE] The TEE is responsible for the AES and SHA peripherals
         periph_ll_disable_clk_set_rst(PERIPH_AES_MODULE);
         periph_ll_disable_clk_set_rst(PERIPH_SHA_MODULE);
-        periph_ll_disable_clk_set_rst(PERIPH_ECC_MODULE);
         periph_ll_disable_clk_set_rst(PERIPH_HMAC_MODULE);
         periph_ll_disable_clk_set_rst(PERIPH_DS_MODULE);
+        periph_ll_disable_clk_set_rst(PERIPH_ECC_MODULE);
+#endif
 
         // TODO: Replace with hal implementation
         REG_CLR_BIT(PCR_CTRL_TICK_CONF_REG, PCR_TICK_ENABLE);

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -39,6 +39,7 @@
 #include "esp_private/periph_ctrl.h"
 #include "esp_private/i2s_platform.h"
 #include "esp_private/gdma_link.h"
+#include "esp_private/esp_dma_utils.h"
 #include "esp_private/gpio.h"
 #include "soc/lcd_periph.h"
 #include "hal/i2s_hal.h"
@@ -70,8 +71,10 @@ struct esp_lcd_i80_bus_t {
     int dc_gpio_num;       // GPIO used for DC line
     int wr_gpio_num;       // GPIO used for WR line
     intr_handle_t intr;    // LCD peripheral interrupt handle
+#if CONFIG_PM_ENABLE
     esp_pm_lock_handle_t pm_lock; // lock APB frequency when necessary
-    size_t num_dma_nodes;  // Number of DMA descriptors
+#endif
+    size_t max_transfer_bytes;    // Maximum number of bytes that can be transferred in one transaction
     gdma_link_list_handle_t dma_link; // DMA link list handle
     uint8_t *format_buffer;// The driver allocates an internal buffer for DMA to do data format transformer
     unsigned long resolution_hz;  // LCD_CLK resolution, determined by selected clock source
@@ -141,7 +144,7 @@ esp_err_t esp_lcd_new_i80_bus(const esp_lcd_i80_bus_config_t *bus_config, esp_lc
     // allocate i80 bus memory
     bus = heap_caps_calloc(1, sizeof(esp_lcd_i80_bus_t), LCD_I80_MEM_ALLOC_CAPS);
     ESP_GOTO_ON_FALSE(bus, ESP_ERR_NO_MEM, err, TAG, "no mem for i80 bus");
-    size_t num_dma_nodes = max_transfer_bytes / LCD_DMA_DESCRIPTOR_BUFFER_MAX_SIZE + 1;
+    size_t num_dma_nodes = esp_dma_calculate_node_count(max_transfer_bytes, 1, LCD_DMA_DESCRIPTOR_BUFFER_MAX_SIZE);
     // create DMA link list
     gdma_link_list_config_t dma_link_config = {
         .buffer_alignment = 1, // no special buffer alignment for LCD TX buffer
@@ -153,7 +156,7 @@ esp_err_t esp_lcd_new_i80_bus(const esp_lcd_i80_bus_config_t *bus_config, esp_lc
     };
     ESP_GOTO_ON_ERROR(gdma_new_link_list(&dma_link_config, &bus->dma_link), err, TAG, "create DMA link list failed");
     bus->bus_id = -1;
-    bus->num_dma_nodes = num_dma_nodes;
+    bus->max_transfer_bytes = max_transfer_bytes;
 #if SOC_I2S_TRANS_SIZE_ALIGN_WORD
     // transform format for LCD commands, parameters and color data, so we need a big buffer
     bus->format_buffer = heap_caps_calloc(1, max_transfer_bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT | MALLOC_CAP_DMA);
@@ -217,7 +220,7 @@ esp_err_t esp_lcd_new_i80_bus(const esp_lcd_i80_bus_config_t *bus_config, esp_lc
     bus->dc_gpio_num = bus_config->dc_gpio_num;
     bus->wr_gpio_num = bus_config->wr_gpio_num;
     *ret_bus = bus;
-    ESP_LOGD(TAG, "new i80 bus(%d) @%p, %zu dma nodes, resolution %luHz", bus->bus_id, bus, num_dma_nodes, bus->resolution_hz);
+    ESP_LOGD(TAG, "new i80 bus(%d) @%p, resolution %luHz", bus->bus_id, bus, bus->resolution_hz);
     return ESP_OK;
 
 err:
@@ -234,9 +237,11 @@ err:
         if (bus->format_buffer) {
             free(bus->format_buffer);
         }
+#if CONFIG_PM_ENABLE
         if (bus->pm_lock) {
             esp_pm_lock_delete(bus->pm_lock);
         }
+#endif
         free(bus);
     }
     return ret;
@@ -250,9 +255,11 @@ esp_err_t esp_lcd_del_i80_bus(esp_lcd_i80_bus_handle_t bus)
     int bus_id = bus->bus_id;
     i2s_platform_release_occupation(I2S_CTLR_HP, bus_id);
     esp_intr_free(bus->intr);
+#if CONFIG_PM_ENABLE
     if (bus->pm_lock) {
         esp_pm_lock_delete(bus->pm_lock);
     }
+#endif
     free(bus->format_buffer);
     gdma_del_link_list(bus->dma_link);
     free(bus);
@@ -510,7 +517,7 @@ static esp_err_t panel_io_i80_tx_param(esp_lcd_panel_io_t *io, int lcd_cmd, cons
     esp_lcd_i80_bus_t *bus = next_device->bus;
     lcd_panel_io_i80_t *cur_device = bus->cur_device;
     lcd_i80_trans_descriptor_t *trans_desc = NULL;
-    assert(param_size <= (bus->num_dma_nodes * LCD_DMA_DESCRIPTOR_BUFFER_MAX_SIZE) && "parameter bytes too long, enlarge max_transfer_bytes");
+    assert(param_size <= bus->max_transfer_bytes && "parameter bytes too long, enlarge max_transfer_bytes");
     assert(param_size <= LCD_I80_IO_FORMAT_BUF_SIZE && "format buffer too small, increase LCD_I80_IO_FORMAT_BUF_SIZE");
     size_t num_trans_inflight = next_device->num_trans_inflight;
     // before issue a polling transaction, need to wait queued transactions finished
@@ -549,10 +556,12 @@ static esp_err_t panel_io_i80_tx_param(esp_lcd_panel_io_t *io, int lcd_cmd, cons
     // delay a while, wait for DMA data being feed to I2S FIFO
     // in fact, this is only needed when LCD pixel clock is set too high
     esp_rom_delay_us(1);
+#if CONFIG_PM_ENABLE
     // increase the pm lock reference count before starting a new transaction
     if (bus->pm_lock) {
         esp_pm_lock_acquire(bus->pm_lock);
     }
+#endif
     i2s_ll_tx_start(bus->hal.dev);
     // polling the trans done event
     while (!(i2s_ll_get_intr_status(bus->hal.dev) & I2S_LL_EVENT_TX_EOF)) {}
@@ -573,10 +582,12 @@ static esp_err_t panel_io_i80_tx_param(esp_lcd_panel_io_t *io, int lcd_cmd, cons
         // polling the trans done event, but don't clear the event status
         while (!(i2s_ll_get_intr_status(bus->hal.dev) & I2S_LL_EVENT_TX_EOF)) {}
     }
+#if CONFIG_PM_ENABLE
     // decrease pm lock reference count
     if (bus->pm_lock) {
         esp_pm_lock_release(bus->pm_lock);
     }
+#endif
     bus->cur_trans = NULL;
     return ESP_OK;
 }
@@ -587,7 +598,7 @@ static esp_err_t panel_io_i80_tx_color(esp_lcd_panel_io_t *io, int lcd_cmd, cons
     esp_lcd_i80_bus_t *bus = next_device->bus;
     lcd_panel_io_i80_t *cur_device = bus->cur_device;
     lcd_i80_trans_descriptor_t *trans_desc = NULL;
-    assert(color_size <= (bus->num_dma_nodes * LCD_DMA_DESCRIPTOR_BUFFER_MAX_SIZE) && "color bytes too long, enlarge max_transfer_bytes");
+    assert(color_size <= bus->max_transfer_bytes && "color bytes too long, enlarge max_transfer_bytes");
     size_t num_trans_inflight = next_device->num_trans_inflight;
     // before issue a polling transaction, need to wait queued transactions finished
     for (size_t i = 0; i < num_trans_inflight; i++) {
@@ -623,17 +634,21 @@ static esp_err_t panel_io_i80_tx_color(esp_lcd_panel_io_t *io, int lcd_cmd, cons
     i2s_ll_tx_reset(bus->hal.dev); // reset TX engine first
     i2s_ll_start_out_link(bus->hal.dev);
     esp_rom_delay_us(1);
+#if CONFIG_PM_ENABLE
     // increase the pm lock reference count before starting a new transaction
     if (bus->pm_lock) {
         esp_pm_lock_acquire(bus->pm_lock);
     }
+#endif
     i2s_ll_tx_start(bus->hal.dev);
     // polling the trans done event
     while (!(i2s_ll_get_intr_status(bus->hal.dev) & I2S_LL_EVENT_TX_EOF)) {}
+#if CONFIG_PM_ENABLE
     // decrease pm lock reference count
     if (bus->pm_lock) {
         esp_pm_lock_release(bus->pm_lock);
     }
+#endif
     bus->cur_trans = NULL;
 
     // sending LCD color data to queue
@@ -769,10 +784,12 @@ static IRAM_ATTR void i2s_lcd_default_isr_handler(void *args)
         // process finished transaction
         if (trans_desc) {
             assert(trans_desc->i80_device == cur_device && "transaction device mismatch");
+#if CONFIG_PM_ENABLE
             // decrease pm lock reference count
             if (bus->pm_lock) {
                 esp_pm_lock_release(bus->pm_lock);
             }
+#endif
             // device callback
             if (trans_desc->trans_done_cb) {
                 if (trans_desc->trans_done_cb(&cur_device->base, NULL, trans_desc->user_ctx)) {
@@ -823,10 +840,12 @@ static IRAM_ATTR void i2s_lcd_default_isr_handler(void *args)
                 i2s_ll_tx_reset(bus->hal.dev); // reset TX engine first
                 i2s_ll_start_out_link(bus->hal.dev);
                 esp_rom_delay_us(1);
+#if CONFIG_PM_ENABLE
                 // increase the pm lock reference count before starting a new transaction
                 if (bus->pm_lock) {
                     esp_pm_lock_acquire(bus->pm_lock);
                 }
+#endif
                 i2s_ll_tx_start(bus->hal.dev);
                 break; // exit for-each loop
             }

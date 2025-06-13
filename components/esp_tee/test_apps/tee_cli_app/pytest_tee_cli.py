@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 import hashlib
 import http.server
@@ -21,6 +21,7 @@ from ecdsa.curves import NIST256p
 from ecdsa.keys import VerifyingKey
 from ecdsa.util import sigdecode_der
 from pytest_embedded import Dut
+from pytest_embedded_idf.utils import idf_parametrize
 from RangeHTTPServer import RangeRequestHandler
 
 TEST_MSG = 'hello world'
@@ -34,8 +35,8 @@ key_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_certs/
 ###########################
 
 
-@pytest.mark.esp32c6
 @pytest.mark.generic
+@idf_parametrize('target', ['esp32c6'], indirect=['target'])
 def test_tee_cli_secure_storage(dut: Dut) -> None:
     # Dumping the REE binary size
     binary_file = os.path.join(dut.app.binary_path, 'tee_cli.bin')
@@ -52,13 +53,14 @@ def test_tee_cli_secure_storage(dut: Dut) -> None:
     time.sleep(1)
 
     # Test out the TEE secure storage workflow - Message signing and verification
-    iterations = 3
-    sec_stg_slots = {0: 0, 1: 14, 2: 7}
-    for i in range(iterations):
-        dut.write(f'tee_sec_stg_gen_key {sec_stg_slots.get(i)} 0')
-        dut.expect(r'Generated ECDSA_SECP256R1 key in slot (\d+)', timeout=30)
+    sec_stg_key_ids = {0: 'key0', 1: 'key1', 2: 'key2'}
+    iterations = len(sec_stg_key_ids)
 
-        dut.write(f'tee_sec_stg_sign {sec_stg_slots.get(i)} {test_msg_hash}')
+    for i in range(iterations):
+        dut.write(f'tee_sec_stg_gen_key {sec_stg_key_ids.get(i)} 1')
+        dut.expect(r'Generated ECDSA_SECP256R1 key with ID (\S+)', timeout=30)
+
+        dut.write(f'tee_sec_stg_sign {sec_stg_key_ids.get(i)} {test_msg_hash}')
         test_msg_sign = dut.expect(r'Generated signature -\s*([0-9a-fA-F]{128})', timeout=30)[1].decode()
         test_msg_pubkey = dut.expect(r'Public key \(Uncompressed\) -\s*([0-9a-fA-F]{130})', timeout=30)[1].decode()
         dut.expect('Signature verified successfully', timeout=30)
@@ -68,20 +70,20 @@ def test_tee_cli_secure_storage(dut: Dut) -> None:
         time.sleep(1)
 
     # Test out the TEE secure storage workflow - Encryption and decryption
-    sec_stg_slots = {0: 1, 1: 14, 2: 9}
     for i in range(iterations):
-        dut.write(f'tee_sec_stg_gen_key {sec_stg_slots.get(i)} 1')
-        dut.expect(r'Generated AES256 key in slot (\d+)', timeout=30)
+        dut.write(f'tee_sec_stg_gen_key {sec_stg_key_ids.get(i)} 0')
+        dut.expect(r'Generated AES256 key with ID (\S+)', timeout=30)
 
-        dut.write(f'tee_sec_stg_encrypt {sec_stg_slots.get(i)} {test_msg_hash}')
+        dut.write(f'tee_sec_stg_encrypt {sec_stg_key_ids.get(i)} {test_msg_hash}')
         test_msg_cipher = dut.expect(r'Ciphertext -\s*([0-9a-fA-F]{64})', timeout=30)[1].decode()
         test_msg_tag = dut.expect(r'Tag -\s*([0-9a-fA-F]{32})', timeout=30)[1].decode()
 
-        dut.write(f'tee_sec_stg_decrypt {sec_stg_slots.get(i)} {test_msg_cipher} {test_msg_tag}')
+        dut.write(f'tee_sec_stg_decrypt {sec_stg_key_ids.get(i)} {test_msg_cipher} {test_msg_tag}')
         test_msg_decipher = dut.expect(r'Decrypted plaintext -\s*([0-9a-fA-F]{64})', timeout=30)[1].decode()
 
-        assert (test_msg_decipher == test_msg_hash)
+        assert test_msg_decipher == test_msg_hash
         time.sleep(1)
+
 
 ########################
 # ESP-TEE: Attestation #
@@ -119,8 +121,8 @@ def verify_att_token_signature(att_tk: str) -> Any:
     return vk.verify_digest(signature, digest, sigdecode=sigdecode_der)
 
 
-@pytest.mark.esp32c6
 @pytest.mark.generic
+@idf_parametrize('target', ['esp32c6'], indirect=['target'])
 def test_tee_cli_attestation(dut: Dut) -> None:
     # Dumping the REE binary size
     binary_file = os.path.join(dut.app.binary_path, 'tee_cli.bin')
@@ -131,9 +133,9 @@ def test_tee_cli_attestation(dut: Dut) -> None:
     dut.expect('ESP-TEE: Secure services demonstration', timeout=30)
     time.sleep(1)
 
-    att_key_slot = dut.app.sdkconfig.get('SECURE_TEE_ATT_KEY_SLOT_ID')
-    dut.write(f'tee_sec_stg_gen_key {att_key_slot} 0')
-    dut.expect(r'Generated ECDSA_SECP256R1 key in slot (\d+)', timeout=30)
+    att_key_id = dut.app.sdkconfig.get('SECURE_TEE_ATT_KEY_STR_ID')
+    dut.write(f'tee_sec_stg_gen_key {att_key_id} 1')
+    dut.expect(r'Generated ECDSA_SECP256R1 key with ID (\S+)', timeout=30)
 
     # Get the Entity Attestation token from TEE and verify its signature
     dut.write('tee_att_info')
@@ -141,15 +143,17 @@ def test_tee_cli_attestation(dut: Dut) -> None:
     att_tk = dut.expect(r"'(.*?)'", timeout=30)[1].decode()
     assert verify_att_token_signature(att_tk)
 
+
 #######################################
 # ESP-TEE: Over-the-Air (OTA) updates #
 #######################################
 
 
-def https_request_handler() -> Callable[...,http.server.BaseHTTPRequestHandler]:
+def https_request_handler() -> Callable[..., http.server.BaseHTTPRequestHandler]:
     """
     Returns a request handler class that handles broken pipe exception
     """
+
     class RequestHandler(RangeRequestHandler):
         def finish(self) -> None:
             try:
@@ -174,14 +178,12 @@ def start_https_server(ota_image_dir: str, server_ip: str, server_port: int) -> 
     requestHandler = https_request_handler()
     httpd = http.server.HTTPServer((server_ip, server_port), requestHandler)
 
-    httpd.socket = ssl.wrap_socket(httpd.socket,
-                                   keyfile=key_file,
-                                   certfile=server_file, server_side=True)
+    httpd.socket = ssl.wrap_socket(httpd.socket, keyfile=key_file, certfile=server_file, server_side=True)
     httpd.serve_forever()
 
 
-@pytest.mark.esp32c6
 @pytest.mark.wifi_high_traffic
+@idf_parametrize('target', ['esp32c6'], indirect=['target'])
 def test_tee_cli_secure_ota_wifi(dut: Dut) -> None:
     """
     This is a positive test case, which downloads complete binary file multiple number of times.

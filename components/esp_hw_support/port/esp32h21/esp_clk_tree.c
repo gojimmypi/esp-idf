@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -24,8 +24,15 @@ uint32_t *freq_value)
     ESP_RETURN_ON_FALSE(precision < ESP_CLK_TREE_SRC_FREQ_PRECISION_INVALID, ESP_ERR_INVALID_ARG, TAG, "unknown precision");
     ESP_RETURN_ON_FALSE(freq_value, ESP_ERR_INVALID_ARG, TAG, "null pointer");
 
+#if !SOC_CLK_TREE_SUPPORTED
+    // Have only XTAL 32M before clock tree supported
+    assert(clk_src == SOC_MOD_CLK_XTAL);
+#endif
     uint32_t clk_src_freq = 0;
     switch (clk_src) {
+    case SOC_MOD_CLK_XTAL:
+        clk_src_freq = SOC_XTAL_FREQ_32M * MHZ;
+        break;
     case SOC_MOD_CLK_PLL_F48M:
         clk_src_freq = CLK_LL_PLL_48M_FREQ_MHZ * MHZ;
         break;
@@ -39,8 +46,13 @@ uint32_t *freq_value)
         break;
     }
 
-    ESP_RETURN_ON_FALSE(clk_src_freq, ESP_FAIL, TAG,
-                        "freq shouldn't be 0, calibration failed");
+    ESP_RETURN_ON_FALSE(clk_src_freq, ESP_FAIL, TAG, "freq shouldn't be 0, calibration failed");
     *freq_value = clk_src_freq;
+    return ESP_OK;
+}
+
+esp_err_t esp_clk_tree_enable_src(soc_module_clk_t clk_src, bool enable)
+{
+    (void)clk_src; (void)enable;
     return ESP_OK;
 }

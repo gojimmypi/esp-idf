@@ -17,6 +17,7 @@
 #include "esp_private/spi_share_hw_ctrl.h"
 #include "esp_ldo_regulator.h"
 #include "hal/spi_flash_hal.h"
+#include "spi_flash_chip_driver.h"
 #include "hal/gpio_hal.h"
 #include "esp_flash_internal.h"
 #include "esp_rom_gpio.h"
@@ -28,6 +29,14 @@
 #include "esp_check.h"
 
 __attribute__((unused)) static const char TAG[] = "spi_flash";
+
+#if !CONFIG_SPI_FLASH_AUTO_SUSPEND && !CONFIG_SPI_FLASH_PLACE_FUNCTIONS_IN_IRAM
+#error "CONFIG_SPI_FLASH_PLACE_FUNCTIONS_IN_IRAM cannot be disabled when CONFIG_SPI_FLASH_AUTO_SUSPEND is disabled."
+#endif
+
+#if CONFIG_SPI_FLASH_ROM_IMPL && (CONFIG_ESPTOOLPY_FLASHSIZE_32MB || CONFIG_ESPTOOLPY_FLASHSIZE_64MB || CONFIG_ESPTOOLPY_FLASHSIZE_128MB)
+#error "Flash chip size equal or over 32MB memory cannot use driver in ROM"
+#endif
 
 /* This pointer is defined in ROM and extern-ed on targets where CONFIG_SPI_FLASH_ROM_IMPL = y*/
 #if !CONFIG_SPI_FLASH_ROM_IMPL
@@ -366,6 +375,9 @@ esp_err_t esp_flash_init_default_chip(void)
     s_esp_flash_choose_correct_mode(&cfg);
     #endif
 
+    #if !CONFIG_SPI_FLASH_OVERRIDE_CHIP_DRIVER_LIST
+    spi_flash_chip_list_check(&default_chip, legacy_chip->device_id);
+    #endif
 
     // For chips need time tuning, get value directly from system here.
     #if SOC_SPI_MEM_SUPPORT_TIMING_TUNING

@@ -226,9 +226,6 @@ bool bootloader_utility_load_partition_table(bootloader_state_t *bs)
                 bs->tee_ota_info = partition->pos;
                 partition_usage = "TEE OTA data";
                 break;
-            case PART_SUBTYPE_DATA_TEE_SEC_STORAGE: /* TEE secure storage */
-                partition_usage = "TEE secure storage";
-                break;
 #endif
             default:
                 partition_usage = "Unknown data";
@@ -1237,6 +1234,7 @@ esp_err_t bootloader_sha256_flash_contents(uint32_t flash_offset, uint32_t len, 
         uint32_t max_pages = (mmu_free_pages_count > mmu_page_offset) ? (mmu_free_pages_count - mmu_page_offset) : 0;
         if (max_pages == 0) {
             ESP_LOGE(TAG, "No free MMU pages are available");
+            bootloader_sha256_finish(sha_handle, NULL);
             return ESP_ERR_NO_MEM;
         }
         uint32_t max_image_len;

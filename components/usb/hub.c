@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,6 +11,7 @@
 #include <sys/queue.h>
 #include "esp_err.h"
 #include "esp_heap_caps.h"
+#include "esp_bit_defs.h"
 #include "esp_private/critical_section.h"
 #include "esp_log.h"
 #include "usb_private.h"
@@ -19,16 +20,13 @@
 #include "usb/usb_helpers.h"
 
 #if ENABLE_USB_HUBS
-#include "ext_port.h"
+#include "ext_hub.h"
 #endif // ENABLE_USB_HUBS
 
 /*
 Implementation of the HUB driver that only supports the Root Hub with a single port. Therefore, we currently don't
 implement the bare minimum to control the root HCD port.
 */
-
-#define HUB_ROOT_PORT_NUM                           1  // HCD only supports one port
-#define HUB_ROOT_DEV_UID                            1  // Unique device ID
 
 #ifdef CONFIG_USB_HOST_HW_BUFFER_BIAS_IN
 #define HUB_ROOT_HCD_PORT_FIFO_BIAS                 HCD_PORT_FIFO_BIAS_RX
@@ -61,7 +59,6 @@ typedef enum {
     ROOT_PORT_STATE_POWERED,        /**< Root port is powered, device is not connected */
     ROOT_PORT_STATE_DISABLED,       /**< A device is connected but is disabled (i.e., not reset, no SOFs are sent) */
     ROOT_PORT_STATE_ENABLED,        /**< A device is connected, port has been reset, SOFs are sent */
-    ROOT_PORT_STATE_RECOVERY,       /**< Root port encountered an error and needs to be recovered */
 } root_port_state_t;
 
 /**
@@ -93,7 +90,6 @@ typedef struct {
 
     struct {
         TAILQ_HEAD(tailhead_devs, dev_tree_node_s) dev_nodes_tailq;     /**< Tailq of attached devices */
-        unsigned int next_uid;                      /**< Unique ID for next upcoming device */
     } single_thread;                                /**< Single thread members don't require a critical section so long as they are never accessed from multiple threads */
 
     struct {
@@ -153,53 +149,52 @@ static bool root_port_callback(hcd_port_handle_t port_hdl, hcd_port_event_t port
  *
  * @return esp_err_t
  */
-static esp_err_t new_dev_tree_node(usb_device_handle_t parent_dev_hdl, uint8_t parent_port_num, usb_speed_t speed)
+static esp_err_t dev_tree_node_new(usb_device_handle_t parent_dev_hdl, uint8_t parent_port_num, usb_speed_t speed)
 {
     esp_err_t ret;
-    unsigned int node_uid = p_hub_driver_obj->single_thread.next_uid;
-
+    // Allocate memory for a new device tree node
     dev_tree_node_t *dev_tree_node = heap_caps_calloc(1, sizeof(dev_tree_node_t), MALLOC_CAP_DEFAULT);
     if (dev_tree_node == NULL) {
         return ESP_ERR_NO_MEM;
     }
+    // Assign initial UID based on the current number of registered devices
+    int device_num = 0;
+    ESP_ERROR_CHECK(usbh_devs_num(&device_num));
+    dev_tree_node->uid = device_num + 1;
+    // Ensure the UID is unique
+    while (usbh_devs_is_uid_in_use(dev_tree_node->uid)) {
+        dev_tree_node->uid++;
+        assert(dev_tree_node->uid != 0); // No overflow possible
+    }
 
-    // Allocate a new USBH device
+    dev_tree_node->parent_dev_hdl = parent_dev_hdl;
+    dev_tree_node->parent_port_num = parent_port_num;
+
+    // Initialize and register a new USBH Device with the assigned UID
     usbh_dev_params_t params = {
-        .uid = node_uid,
+        .uid = dev_tree_node->uid,
         .speed = speed,
         .root_port_hdl = p_hub_driver_obj->constant.root_port_hdl, // Always the same for all devices
-        // TODO: IDF-10023 Move responsibility of parent-child tree building to Hub Driver instead of USBH
+        // TODO: IDF-10023 Move parent-child tree management responsibility to Hub Driver
         .parent_dev_hdl = parent_dev_hdl,
         .parent_port_num = parent_port_num,
     };
 
     ret = usbh_devs_add(&params);
     if (ret != ESP_OK) {
-        // USBH devs add could failed due to lack of free hcd channels
-        // TODO: IDF-10044 Hub should recover after running out of hcd channels
+        // Device registration may fail if there are no available HCD channels.
+        // TODO: IDF-10044 Implement hub recovery mechanism for running out of HCD channels.
         goto fail;
     }
 
-    dev_tree_node->uid = node_uid;
-    dev_tree_node->parent_dev_hdl = parent_dev_hdl;
-    dev_tree_node->parent_port_num = parent_port_num;
     TAILQ_INSERT_TAIL(&p_hub_driver_obj->single_thread.dev_nodes_tailq, dev_tree_node, tailq_entry);
 
-    p_hub_driver_obj->single_thread.next_uid++;
-    if (p_hub_driver_obj->single_thread.next_uid == 0) {
-        ESP_LOGW(HUB_DRIVER_TAG, "Counter overflowed, possibility of uid collisions");
-        p_hub_driver_obj->single_thread.next_uid = HUB_ROOT_DEV_UID;
-    }
-    // Verify presence of a device with newly prepared uid in USBH
-    // TODO: IDF-10022 Provide a mechanism to request presence status of a device with uid in USBH device object list
-    // Return if device uid is not in USBH device object list, repeat until uid will be founded
-
-    ESP_LOGD(HUB_DRIVER_TAG, "Device tree node (uid=%d): new", node_uid);
+    ESP_LOGD(HUB_DRIVER_TAG, "Device tree node (uid=%d): new", dev_tree_node->uid);
 
     hub_event_data_t event_data = {
         .event = HUB_EVENT_CONNECTED,
         .connected = {
-            .uid = node_uid,
+            .uid = dev_tree_node->uid,
         },
     };
     p_hub_driver_obj->constant.event_cb(&event_data, p_hub_driver_obj->constant.event_cb_arg);
@@ -328,14 +323,16 @@ static void ext_port_callback(void *user_arg)
     p_hub_driver_obj->constant.proc_req_cb(USB_PROC_REQ_SOURCE_HUB, false, p_hub_driver_obj->constant.proc_req_cb_arg);
 }
 
-static void ext_port_event_callback(ext_port_event_data_t *event_data, void *arg)
+static void ext_port_event_callback(ext_port_hdl_t port_hdl, ext_port_event_data_t *event_data, void *arg)
 {
+    ext_hub_handle_t ext_hub_hdl = (ext_hub_handle_t) ext_port_get_context(port_hdl);
+
     switch (event_data->event) {
     case EXT_PORT_CONNECTED:
         // First reset is done by ext_port logic
         usb_speed_t port_speed;
 
-        if (ext_hub_port_get_speed(event_data->connected.ext_hub_hdl,
+        if (ext_hub_port_get_speed(ext_hub_hdl,
                                    event_data->connected.parent_port_num,
                                    &port_speed) != ESP_OK) {
             goto new_ds_dev_err;
@@ -354,23 +351,13 @@ static void ext_port_event_callback(ext_port_event_data_t *event_data, void *arg
             }
         }
 
-#if (!CONFIG_USB_HOST_EXT_PORT_SUPPORT_LS)
-        if (port_speed == USB_SPEED_LOW) {
-            ESP_LOGE(HUB_DRIVER_TAG, "Connected %s-speed device, not supported",
-            (char *[]) {
-                "Low", "Full", "High"
-            }[port_speed]);
-            goto new_ds_dev_err;
-        }
-#endif // CONFIG_USB_HOST_EXT_PORT_SUPPORT_LS
-
-        if (new_dev_tree_node(event_data->connected.parent_dev_hdl, event_data->connected.parent_port_num, port_speed) != ESP_OK) {
+        if (dev_tree_node_new(event_data->connected.parent_dev_hdl, event_data->connected.parent_port_num, port_speed) != ESP_OK) {
             ESP_LOGE(HUB_DRIVER_TAG, "Failed to add new downstream device");
             goto new_ds_dev_err;
         }
         break;
 new_ds_dev_err:
-        ext_hub_port_disable(event_data->connected.ext_hub_hdl, event_data->connected.parent_port_num);
+        ext_hub_port_disable(ext_hub_hdl, event_data->connected.parent_port_num);
         break;
     case EXT_PORT_RESET_COMPLETED:
         ESP_ERROR_CHECK(dev_tree_node_reset_completed(event_data->reset_completed.parent_dev_hdl, event_data->reset_completed.parent_port_num));
@@ -406,7 +393,7 @@ static void root_port_handle_events(hcd_port_handle_t root_port_hdl)
             goto new_dev_err;
         }
 
-        if (new_dev_tree_node(NULL, 0, speed) != ESP_OK) {
+        if (dev_tree_node_new(NULL, 0, speed) != ESP_OK) {
             ESP_LOGE(HUB_DRIVER_TAG, "Failed to add new device");
             goto new_dev_err;
         }
@@ -548,6 +535,7 @@ esp_err_t hub_install(hub_config_t *hub_config, void **client_ret)
     ext_port_driver_config_t ext_port_config = {
         .proc_req_cb = ext_port_callback,
         .event_cb = ext_port_event_callback,
+        .hub_request_cb = ext_hub_request,
     };
     ret = ext_port_install(&ext_port_config);
     if (ret != ESP_OK) {
@@ -571,13 +559,19 @@ esp_err_t hub_install(hub_config_t *hub_config, void **client_ret)
 
     // Install HCD port
     hcd_port_config_t port_config = {
-        .fifo_bias = HUB_ROOT_HCD_PORT_FIFO_BIAS,
         .callback = root_port_callback,
         .callback_arg = NULL,
         .context = NULL,
     };
     hcd_port_handle_t root_port_hdl;
-    ret = hcd_port_init(HUB_ROOT_PORT_NUM, &port_config, &root_port_hdl);
+
+    // Right now we support only one root port, can be extended in future
+    int root_port_index = 0;
+    if (hub_config->port_map & BIT1) {
+        root_port_index = 1;
+    }
+
+    ret = hcd_port_init(root_port_index, &port_config, &root_port_hdl);
     if (ret != ESP_OK) {
         ESP_LOGE(HUB_DRIVER_TAG, "HCD Port init error: %s", esp_err_to_name(ret));
         goto err;
@@ -589,7 +583,6 @@ esp_err_t hub_install(hub_config_t *hub_config, void **client_ret)
     hub_driver_obj->constant.proc_req_cb_arg = hub_config->proc_req_cb_arg;
     hub_driver_obj->constant.event_cb = hub_config->event_cb;
     hub_driver_obj->constant.event_cb_arg = hub_config->event_cb_arg;
-    hub_driver_obj->single_thread.next_uid = HUB_ROOT_DEV_UID;
     TAILQ_INIT(&hub_driver_obj->single_thread.dev_nodes_tailq);
     // Driver is not installed, we can modify dynamic section outside of the critical section
     hub_driver_obj->dynamic.root_port_state = ROOT_PORT_STATE_NOT_POWERED;
@@ -778,7 +771,7 @@ esp_err_t hub_port_disable(usb_device_handle_t parent_dev_hdl, uint8_t parent_po
     return ret;
 }
 
-esp_err_t hub_notify_new_dev(uint8_t dev_addr)
+esp_err_t hub_dev_new(uint8_t dev_addr)
 {
     HUB_DRIVER_ENTER_CRITICAL();
     HUB_DRIVER_CHECK_FROM_CRIT(p_hub_driver_obj != NULL, ESP_ERR_INVALID_STATE);
@@ -801,15 +794,15 @@ esp_err_t hub_notify_new_dev(uint8_t dev_addr)
             }
         }
         // Close device
-        usbh_dev_close(dev_hdl);
+        ESP_ERROR_CHECK(usbh_dev_close(dev_hdl));
     }
-    // Logic should not stop the flow, so no error to return
-    ret = ESP_OK;
+    // Nothing to do, while Hubs support is not enabled
+    ret = ESP_ERR_NOT_SUPPORTED;
 #endif // ENABLE_USB_HUBS
     return ret;
 }
 
-esp_err_t hub_notify_dev_gone(uint8_t dev_addr)
+esp_err_t hub_dev_gone(uint8_t dev_addr)
 {
     HUB_DRIVER_ENTER_CRITICAL();
     HUB_DRIVER_CHECK_FROM_CRIT(p_hub_driver_obj != NULL, ESP_ERR_INVALID_STATE);
@@ -820,7 +813,7 @@ esp_err_t hub_notify_dev_gone(uint8_t dev_addr)
     ret = ext_hub_dev_gone(dev_addr);
 #else
     // Nothing to do, while Hubs support is not enabled
-    ret = ESP_OK;
+    ret = ESP_ERR_NOT_SUPPORTED;
 #endif // ENABLE_USB_HUBS
     return ret;
 }
@@ -832,7 +825,9 @@ esp_err_t hub_notify_all_free(void)
     HUB_DRIVER_CHECK_FROM_CRIT(p_hub_driver_obj != NULL, ESP_ERR_INVALID_STATE);
     HUB_DRIVER_EXIT_CRITICAL();
 
-    return ext_hub_all_free();
+    ext_hub_mark_all_free();
+
+    return ESP_OK;
 }
 #endif // ENABLE_USB_HUBS
 

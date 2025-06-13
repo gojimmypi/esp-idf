@@ -24,11 +24,11 @@ set(common_include_dirs
     common/btc/profile/esp/blufi/include
     common/btc/profile/esp/include
     common/hci_log/include
+    common/ble_log/include
 )
 
 set(ble_mesh_include_dirs
     "esp_ble_mesh/common/include"
-    "esp_ble_mesh/common/tinycrypt/include"
     "esp_ble_mesh/core"
     "esp_ble_mesh/core/include"
     "esp_ble_mesh/core/storage"
@@ -39,6 +39,10 @@ set(ble_mesh_include_dirs
     "esp_ble_mesh/api/core/include"
     "esp_ble_mesh/api/models/include"
     "esp_ble_mesh/api"
+)
+
+set(ble_mesh_tinycrypt_dirs
+    "esp_ble_mesh/common/tinycrypt/include"
 )
 
 set(ble_mesh_v11_include_dirs
@@ -85,11 +89,13 @@ if(CONFIG_BT_ENABLED)
         elseif(CONFIG_IDF_TARGET_ESP32S3)
             list(APPEND ldscripts "linker_rw_bt_controller.lf")
         elseif(CONFIG_IDF_TARGET_ESP32C2)
+            list(APPEND srcs "controller/${target_name}/ble.c")
             if(CONFIG_BT_CTRL_RUN_IN_FLASH_ONLY)
                 list(APPEND srcs "controller/esp32c2/dummy.c")
             endif()
             set(ldscripts "linker_esp32c2.lf")
         else()
+            list(APPEND srcs "controller/${target_name}/ble.c")
             list(APPEND ldscripts "linker_esp_ble_controller.lf")
         endif()
 
@@ -130,6 +136,7 @@ if(CONFIG_BT_ENABLED)
          "common/osi/osi.c"
          "common/osi/semaphore.c"
          "porting/mem/bt_osi_mem.c"
+         "common/ble_log/ble_log_spi_out.c"
          )
 
     # Host Bluedroid
@@ -284,7 +291,9 @@ if(CONFIG_BT_ENABLED)
                    "host/bluedroid/btc/profile/std/a2dp/btc_a2dp.c"
                    "host/bluedroid/btc/profile/std/a2dp/btc_a2dp_control.c"
                    "host/bluedroid/btc/profile/std/a2dp/btc_a2dp_sink.c"
+                   "host/bluedroid/btc/profile/std/a2dp/btc_a2dp_sink_ext_coedc.c"
                    "host/bluedroid/btc/profile/std/a2dp/btc_a2dp_source.c"
+                   "host/bluedroid/btc/profile/std/a2dp/btc_a2dp_source_ext_codec.c"
                    "host/bluedroid/btc/profile/std/a2dp/btc_av.c"
                    "host/bluedroid/btc/profile/std/avrc/btc_avrc.c"
                    "host/bluedroid/btc/profile/std/avrc/bta_avrc_co.c"
@@ -455,6 +464,19 @@ if(CONFIG_BT_ENABLED)
             list(APPEND srcs "esp_ble_mesh/core/bluedroid_host/adapter.c")
         endif()
 
+        if(CONFIG_BT_BLE_FEAT_ISO_EN)
+            list(APPEND srcs "host/bluedroid/stack/btm/btm_ble_iso.c"
+                            "host/bluedroid/btc/profile/std/iso/btc_iso_ble.c"
+                            "host/bluedroid/api/esp_ble_iso_api.c"
+                            "host/bluedroid/hci/ble_hci_iso.c")
+        endif()
+
+        if(CONFIG_BT_BLE_FEAT_CTE_EN)
+            list(APPEND srcs "host/bluedroid/stack/btm/btm_ble_cte.c"
+                            "host/bluedroid/btc/profile/std/cte/btc_ble_cte.c"
+                            "host/bluedroid/api/esp_ble_cte_api.c")
+        endif()
+
     endif()
 
     if(CONFIG_BLE_MESH)
@@ -481,21 +503,6 @@ if(CONFIG_BT_ENABLED)
                     "esp_ble_mesh/btc/btc_ble_mesh_prov.c"
                     "esp_ble_mesh/btc/btc_ble_mesh_sensor_model.c"
                     "esp_ble_mesh/btc/btc_ble_mesh_time_scene_model.c"
-                    "esp_ble_mesh/common/tinycrypt/src/aes_decrypt.c"
-                    "esp_ble_mesh/common/tinycrypt/src/aes_encrypt.c"
-                    "esp_ble_mesh/common/tinycrypt/src/cbc_mode.c"
-                    "esp_ble_mesh/common/tinycrypt/src/ccm_mode.c"
-                    "esp_ble_mesh/common/tinycrypt/src/cmac_mode.c"
-                    "esp_ble_mesh/common/tinycrypt/src/ctr_mode.c"
-                    "esp_ble_mesh/common/tinycrypt/src/ctr_prng.c"
-                    "esp_ble_mesh/common/tinycrypt/src/ecc_dh.c"
-                    "esp_ble_mesh/common/tinycrypt/src/ecc_dsa.c"
-                    "esp_ble_mesh/common/tinycrypt/src/ecc_platform_specific.c"
-                    "esp_ble_mesh/common/tinycrypt/src/ecc.c"
-                    "esp_ble_mesh/common/tinycrypt/src/hmac_prng.c"
-                    "esp_ble_mesh/common/tinycrypt/src/hmac.c"
-                    "esp_ble_mesh/common/tinycrypt/src/sha256.c"
-                    "esp_ble_mesh/common/tinycrypt/src/utils.c"
                     "esp_ble_mesh/common/atomic.c"
                     "esp_ble_mesh/common/buf.c"
                     "esp_ble_mesh/common/common.c"
@@ -546,6 +553,26 @@ if(CONFIG_BT_ENABLED)
                     "esp_ble_mesh/models/server/state_binding.c"
                     "esp_ble_mesh/models/server/state_transition.c"
                     "esp_ble_mesh/models/server/time_scene_server.c")
+
+        if(NOT CONFIG_BLE_MESH_USE_UNIFIED_CRYPTO)
+            list(APPEND include_dirs ${ble_mesh_tinycrypt_dirs})
+                list(APPEND srcs
+                    "esp_ble_mesh/common/tinycrypt/src/aes_decrypt.c"
+                    "esp_ble_mesh/common/tinycrypt/src/aes_encrypt.c"
+                    "esp_ble_mesh/common/tinycrypt/src/cbc_mode.c"
+                    "esp_ble_mesh/common/tinycrypt/src/ccm_mode.c"
+                    "esp_ble_mesh/common/tinycrypt/src/cmac_mode.c"
+                    "esp_ble_mesh/common/tinycrypt/src/ctr_mode.c"
+                    "esp_ble_mesh/common/tinycrypt/src/ctr_prng.c"
+                    "esp_ble_mesh/common/tinycrypt/src/ecc_dh.c"
+                    "esp_ble_mesh/common/tinycrypt/src/ecc_dsa.c"
+                    "esp_ble_mesh/common/tinycrypt/src/ecc_platform_specific.c"
+                    "esp_ble_mesh/common/tinycrypt/src/ecc.c"
+                    "esp_ble_mesh/common/tinycrypt/src/hmac_prng.c"
+                    "esp_ble_mesh/common/tinycrypt/src/hmac.c"
+                    "esp_ble_mesh/common/tinycrypt/src/sha256.c"
+                    "esp_ble_mesh/common/tinycrypt/src/utils.c")
+        endif()
         if(CONFIG_BLE_MESH_V11_SUPPORT)
             list(APPEND include_dirs ${ble_mesh_v11_include_dirs})
 
@@ -639,23 +666,25 @@ if(CONFIG_BT_ENABLED)
 
     if(NOT (CONFIG_BT_LE_CRYPTO_STACK_MBEDTLS OR CONFIG_BT_NIMBLE_CRYPTO_STACK_MBEDTLS))
         list(APPEND include_dirs
-                porting/ext/tinycrypt/include
+                common/tinycrypt/include
+                common/tinycrypt/port
             )
-        list(APPEND srcs "porting/ext/tinycrypt/src/utils.c"
-                "porting/ext/tinycrypt/src/sha256.c"
-                "porting/ext/tinycrypt/src/ecc.c"
-                "porting/ext/tinycrypt/src/ctr_prng.c"
-                "porting/ext/tinycrypt/src/ctr_mode.c"
-                "porting/ext/tinycrypt/src/aes_decrypt.c"
-                "porting/ext/tinycrypt/src/aes_encrypt.c"
-                "porting/ext/tinycrypt/src/ccm_mode.c"
-                "porting/ext/tinycrypt/src/ecc_dsa.c"
-                "porting/ext/tinycrypt/src/cmac_mode.c"
-                "porting/ext/tinycrypt/src/ecc_dh.c"
-                "porting/ext/tinycrypt/src/hmac_prng.c"
-                "porting/ext/tinycrypt/src/ecc_platform_specific.c"
-                "porting/ext/tinycrypt/src/hmac.c"
-                "porting/ext/tinycrypt/src/cbc_mode.c")
+        list(APPEND srcs "common/tinycrypt/src/utils.c"
+                "common/tinycrypt/src/sha256.c"
+                "common/tinycrypt/src/ecc.c"
+                "common/tinycrypt/src/ctr_prng.c"
+                "common/tinycrypt/src/ctr_mode.c"
+                "common/tinycrypt/src/aes_decrypt.c"
+                "common/tinycrypt/src/aes_encrypt.c"
+                "common/tinycrypt/src/ccm_mode.c"
+                "common/tinycrypt/src/ecc_dsa.c"
+                "common/tinycrypt/src/cmac_mode.c"
+                "common/tinycrypt/src/ecc_dh.c"
+                "common/tinycrypt/src/hmac_prng.c"
+                "common/tinycrypt/src/ecc_platform_specific.c"
+                "common/tinycrypt/src/hmac.c"
+                "common/tinycrypt/src/cbc_mode.c"
+                "common/tinycrypt/port/esp_tinycrypt_port.c")
     endif()
 
     if(CONFIG_BT_NIMBLE_ENABLED)
@@ -867,11 +896,27 @@ if(CONFIG_BT_ENABLED)
 
 endif()
 
+
+set(bt_priv_requires
+    nvs_flash
+    soc
+    esp_pm
+    esp_phy
+    esp_coex
+    mbedtls
+    esp_driver_uart
+    vfs
+    esp_ringbuf
+    esp_driver_spi
+    esp_driver_gpio
+    esp_gdbstub
+)
+
 idf_component_register(SRCS "${srcs}"
                        INCLUDE_DIRS "${include_dirs}"
                        PRIV_INCLUDE_DIRS "${priv_include_dirs}"
                        REQUIRES esp_timer esp_wifi
-                       PRIV_REQUIRES nvs_flash soc esp_pm esp_phy esp_coex mbedtls esp_driver_uart vfs esp_ringbuf
+                       PRIV_REQUIRES "${bt_priv_requires}"
                        LDFRAGMENTS "${ldscripts}")
 
 if(CONFIG_BT_ENABLED)
@@ -898,19 +943,26 @@ if(CONFIG_BT_ENABLED)
             target_link_libraries(${COMPONENT_LIB} PUBLIC btdm_app)
         endif()
     elseif(CONFIG_BT_CONTROLLER_ENABLED)
+        if(CONFIG_BT_LE_CONTROLLER_LOG_WRAP_PANIC_HANDLER_ENABLE)
+            target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=esp_panic_handler")
+        endif()
         if(CONFIG_IDF_TARGET_ESP32C6)
             add_prebuilt_library(libble_app
-                "${CMAKE_CURRENT_LIST_DIR}/controller/lib_esp32c6/esp32c6-bt-lib/esp32c6/libble_app.a")
+                "${CMAKE_CURRENT_LIST_DIR}/controller/lib_esp32c6/esp32c6-bt-lib/esp32c6/libble_app.a"
+                REQUIRES esp_phy)
         elseif(CONFIG_IDF_TARGET_ESP32C61)
             add_prebuilt_library(libble_app
-                "${CMAKE_CURRENT_LIST_DIR}/controller/lib_esp32c6/esp32c6-bt-lib/esp32c61/libble_app.a")
+                "${CMAKE_CURRENT_LIST_DIR}/controller/lib_esp32c6/esp32c6-bt-lib/esp32c61/libble_app.a"
+                REQUIRES esp_phy)
         else()
             if(CONFIG_BT_CTRL_RUN_IN_FLASH_ONLY AND CONFIG_IDF_TARGET_ESP32C2)
                 add_prebuilt_library(libble_app
-                    "controller/lib_${target_name}/${target_name}-bt-lib/libble_app_flash.a")
+                    "controller/lib_${target_name}/${target_name}-bt-lib/libble_app_flash.a"
+                    REQUIRES esp_phy)
             else()
                 add_prebuilt_library(libble_app
-                    "controller/lib_${target_name}/${target_name}-bt-lib/libble_app.a")
+                    "controller/lib_${target_name}/${target_name}-bt-lib/libble_app.a"
+                    REQUIRES esp_phy)
             endif()
         endif()
         target_link_libraries(${COMPONENT_LIB} PRIVATE libble_app)

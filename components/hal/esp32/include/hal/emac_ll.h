@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -130,6 +130,9 @@ extern "C" {
 /* Enable needed interrupts (recv/recv_buf_unavailabal/normal must be enabled to make eth work) */
 #define EMAC_LL_CONFIG_ENABLE_INTR_MASK    (EMAC_LL_INTR_RECEIVE_ENABLE | EMAC_LL_INTR_NORMAL_SUMMARY_ENABLE)
 
+/* Maximum number of MAC address to be filtered */
+#define EMAC_LL_MAX_MAC_ADDR_NUM 8
+
 /**
  * @brief Enable the bus clock for the EMAC module
  *
@@ -147,7 +150,10 @@ static inline void emac_ll_enable_bus_clock(int group_id, bool enable)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define emac_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; emac_ll_enable_bus_clock(__VA_ARGS__)
+#define emac_ll_enable_bus_clock(...) do { \
+        (void)__DECLARE_RCC_ATOMIC_ENV; \
+        emac_ll_enable_bus_clock(__VA_ARGS__); \
+    } while(0)
 
 /**
  * @brief Reset the EMAC module
@@ -163,7 +169,10 @@ static inline void emac_ll_reset_register(int group_id)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define emac_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; emac_ll_reset_register(__VA_ARGS__)
+#define emac_ll_reset_register(...) do { \
+        (void)__DECLARE_RCC_ATOMIC_ENV; \
+        emac_ll_reset_register(__VA_ARGS__); \
+    } while(0)
 
 /************** Start of mac regs operation ********************/
 /* emacgmiiaddr */
@@ -371,6 +380,11 @@ static inline uint32_t emac_ll_receive_read_ctrl_state(emac_mac_dev_t *mac_regs)
     return mac_regs->emacdebug.mtlrfrcs;
 }
 
+static inline uint32_t emac_ll_read_debug_reg(emac_mac_dev_t *mac_regs)
+{
+    return mac_regs->emacdebug.val;
+}
+
 /* emacmiidata */
 static inline void emac_ll_set_phy_data(emac_mac_dev_t *mac_regs, uint32_t data)
 {
@@ -388,6 +402,50 @@ static inline void emac_ll_set_addr(emac_mac_dev_t *mac_regs, const uint8_t *add
     HAL_FORCE_MODIFY_U32_REG_FIELD(mac_regs->emacaddr0high, address0_hi, (addr[5] << 8) | addr[4]);
     mac_regs->emacaddr0low = (addr[3] << 24) | (addr[2] << 16) | (addr[1] << 8) | (addr[0]);
 }
+
+/* emacaddrN */
+static inline void emac_ll_add_addr_filter(emac_mac_dev_t *mac_regs, uint8_t addr_num, const uint8_t *mac_addr, uint8_t mask, bool filter_for_source)
+{
+    addr_num = addr_num - 1; // MAC Address1 is located at emacaddr[0]
+
+    HAL_FORCE_MODIFY_U32_REG_FIELD(mac_regs->emacaddr[addr_num].emacaddrhigh, mac_address_hi, (mac_addr[5] << 8) | mac_addr[4]);
+    mac_regs->emacaddr[addr_num].emacaddrhigh.mask_byte_control = mask;
+    mac_regs->emacaddr[addr_num].emacaddrhigh.source_address = filter_for_source;
+    mac_regs->emacaddr[addr_num].emacaddrhigh.address_enable = 1;
+    mac_regs->emacaddr[addr_num].emacaddrlow = (mac_addr[3] << 24) | (mac_addr[2] << 16) | (mac_addr[1] << 8) | (mac_addr[0]);
+}
+
+static inline bool emac_ll_get_addr_filter(emac_mac_dev_t *mac_regs, uint8_t addr_num, uint8_t *mac_addr, uint8_t *mask, bool *filter_for_source)
+{
+    addr_num = addr_num - 1; // MAC Address1 is located at emacaddr[0]
+    if (mac_regs->emacaddr[addr_num].emacaddrhigh.address_enable) {
+        if (mac_addr != NULL) {
+            *(&mac_addr[0]) = mac_regs->emacaddr[addr_num].emacaddrlow & 0xFF;
+            *(&mac_addr[1]) = (mac_regs->emacaddr[addr_num].emacaddrlow >> 8) & 0xFF;
+            *(&mac_addr[2]) = (mac_regs->emacaddr[addr_num].emacaddrlow >> 16) & 0xFF;
+            *(&mac_addr[3]) = (mac_regs->emacaddr[addr_num].emacaddrlow >> 24) & 0xFF;
+            *(&mac_addr[4]) = mac_regs->emacaddr[addr_num].emacaddrhigh.mac_address_hi & 0xFF;
+            *(&mac_addr[5]) = (mac_regs->emacaddr[addr_num].emacaddrhigh.mac_address_hi >> 8) & 0xFF;
+        }
+        if (mask != NULL) {
+            *mask = mac_regs->emacaddr[addr_num].emacaddrhigh.mask_byte_control;
+        }
+        if (filter_for_source != NULL) {
+            *filter_for_source = mac_regs->emacaddr[addr_num].emacaddrhigh.source_address;
+        }
+        return true;
+    }
+    return false;
+}
+
+static inline void emac_ll_rm_addr_filter(emac_mac_dev_t *mac_regs, uint8_t addr_num)
+{
+    addr_num = addr_num - 1; // MAC Address1 is located at emacaddr[0]
+    mac_regs->emacaddr[addr_num].emacaddrhigh.address_enable = 0;
+    HAL_FORCE_MODIFY_U32_REG_FIELD(mac_regs->emacaddr[addr_num].emacaddrhigh, mac_address_hi, 0);
+    mac_regs->emacaddr[addr_num].emacaddrlow = 0;
+}
+
 /*************** End of mac regs operation *********************/
 
 /************** Start of dma regs operation ********************/
@@ -548,12 +606,17 @@ static inline void emac_ll_disable_all_intr(emac_dma_dev_t *dma_regs)
 
 static inline void emac_ll_enable_corresponding_intr(emac_dma_dev_t *dma_regs, uint32_t mask)
 {
-    dma_regs->dmain_en.val |= mask;
+    uint32_t temp_mask = dma_regs->dmain_en.val;
+    temp_mask |= mask;
+    dma_regs->dmain_en.val = temp_mask;
+
 }
 
 static inline void emac_ll_disable_corresponding_intr(emac_dma_dev_t *dma_regs, uint32_t mask)
 {
-    dma_regs->dmain_en.val &= ~mask;
+    uint32_t temp_mask = dma_regs->dmain_en.val;
+    temp_mask &= ~mask;
+    dma_regs->dmain_en.val = temp_mask;
 }
 
 static inline uint32_t emac_ll_get_intr_enable_status(emac_dma_dev_t *dma_regs)

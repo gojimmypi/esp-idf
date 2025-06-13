@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -136,7 +136,7 @@ esp_err_t bootloader_flash_erase_range(uint32_t start_addr, uint32_t size)
 #if ESP_TEE_BUILD
 #include "esp_fault.h"
 #include "esp_flash_partitions.h"
-#include "esp32c6/rom/spi_flash.h"
+#include "rom/spi_flash.h"
 
 extern bool esp_tee_flash_check_paddr_in_active_tee_part(size_t paddr);
 #endif
@@ -752,6 +752,15 @@ esp_err_t IRAM_ATTR bootloader_flash_unlock_default(void)
 
 esp_err_t __attribute__((weak, alias("bootloader_flash_unlock_default"))) bootloader_flash_unlock(void);
 
+
+#if CONFIG_SECURE_TEE_EXT_FLASH_MEMPROT_SPI1 && !NON_OS_BUILD
+extern uint32_t bootloader_flash_execute_command_common(
+    uint8_t command,
+    uint32_t addr_len, uint32_t address,
+    uint8_t dummy_len,
+    uint8_t mosi_len, uint32_t mosi_data,
+    uint8_t miso_len);
+#else
 IRAM_ATTR uint32_t bootloader_flash_execute_command_common(
     uint8_t command,
     uint32_t addr_len, uint32_t address,
@@ -804,6 +813,7 @@ IRAM_ATTR uint32_t bootloader_flash_execute_command_common(
     }
     return ret;
 }
+#endif
 
 uint32_t IRAM_ATTR bootloader_execute_flash_command(uint8_t command, uint32_t mosi_data, uint8_t mosi_len, uint8_t miso_len)
 {
@@ -971,7 +981,7 @@ esp_err_t IRAM_ATTR bootloader_flash_reset_chip(void)
 
 bool IRAM_ATTR bootloader_flash_is_octal_mode_enabled(void)
 {
-#if SOC_SPI_MEM_SUPPORT_OPI_MODE
+#if SOC_SPI_MEM_SUPPORT_FLASH_OPI_MODE
     return efuse_ll_get_flash_type();
 #else
     return false;

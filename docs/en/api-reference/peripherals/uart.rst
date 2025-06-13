@@ -18,14 +18,23 @@ Each UART controller is independently configurable with parameters such as baud 
 
     Additionally, the {IDF_TARGET_NAME} chip has one low-power (LP) UART controller. It is the cut-down version of regular UART. Usually, the LP UART controller only support basic UART functionality with a much smaller RAM size, and does not support IrDA or RS485 protocols. For a full list of difference between UART and LP UART, please refer to the **{IDF_TARGET_NAME} Technical Reference Manual** > **UART Controller (UART)** > **Features** [`PDF <{IDF_TARGET_TRM_EN_URL}#uart>`__]).
 
+.. toctree::
+    :hidden:
+
+    uhci
+
+.. only:: SOC_UHCI_SUPPORTED
+
+    The {IDF_TARGET_NAME} chip also supports using DMA with UART. For details, see to :doc:`uhci`.
+
 Functional Overview
 -------------------
 
 The overview describes how to establish communication between an {IDF_TARGET_NAME} and other UART devices using the functions and data types of the UART driver. A typical programming workflow is broken down into the sections provided below:
 
-1. :ref:`uart-api-setting-communication-parameters` - Setting baud rate, data bits, stop bits, etc.
-2. :ref:`uart-api-setting-communication-pins` - Assigning pins for connection to a device
-3. :ref:`uart-api-driver-installation` - Allocating {IDF_TARGET_NAME}'s resources for the UART driver
+1. :ref:`uart-api-driver-installation` - Allocating {IDF_TARGET_NAME}'s resources for the UART driver
+2. :ref:`uart-api-setting-communication-parameters` - Setting baud rate, data bits, stop bits, etc.
+3. :ref:`uart-api-setting-communication-pins` - Assigning pins for connection to a device
 4. :ref:`uart-api-running-uart-communication` - Sending/receiving data
 5. :ref:`uart-api-using-interrupts` - Triggering interrupts on specific communication events
 6. :ref:`uart-api-deleting-driver` - Freeing allocated resources if a UART communication is no longer required
@@ -39,13 +48,39 @@ Steps 1 to 3 comprise the configuration stage. Step 4 is where the UART starts o
 The UART driver's functions identify each of the UART controllers using :cpp:type:`uart_port_t`. This identification is needed for all the following function calls.
 
 
+.. _uart-api-driver-installation:
+
+Install Drivers
+^^^^^^^^^^^^^^^^^^^
+
+First of all, install the driver by calling :cpp:func:`uart_driver_install` and specify the following parameters:
+
+- UART port number
+- Size of RX ring buffer
+- Size of TX ring buffer
+- Event queue size
+- Pointer to store the event queue handle
+- Flags to allocate an interrupt
+
+.. _driver-code-snippet:
+
+The function allocates the required internal resources for the UART driver.
+
+.. code-block:: c
+
+    // Setup UART buffered IO with event queue
+    const int uart_buffer_size = (1024 * 2);
+    QueueHandle_t uart_queue;
+    // Install UART driver using an event queue here
+    ESP_ERROR_CHECK(uart_driver_install({IDF_TARGET_UART_EXAMPLE_PORT}, uart_buffer_size, uart_buffer_size, 10, &uart_queue, 0));
+
+
 .. _uart-api-setting-communication-parameters:
 
 Set Communication Parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-UART communication parameters can be configured all in a single step or individually in multiple steps.
-
+As the next step, UART communication parameters can be configured all in a single step or individually in multiple steps.
 
 Single Step
 """""""""""
@@ -112,35 +147,6 @@ The same macro :c:macro:`UART_PIN_NO_CHANGE` should be specified for pins that w
 
   // Set UART pins(TX: IO4, RX: IO5, RTS: IO18, CTS: IO19)
   ESP_ERROR_CHECK(uart_set_pin({IDF_TARGET_UART_EXAMPLE_PORT}, 4, 5, 18, 19));
-
-.. _uart-api-driver-installation:
-
-Install Drivers
-^^^^^^^^^^^^^^^^^^^
-
-Once the communication pins are set, install the driver by calling :cpp:func:`uart_driver_install` and specify the following parameters:
-
-- UART port number
-- Size of TX ring buffer
-- Size of RX ring buffer
-- Pointer to store the event queue handle
-- Event queue size
-- Flags to allocate an interrupt
-
-.. _driver-code-snippet:
-
-The function allocates the required internal resources for the UART driver.
-
-.. code-block:: c
-
-    // Setup UART buffered IO with event queue
-    const int uart_buffer_size = (1024 * 2);
-    QueueHandle_t uart_queue;
-    // Install UART driver using an event queue here
-    ESP_ERROR_CHECK(uart_driver_install({IDF_TARGET_UART_EXAMPLE_PORT}, uart_buffer_size, \
-                                            uart_buffer_size, 10, &uart_queue, 0));
-
-Once this step is complete, you can connect the external UART device and check the communication.
 
 
 .. _uart-api-running-uart-communication:
@@ -428,6 +434,7 @@ API Reference
 -------------
 
 .. include-build-file:: inc/uart.inc
+.. include-build-file:: inc/uart_wakeup.inc
 .. include-build-file:: inc/uart_types.inc
 
 

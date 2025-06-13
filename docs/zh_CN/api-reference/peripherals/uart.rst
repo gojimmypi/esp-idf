@@ -18,14 +18,23 @@
 
     此外，{IDF_TARGET_NAME} 芯片还有一个满足低功耗需求的 LP UART 控制器。LP UART 是原 UART 的功能剪裁版本。它只支持基础 UART 功能，不支持 IrDA 或 RS485 协议，并且只有一块较小的 RAM 存储空间。想要全面了解的 UART 及 LP UART 功能区别，请参考 **{IDF_TARGET_NAME} 技术参考手册** > UART 控制器 (UART) > 主要特性 [`PDF <{IDF_TARGET_TRM_EN_URL}#uart>`__]。
 
+.. toctree::
+    :hidden:
+
+    uhci
+
+.. only:: SOC_UHCI_SUPPORTED
+
+    {IDF_TARGET_NAME} 芯片也支持 UART DMA 模式, 请参考 :doc:`uhci` 以获得更多信息.
+
 功能概述
 -------------------
 
 下文介绍了如何使用 UART 驱动程序的函数和数据类型在 {IDF_TARGET_NAME} 和其他 UART 设备之间建立通信。基本编程流程分为以下几个步骤：
 
-1. :ref:`uart-api-setting-communication-parameters` - 设置波特率、数据位、停止位等
-2. :ref:`uart-api-setting-communication-pins` - 分配连接设备的管脚
-3. :ref:`uart-api-driver-installation` - 为 UART 驱动程序分配 {IDF_TARGET_NAME} 资源
+1. :ref:`uart-api-driver-installation` - 为 UART 驱动程序分配 {IDF_TARGET_NAME} 资源
+2. :ref:`uart-api-setting-communication-parameters` - 设置波特率、数据位、停止位等
+3. :ref:`uart-api-setting-communication-pins` - 分配连接设备的管脚
 4. :ref:`uart-api-running-uart-communication` - 发送/接收数据
 5. :ref:`uart-api-using-interrupts` - 触发特定通信事件的中断
 6. :ref:`uart-api-deleting-driver` - 如无需 UART 通信，则释放已分配的资源
@@ -39,13 +48,39 @@
 UART 驱动程序函数通过 :cpp:type:`uart_port_t` 识别不同的 UART 控制器。调用以下所有函数均需此标识。
 
 
+.. _uart-api-driver-installation:
+
+安装驱动程序
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+首先，请调用 :cpp:func:`uart_driver_install` 安装驱动程序并指定以下参数：
+
+- UART 控制器编号
+- Rx 环形缓冲区的大小
+- Tx 环形缓冲区的大小
+- 事件队列大小
+- 指向事件队列句柄的指针
+- 分配中断的标志
+
+.. _driver-code-snippet:
+
+该函数将为 UART 驱动程序分配所需的内部资源。
+
+.. code-block:: c
+
+    // Setup UART buffered IO with event queue
+    const int uart_buffer_size = (1024 * 2);
+    QueueHandle_t uart_queue;
+    // Install UART driver using an event queue here
+    ESP_ERROR_CHECK(uart_driver_install({IDF_TARGET_UART_EXAMPLE_PORT}, uart_buffer_size, uart_buffer_size, 10, &uart_queue, 0));
+
+
 .. _uart-api-setting-communication-parameters:
 
 设置通信参数
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-UART 通信参数可以在一个步骤中完成全部配置，也可以在多个步骤中单独配置。
-
+其次，UART 通信参数可以在一个步骤中完成全部配置，也可以在多个步骤中单独配置。
 
 一次性配置所有参数
 """"""""""""""""""""""""""""""""
@@ -112,35 +147,6 @@ UART 通信参数可以在一个步骤中完成全部配置，也可以在多个
 
   // Set UART pins(TX: IO4, RX: IO5, RTS: IO18, CTS: IO19)
   ESP_ERROR_CHECK(uart_set_pin({IDF_TARGET_UART_EXAMPLE_PORT}, 4, 5, 18, 19));
-
-.. _uart-api-driver-installation:
-
-安装驱动程序
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-通信管脚设置完成后，请调用 :cpp:func:`uart_driver_install` 安装驱动程序并指定以下参数：
-
-- UART 控制器编号
-- Tx 环形缓冲区的大小
-- Rx 环形缓冲区的大小
-- 指向事件队列句柄的指针
-- 事件队列大小
-- 分配中断的标志
-
-.. _driver-code-snippet:
-
-该函数将为 UART 驱动程序分配所需的内部资源。
-
-.. code-block:: c
-
-    // Setup UART buffered IO with event queue
-    const int uart_buffer_size = (1024 * 2);
-    QueueHandle_t uart_queue;
-    // Install UART driver using an event queue here
-    ESP_ERROR_CHECK(uart_driver_install({IDF_TARGET_UART_EXAMPLE_PORT}, uart_buffer_size, \
-                                            uart_buffer_size, 10, &uart_queue, 0));
-
-此步骤完成后，可连接外部 UART 设备检查通信。
 
 
 .. _uart-api-running-uart-communication:
@@ -428,6 +434,7 @@ API 参考
 ---------------
 
 .. include-build-file:: inc/uart.inc
+.. include-build-file:: inc/uart_wakeup.inc
 .. include-build-file:: inc/uart_types.inc
 
 

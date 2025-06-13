@@ -23,6 +23,10 @@ config SOC_GDMA_SUPPORTED
     bool
     default y
 
+config SOC_UHCI_SUPPORTED
+    bool
+    default y
+
 config SOC_AHB_GDMA_SUPPORTED
     bool
     default y
@@ -343,6 +347,10 @@ config SOC_SIMD_INSTRUCTION_SUPPORTED
     bool
     default y
 
+config SOC_I3C_MASTER_SUPPORTED
+    bool
+    default y
+
 config SOC_XTAL_SUPPORT_40M
     bool
     default y
@@ -516,6 +524,10 @@ config SOC_CPU_HAS_FPU_EXT_ILL_BUG
     default y
 
 config SOC_CPU_HAS_HWLOOP
+    bool
+    default y
+
+config SOC_CPU_HAS_HWLOOP_STATE_BUG
     bool
     default y
 
@@ -1327,6 +1339,10 @@ config SOC_USB_UTMI_PHY_NUM
     int
     default 1
 
+config SOC_USB_UTMI_PHY_NO_POWER_OFF_ISO
+    bool
+    default y
+
 config SOC_PARLIO_GROUPS
     int
     default 1
@@ -1363,7 +1379,7 @@ config SOC_PARLIO_TRANS_BIT_ALIGN
     bool
     default y
 
-config SOC_PARLIO_TX_SIZE_BY_DMA
+config SOC_PARLIO_TX_SUPPORT_LOOP_TRANSMISSION
     bool
     default y
 
@@ -1403,9 +1419,13 @@ config SOC_SDMMC_NUM_SLOTS
     int
     default 2
 
+config SOC_SDMMC_DATA_WIDTH_MAX
+    int
+    default 8
+
 config SOC_SDMMC_DELAY_PHASE_NUM
     int
-    default 4
+    default 8
 
 config SOC_SDMMC_IO_POWER_EXTERNAL
     bool
@@ -1540,6 +1560,10 @@ config SOC_SPI_SUPPORT_CLK_RC_FAST
     default y
 
 config SOC_SPI_SUPPORT_CLK_SPLL
+    bool
+    default y
+
+config SOC_MSPI_HAS_INDEPENT_IOMUX
     bool
     default y
 
@@ -1719,6 +1743,14 @@ config SOC_TOUCH_SENSOR_NUM
     int
     default 14
 
+config SOC_TOUCH_MIN_CHAN_ID
+    int
+    default 0
+
+config SOC_TOUCH_MAX_CHAN_ID
+    int
+    default 13
+
 config SOC_TOUCH_SUPPORT_SLEEP_WAKEUP
     bool
     default y
@@ -1754,6 +1786,10 @@ config SOC_TOUCH_SAMPLE_CFG_NUM
 config SOC_TWAI_CONTROLLER_NUM
     int
     default 3
+
+config SOC_TWAI_MASK_FILTER_NUM
+    int
+    default 1
 
 config SOC_TWAI_CLK_SUPPORT_XTAL
     bool
@@ -1899,9 +1935,33 @@ config SOC_UART_SUPPORT_FSM_TX_WAIT_SEND
     bool
     default y
 
+config SOC_UART_WAKEUP_CHARS_SEQ_MAX_LEN
+    int
+    default 5
+
+config SOC_UART_WAKEUP_SUPPORT_ACTIVE_THRESH_MODE
+    bool
+    default y
+
+config SOC_UART_WAKEUP_SUPPORT_FIFO_THRESH_MODE
+    bool
+    default y
+
+config SOC_UART_WAKEUP_SUPPORT_START_BIT_MODE
+    bool
+    default y
+
+config SOC_UART_WAKEUP_SUPPORT_CHAR_SEQ_MODE
+    bool
+    default y
+
 config SOC_LP_I2S_SUPPORT_VAD
     bool
     default y
+
+config SOC_UHCI_NUM
+    int
+    default 1
 
 config SOC_COEX_HW_PTI
     bool
@@ -1968,6 +2028,10 @@ config SOC_PM_SUPPORT_DEEPSLEEP_CHECK_STUB_ONLY
     default y
 
 config SOC_PM_CPU_RETENTION_BY_SW
+    bool
+    default y
+
+config SOC_PM_CACHE_RETENTION_BY_PAU
     bool
     default y
 
@@ -2043,10 +2107,6 @@ config SOC_PERIPH_CLK_CTRL_SHARED
     bool
     default y
 
-config SOC_CLK_ANA_I2C_MST_HAS_ROOT_GATE
-    bool
-    default y
-
 config SOC_TEMPERATURE_SENSOR_LP_PLL_SUPPORT
     bool
     default y
@@ -2115,6 +2175,18 @@ config SOC_LCDCAM_CAM_DATA_WIDTH_MAX
     int
     default 16
 
+config SOC_I3C_MASTER_PERIPH_NUM
+    bool
+    default y
+
+config SOC_I3C_MASTER_ADDRESS_TABLE_NUM
+    int
+    default 12
+
+config SOC_I3C_MASTER_COMMAND_TABLE_NUM
+    int
+    default 12
+
 config SOC_LP_CORE_SUPPORT_ETM
     bool
     default y
@@ -2124,5 +2196,9 @@ config SOC_LP_CORE_SUPPORT_LP_ADC
     default y
 
 config SOC_LP_CORE_SUPPORT_LP_VAD
+    bool
+    default y
+
+config SOC_LP_CORE_SUPPORT_STORE_LOAD_EXCEPTIONS
     bool
     default y

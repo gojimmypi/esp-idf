@@ -1,12 +1,12 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <sys/lock.h>
 #include <sys/param.h>
-#include "hal/gpio_ll.h"
+#include "esp_memory_utils.h"
 #include "hal/cam_ll.h"
 #include "hal/color_hal.h"
 #include "driver/gpio.h"
@@ -25,7 +25,7 @@
 #include "esp_private/esp_clk_tree_common.h"
 #include "../../dvp_share_ctrl.h"
 
-#ifdef CONFIG_CAM_CTLR_DVP_CAM_ISR_IRAM_SAFE
+#ifdef CONFIG_CAM_CTLR_DVP_CAM_ISR_CACHE_SAFE
 #define CAM_DVP_MEM_ALLOC_CAPS      (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
 #else
 #define CAM_DVP_MEM_ALLOC_CAPS      (MALLOC_CAP_DEFAULT)
@@ -332,7 +332,7 @@ esp_err_t esp_cam_ctlr_dvp_init(int ctlr_id, cam_clock_source_t clk_src, const e
         }
     }
 
-    esp_clk_tree_enable_src((soc_module_clk_t)clk_src, true);
+    ESP_ERROR_CHECK(esp_clk_tree_enable_src((soc_module_clk_t)clk_src, true));
     PERIPH_RCC_ATOMIC() {
         cam_ll_enable_clk(ctlr_id, true);
         cam_ll_select_clk_src(ctlr_id, clk_src);
@@ -422,6 +422,12 @@ static esp_err_t esp_cam_ctlr_dvp_cam_enable(esp_cam_ctlr_handle_t handle)
         ctlr->dvp_fsm = ESP_CAM_CTLR_DVP_CAM_FSM_ENABLED;
         ret = ESP_OK;
     }
+#if CONFIG_PM_ENABLE
+    if (ctlr->pm_lock) {
+        ESP_RETURN_ON_ERROR(esp_pm_lock_acquire(ctlr->pm_lock), TAG, "acquire pm_lock failed");
+    }
+#endif // CONFIG_PM_ENABLE
+
     portEXIT_CRITICAL(&ctlr->spinlock);
 
     return ret;
@@ -448,6 +454,11 @@ static esp_err_t esp_cam_ctlr_dvp_cam_disable(esp_cam_ctlr_handle_t handle)
         ctlr->dvp_fsm = ESP_CAM_CTLR_DVP_CAM_FSM_INIT;
         ret = ESP_OK;
     }
+#if CONFIG_PM_ENABLE
+    if (ctlr->pm_lock) {
+        ESP_RETURN_ON_ERROR(esp_pm_lock_release(ctlr->pm_lock), TAG, "release pm_lock failed");
+    }
+#endif // CONFIG_PM_ENABLE
     portEXIT_CRITICAL(&ctlr->spinlock);
 
     return ret;
@@ -545,6 +556,12 @@ static esp_err_t esp_cam_ctlr_dvp_cam_del(esp_cam_ctlr_handle_t handle)
             heap_caps_free(ctlr->backup_buffer);
         }
 
+#if CONFIG_PM_ENABLE
+        if (ctlr->pm_lock) {
+            ESP_RETURN_ON_ERROR(esp_pm_lock_delete(ctlr->pm_lock), TAG, "delete pm_lock failed");
+        }
+#endif // CONFIG_PM_ENABLE
+
         s_dvp_declaim_ctlr(ctlr->ctlr_id);
 
         heap_caps_free(ctlr);
@@ -576,7 +593,7 @@ static esp_err_t esp_cam_ctlr_dvp_cam_register_event_callbacks(esp_cam_ctlr_hand
     ESP_RETURN_ON_FALSE(cbs->on_trans_finished, ESP_ERR_INVALID_ARG, TAG, "invalid argument: on_trans_finished is null");
     ESP_RETURN_ON_FALSE(cbs->on_get_new_trans || !ctlr->bk_buffer_dis, ESP_ERR_INVALID_ARG, TAG, "invalid argument: on_get_new_trans is null");
 
-#if CONFIG_CAM_CTLR_DVP_CAM_ISR_IRAM_SAFE
+#if CONFIG_CAM_CTLR_DVP_CAM_ISR_CACHE_SAFE
     if (cbs->on_get_new_trans) {
         ESP_RETURN_ON_FALSE(esp_ptr_in_iram(cbs->on_get_new_trans), ESP_ERR_INVALID_ARG, TAG, "on_get_new_trans callback not in IRAM");
     }
@@ -712,6 +729,10 @@ esp_err_t esp_cam_new_dvp_ctlr(const esp_cam_ctlr_dvp_config_t *config, esp_cam_
 
     ESP_GOTO_ON_ERROR(gdma_register_rx_event_callbacks(ctlr->dma.dma_chan, &cbs, ctlr),
                       fail4, TAG, "failed to register DMA event callbacks");
+
+#if CONFIG_PM_ENABLE
+    ESP_GOTO_ON_ERROR(esp_pm_lock_create(ESP_PM_APB_FREQ_MAX, 0, "dvp_cam_ctlr", &ctlr->pm_lock), fail5, TAG, "failed to create pm lock");
+#endif //CONFIG_PM_ENABLE
 
     /* Initialize DVP controller */
 

@@ -3,18 +3,6 @@
 # using gen_soc_caps_kconfig.py, do not edit manually
 #####################################################
 
-config SOC_BROWNOUT_RESET_SUPPORTED
-    string
-    default "Not determined"
-
-config SOC_TWAI_BRP_DIV_SUPPORTED
-    string
-    default "Not determined"
-
-config SOC_DPORT_WORKAROUND
-    string
-    default "Not determined"
-
 config SOC_CAPS_ECO_VER_MAX
     int
     default 301
@@ -279,6 +267,10 @@ config SOC_ADC_SHARED_POWER
     bool
     default y
 
+config SOC_BROWNOUT_RESET_SUPPORTED
+    bool
+    default y
+
 config SOC_SHARED_IDCACHE_SUPPORTED
     bool
     default y
@@ -312,8 +304,8 @@ config SOC_CPU_WATCHPOINTS_NUM
     default 2
 
 config SOC_CPU_WATCHPOINT_MAX_REGION_SIZE
-    int
-    default 64
+    hex
+    default 0x40
 
 config SOC_DAC_CHAN_NUM
     int
@@ -719,6 +711,14 @@ config SOC_TIMER_GROUP_SUPPORT_APB
     bool
     default y
 
+config SOC_LP_TIMER_BIT_WIDTH_LO
+    int
+    default 32
+
+config SOC_LP_TIMER_BIT_WIDTH_HI
+    int
+    default 16
+
 config SOC_TOUCH_SENSOR_VERSION
     int
     default 1
@@ -726,6 +726,14 @@ config SOC_TOUCH_SENSOR_VERSION
 config SOC_TOUCH_SENSOR_NUM
     int
     default 10
+
+config SOC_TOUCH_MIN_CHAN_ID
+    int
+    default 0
+
+config SOC_TOUCH_MAX_CHAN_ID
+    int
+    default 9
 
 config SOC_TOUCH_SUPPORT_SLEEP_WAKEUP
     bool
@@ -736,6 +744,10 @@ config SOC_TOUCH_SAMPLE_CFG_NUM
     default 1
 
 config SOC_TWAI_CONTROLLER_NUM
+    int
+    default 1
+
+config SOC_TWAI_MASK_FILTER_NUM
     int
     default 1
 
@@ -775,6 +787,10 @@ config SOC_UART_BITRATE_MAX
     int
     default 5000000
 
+config SOC_UART_WAKEUP_SUPPORT_ACTIVE_THRESH_MODE
+    bool
+    default y
+
 config SOC_SPIRAM_SUPPORTED
     bool
     default y
@@ -812,8 +828,8 @@ config SOC_MPI_MEM_BLOCKS_NUM
     default 4
 
 config SOC_MPI_OPERATIONS_NUM
-    bool
-    default y
+    int
+    default 1
 
 config SOC_RSA_MAX_BIT_LEN
     int
@@ -836,8 +852,8 @@ config SOC_SECURE_BOOT_V1
     default y
 
 config SOC_EFUSE_SECURE_BOOT_KEY_DIGESTS
-    bool
-    default y
+    int
+    default 1
 
 config SOC_FLASH_ENCRYPTED_XTS_AES_BLOCK_MAX
     int
@@ -926,6 +942,10 @@ config SOC_SDMMC_USE_IOMUX
 config SOC_SDMMC_NUM_SLOTS
     int
     default 2
+
+config SOC_SDMMC_DATA_WIDTH_MAX
+    int
+    default 8
 
 config SOC_WIFI_WAPI_SUPPORT
     bool

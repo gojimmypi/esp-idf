@@ -166,7 +166,7 @@ static inline void bitscrambler_ll_set_cond_mode(bitscrambler_dev_t *hw, bitscra
  */
 static inline void bitscrambler_ll_enable_prefetch_on_reset(bitscrambler_dev_t *hw, bitscrambler_direction_t dir, bool en)
 {
-    // 0: means do prefetch on reset, 1: means no reset prefetch, user has to load the instruction manually in the assembly code
+    // 0: means do data prefetch on reset, 1: means no reset prefetch, user has to load the data manually in the assembly code
     hw->ctrl[dir].fetch_mode = en ? 0 : 1;
 }
 
@@ -281,9 +281,24 @@ static inline bitscrambler_state_t bitscrambler_ll_get_current_state(bitscramble
 }
 
 /**
+ * @brief Return if the bitscrambler FIFO is ready
+ *
+ * @note For TX, means the outfifo is not empty, then we can start the peripheral to transmit the data
+ *       For RX, means the infifo is not full, then we can start the peripheral to receive the data
+ *
+ * @param hw BitScrambler hardware instance address.
+ * @param dir Direction, BITSCRAMBLER_DIR_TX or BITSCRAMBLER_DIR_RX
+ * @return true if FIFO is ready, false otherwise
+ */
+static inline bool bitscrambler_ll_is_fifo_ready(bitscrambler_dev_t *hw, bitscrambler_direction_t dir)
+{
+    return hw->state[dir].fifo_empty;
+}
+
+/**
  * @brief Enable the bus clock for BitScrambler module
  */
-static inline void _bitscrambler_ll_set_bus_clock_sys_enable(bool enable)
+static inline void bitscrambler_ll_set_bus_clock_sys_enable(bool enable)
 {
     PCR.bs_conf.bs_clk_en = enable;
 }
@@ -291,7 +306,7 @@ static inline void _bitscrambler_ll_set_bus_clock_sys_enable(bool enable)
 /**
  * @brief Enable the bus clock for RX BitScrambler module
  */
-static inline void _bitscrambler_ll_set_bus_clock_rx_enable(bool enable)
+static inline void bitscrambler_ll_set_bus_clock_rx_enable(bool enable)
 {
     // empty
 }
@@ -299,7 +314,7 @@ static inline void _bitscrambler_ll_set_bus_clock_rx_enable(bool enable)
 /**
  * @brief Enable the bus clock for TX BitScrambler module
  */
-static inline void _bitscrambler_ll_set_bus_clock_tx_enable(bool enable)
+static inline void bitscrambler_ll_set_bus_clock_tx_enable(bool enable)
 {
     // empty
 }
@@ -334,7 +349,7 @@ static inline void bitscrambler_ll_mem_power_by_pmu(void)
 /**
  * @brief Reset the BitScrambler module
  */
-static inline void _bitscrambler_ll_reset_sys(void)
+static inline void bitscrambler_ll_reset_sys(void)
 {
     PCR.bs_conf.bs_rst_en = 1;
     PCR.bs_conf.bs_rst_en = 0;
@@ -343,7 +358,7 @@ static inline void _bitscrambler_ll_reset_sys(void)
 /**
  * @brief Reset the BitScrambler RX module
  */
-static inline void _bitscrambler_ll_reset_rx(void)
+static inline void bitscrambler_ll_reset_rx(void)
 {
     PCR.bs_func_conf.bs_rx_rst_en = 1;
     PCR.bs_func_conf.bs_rx_rst_en = 0;
@@ -352,21 +367,11 @@ static inline void _bitscrambler_ll_reset_rx(void)
 /**
  * @brief Reset the BitScrambler TX module
  */
-static inline void _bitscrambler_ll_reset_tx(void)
+static inline void bitscrambler_ll_reset_tx(void)
 {
     PCR.bs_func_conf.bs_tx_rst_en = 1;
     PCR.bs_func_conf.bs_tx_rst_en = 0;
 }
-
-/// use a macro to wrap the function, force the caller to use it in a critical section
-/// the critical section needs to declare the __DECLARE_RCC_RC_ATOMIC_ENV variable in advance
-#define bitscrambler_ll_set_bus_clock_sys_enable(...) (void)__DECLARE_RCC_RC_ATOMIC_ENV; _bitscrambler_ll_set_bus_clock_sys_enable(__VA_ARGS__)
-#define bitscrambler_ll_set_bus_clock_rx_enable(...) (void)__DECLARE_RCC_RC_ATOMIC_ENV; _bitscrambler_ll_set_bus_clock_rx_enable(__VA_ARGS__)
-#define bitscrambler_ll_set_bus_clock_tx_enable(...) (void)__DECLARE_RCC_RC_ATOMIC_ENV; _bitscrambler_ll_set_bus_clock_tx_enable(__VA_ARGS__)
-
-#define bitscrambler_ll_reset_sys(...) (void)__DECLARE_RCC_RC_ATOMIC_ENV; _bitscrambler_ll_reset_sys(__VA_ARGS__)
-#define bitscrambler_ll_reset_rx(...) (void)__DECLARE_RCC_RC_ATOMIC_ENV; _bitscrambler_ll_reset_rx(__VA_ARGS__)
-#define bitscrambler_ll_reset_tx(...) (void)__DECLARE_RCC_RC_ATOMIC_ENV; _bitscrambler_ll_reset_tx(__VA_ARGS__)
 
 #ifdef __cplusplus
 }

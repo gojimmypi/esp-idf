@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -64,7 +64,7 @@ static uint32_t rtc_clk_cal_internal(rtc_cal_sel_t cal_clk, uint32_t slowclk_cyc
             rtc_dig_clk8m_enable();
         }
     }
-
+    clk_ll_enable_timergroup_rtc_calibration_clock(true);
     /* There may be another calibration process already running during we call this function,
      * so we should wait the last process is done.
      */
@@ -123,6 +123,7 @@ static uint32_t rtc_clk_cal_internal(rtc_cal_sel_t cal_clk, uint32_t slowclk_cyc
     }
     CLEAR_PERI_REG_MASK(TIMG_RTCCALICFG_REG(0), TIMG_RTC_CALI_START);
 
+    clk_ll_enable_timergroup_rtc_calibration_clock(false);
     /* if dig_32k_xtal was originally off and enabled due to calibration, then set back to off state */
     if (cal_clk == RTC_CAL_32K_XTAL && !dig_32k_xtal_enabled) {
         clk_ll_xtal32k_digi_disable();
@@ -172,9 +173,9 @@ uint32_t rtc_clk_cal(rtc_cal_sel_t cal_clk, uint32_t slowclk_cycles)
 uint64_t rtc_time_us_to_slowclk(uint64_t time_in_us, uint32_t period)
 {
     assert(period);
-    /* Overflow will happen in this function if time_in_us >= 2^45, which is about 400 days.
-     * TODO: fix overflow.
-     */
+    if (time_in_us > (UINT64_MAX >> RTC_CLK_CAL_FRACT)) {
+        return ((time_in_us / period) << RTC_CLK_CAL_FRACT) + ((time_in_us % period) << RTC_CLK_CAL_FRACT) / period;
+    }
     return (time_in_us << RTC_CLK_CAL_FRACT) / period;
 }
 
@@ -195,6 +196,8 @@ uint32_t rtc_clk_freq_cal(uint32_t cal_val)
     }
     return 1000000ULL * (1 << RTC_CLK_CAL_FRACT) / cal_val;
 }
+
+uint32_t rtc_clk_freq_to_period(uint32_t) __attribute__((alias("rtc_clk_freq_cal")));
 
 /// @brief if the calibration is used, we need to enable the timer group0 first
 __attribute__((constructor))

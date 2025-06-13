@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -459,10 +459,6 @@ esp_err_t adc2_config_channel_atten(adc2_channel_t channel, adc_atten_t atten)
     adc_lock_release(ADC_UNIT_2);
 #endif
 
-#if SOC_ADC_CALIBRATION_V1_SUPPORTED
-    adc_hal_calibration_init(ADC_UNIT_2);
-#endif
-
     return ESP_OK;
 }
 
@@ -539,11 +535,6 @@ esp_err_t adc2_get_raw(adc2_channel_t channel, adc_bits_width_t width_bit, int *
     bitwidth = ADC_BITWIDTH_12;
 #endif
 
-#if SOC_ADC_CALIBRATION_V1_SUPPORTED
-    adc_atten_t atten = adc_ll_get_atten(ADC_UNIT_2, channel);
-    adc_set_hw_calibration_code(ADC_UNIT_2, atten);
-#endif  //SOC_ADC_CALIBRATION_V1_SUPPORTED
-
 #if CONFIG_IDF_TARGET_ESP32
     /** For ESP32S2 and S3, the right to use ADC2 is controlled by the arbiter, and there is no need to set a lock.*/
     if (adc_lock_try_acquire(ADC_UNIT_2) != ESP_OK) {
@@ -552,6 +543,12 @@ esp_err_t adc2_get_raw(adc2_channel_t channel, adc_bits_width_t width_bit, int *
     }
 #endif
     sar_periph_ctrl_adc_oneshot_power_acquire();         //in critical section with whole rtc module
+
+#if SOC_ADC_CALIBRATION_V1_SUPPORTED
+    adc_hal_calibration_init(ADC_UNIT_2);
+    adc_atten_t atten = adc_ll_get_atten(ADC_UNIT_2, channel);
+    adc_set_hw_calibration_code(ADC_UNIT_2, atten);
+#endif  //SOC_ADC_CALIBRATION_V1_SUPPORTED
 
     //avoid collision with other tasks
     adc2_init();   // in critical section with whole rtc module. because the PWDET use the same registers, place it here.
@@ -759,7 +756,7 @@ int adc1_get_raw(adc1_channel_t channel)
 
     adc_apb_periph_claim();
     sar_periph_ctrl_adc_oneshot_power_acquire();
-    esp_clk_tree_enable_src((soc_module_clk_t)ADC_DIGI_CLK_SRC_DEFAULT, true);
+    ESP_ERROR_CHECK(esp_clk_tree_enable_src((soc_module_clk_t)ADC_DIGI_CLK_SRC_DEFAULT, true));
     adc_ll_digi_clk_sel(ADC_DIGI_CLK_SRC_DEFAULT);
 
     adc_atten_t atten = s_atten1_single[channel];
@@ -778,6 +775,7 @@ int adc1_get_raw(adc1_channel_t channel)
     adc_hal_convert(ADC_UNIT_1, channel, clk_src_freq_hz, &raw_out);
     ADC_REG_LOCK_EXIT();
 
+    ESP_ERROR_CHECK(esp_clk_tree_enable_src((soc_module_clk_t)ADC_DIGI_CLK_SRC_DEFAULT, false));
     sar_periph_ctrl_adc_oneshot_power_release();
     adc_apb_periph_free();
     adc_lock_release(ADC_UNIT_1);
@@ -823,7 +821,7 @@ esp_err_t adc2_get_raw(adc2_channel_t channel, adc_bits_width_t width_bit, int *
 
     adc_apb_periph_claim();
     sar_periph_ctrl_adc_oneshot_power_acquire();
-    esp_clk_tree_enable_src((soc_module_clk_t)ADC_DIGI_CLK_SRC_DEFAULT, true);
+    ESP_ERROR_CHECK(esp_clk_tree_enable_src((soc_module_clk_t)ADC_DIGI_CLK_SRC_DEFAULT, true));
     adc_ll_digi_clk_sel(ADC_DIGI_CLK_SRC_DEFAULT);
 
 #if SOC_ADC_ARBITER_SUPPORTED
@@ -841,6 +839,7 @@ esp_err_t adc2_get_raw(adc2_channel_t channel, adc_bits_width_t width_bit, int *
     ret = adc_hal_convert(ADC_UNIT_2, channel, clk_src_freq_hz, raw_out);
     ADC_REG_LOCK_EXIT();
 
+    ESP_ERROR_CHECK(esp_clk_tree_enable_src((soc_module_clk_t)ADC_DIGI_CLK_SRC_DEFAULT, false));
     sar_periph_ctrl_adc_oneshot_power_release();
     adc_apb_periph_free();
     adc_lock_release(ADC_UNIT_2);

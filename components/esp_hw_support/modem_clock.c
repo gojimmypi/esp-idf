@@ -13,6 +13,7 @@
 #include "soc/soc_caps.h"
 #include "freertos/FreeRTOS.h"
 #include "esp_private/esp_modem_clock.h"
+#include "esp_private/esp_sleep_internal.h"
 #include "esp_private/esp_pmu.h"
 #include "esp_sleep.h"
 #include "hal/efuse_hal.h"
@@ -140,7 +141,7 @@ static void IRAM_ATTR modem_clock_data_dump_configure(modem_clock_context_t *ctx
 modem_clock_context_t * __attribute__((weak)) IRAM_ATTR MODEM_CLOCK_instance(void)
 {
     /* It should be explicitly defined in the internal RAM */
-    static DRAM_ATTR modem_clock_hal_context_t modem_clock_hal = { .syscon_dev = &MODEM_SYSCON, .lpcon_dev = &MODEM_LPCON };
+    static DRAM_ATTR modem_clock_hal_context_t modem_clock_hal = { .syscon_dev = NULL, .lpcon_dev = NULL };
     static DRAM_ATTR modem_clock_context_t modem_clock_context = {
         .hal = &modem_clock_hal, .lock = portMUX_INITIALIZER_UNLOCKED,
         .dev = {
@@ -166,6 +167,13 @@ modem_clock_context_t * __attribute__((weak)) IRAM_ATTR MODEM_CLOCK_instance(voi
         },
         .lpclk_src = { [0 ... PERIPH_MODEM_MODULE_NUM - 1] = MODEM_CLOCK_LPCLK_SRC_INVALID }
     };
+    if (modem_clock_hal.syscon_dev == NULL || modem_clock_hal.lpcon_dev == NULL) {
+        modem_clock_hal.syscon_dev = &MODEM_SYSCON;
+        modem_clock_hal.lpcon_dev = &MODEM_LPCON;
+#if SOC_CLOCK_TREE_MANAGEMENT_SUPPORTED
+        ESP_ERROR_CHECK(esp_clk_tree_enable_src(SOC_MOD_CLK_MODEM_APB, true));
+#endif
+    }
     return &modem_clock_context;
 }
 
@@ -408,7 +416,7 @@ void modem_clock_select_lp_clock_source(periph_module_t module, modem_clock_lpcl
 #if SOC_BLE_USE_WIFI_PWR_CLK_WORKAROUND
         if (efuse_hal_chip_revision() != 0) {
             if (src == MODEM_CLOCK_LPCLK_SRC_MAIN_XTAL) {
-                pmu_sleep_enable_hp_sleep_sysclk(true);
+                esp_sleep_clock_config(ESP_SLEEP_CLOCK_BT_USE_WIFI_PWR_CLK, ESP_SLEEP_CLOCK_OPTION_UNGATE);
                 modem_clock_hal_enable_wifipwr_clock(MODEM_CLOCK_instance()->hal, true);
                 modem_clock_domain_clk_gate_disable(MODEM_CLOCK_DOMAIN_WIFIPWR, PMU_HP_ICG_MODEM_CODE_SLEEP);
             }
@@ -481,7 +489,7 @@ void modem_clock_deselect_lp_clock_source(periph_module_t module)
 #if SOC_BLE_USE_WIFI_PWR_CLK_WORKAROUND && SOC_LIGHT_SLEEP_SUPPORTED  // TODO: [ESP32C5] IDF-8643
         if (efuse_hal_chip_revision() != 0) {
             if (last_src == MODEM_CLOCK_LPCLK_SRC_MAIN_XTAL) {
-                pmu_sleep_enable_hp_sleep_sysclk(false);
+                esp_sleep_clock_config(ESP_SLEEP_CLOCK_BT_USE_WIFI_PWR_CLK, ESP_SLEEP_CLOCK_OPTION_GATE);
                 modem_clock_hal_enable_wifipwr_clock(MODEM_CLOCK_instance()->hal, false);
                 modem_clock_domain_clk_gate_enable(MODEM_CLOCK_DOMAIN_WIFIPWR, PMU_HP_ICG_MODEM_CODE_SLEEP);
             }

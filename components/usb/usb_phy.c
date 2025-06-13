@@ -13,11 +13,17 @@
 #include "esp_private/usb_phy.h"
 #include "esp_private/critical_section.h"
 #include "soc/usb_dwc_periph.h"
+#include "hal/usb_serial_jtag_hal.h"
 #include "hal/usb_wrap_hal.h"
 #include "hal/usb_utmi_hal.h"
 #include "esp_rom_gpio.h"
 #include "driver/gpio.h"
 #include "soc/soc_caps.h"
+
+#if SOC_USB_UTMI_PHY_NO_POWER_OFF_ISO
+#include "esp_private/sleep_usb.h"
+#include "esp_sleep.h"
+#endif
 
 #if !SOC_RCC_IS_INDEPENDENT
 #define USB_PHY_RCC_ATOMIC() PERIPH_RCC_ATOMIC()
@@ -36,7 +42,6 @@ struct phy_context_t {
     usb_phy_controller_t controller;              /**< PHY controller */
     usb_phy_status_t status;                      /**< PHY status */
     usb_otg_mode_t otg_mode;                      /**< USB OTG mode */
-    usb_phy_speed_t otg_speed;                    /**< USB speed */
     usb_phy_ext_io_conf_t *iopins;                /**< external PHY I/O pins */
     usb_wrap_hal_context_t wrap_hal;              /**< USB WRAP HAL context */
 };
@@ -174,29 +179,10 @@ esp_err_t usb_phy_otg_dev_set_speed(usb_phy_handle_t handle, usb_phy_speed_t spe
 {
     ESP_RETURN_ON_FALSE(handle, ESP_ERR_INVALID_ARG, USBPHY_TAG, "handle argument is invalid");
     ESP_RETURN_ON_FALSE(speed < USB_PHY_SPEED_MAX, ESP_ERR_INVALID_ARG, USBPHY_TAG, "speed argument is invalid");
-    ESP_RETURN_ON_FALSE(handle->controller == USB_PHY_CTRL_OTG, ESP_FAIL, USBPHY_TAG, "phy source is not USB_OTG");
-    ESP_RETURN_ON_FALSE((handle->target != USB_PHY_TARGET_EXT && handle->otg_mode == USB_OTG_MODE_DEVICE), ESP_FAIL,
-                        USBPHY_TAG, "set speed not supported");
     ESP_RETURN_ON_FALSE((handle->target == USB_PHY_TARGET_UTMI) == (speed == USB_PHY_SPEED_HIGH), ESP_ERR_NOT_SUPPORTED, USBPHY_TAG, "UTMI can be HighSpeed only"); // This is our software limitation
 
-    handle->otg_speed = speed;
-    if (handle->target == USB_PHY_TARGET_UTMI) {
-        return ESP_OK; // No need to configure anything for UTMI PHY
-    }
-
-    // Configure pull resistors for device
-    usb_wrap_pull_override_vals_t vals = {
-        .dp_pd = false,
-        .dm_pd = false,
-    };
-    if (speed == USB_PHY_SPEED_LOW) {
-        vals.dp_pu = false;
-        vals.dm_pu = true;
-    } else {
-        vals.dp_pu = true;
-        vals.dm_pu = false;
-    }
-    usb_wrap_hal_phy_enable_pull_override(&handle->wrap_hal, &vals);
+    // Keeping this here for backward compatibility
+    // No need to configure anything neither for UTMI PHY nor for USB FSLS PHY
     return ESP_OK;
 }
 
@@ -313,6 +299,12 @@ esp_err_t usb_new_phy(const usb_phy_config_t *config, usb_phy_handle_t *handle_r
     }
 #endif
 
+#if SOC_USB_UTMI_PHY_NO_POWER_OFF_ISO
+    if (phy_target == USB_PHY_TARGET_UTMI) {
+        esp_deep_sleep_register_hook(&sleep_usb_suppress_deepsleep_leakage);
+    }
+#endif
+
     ESP_RETURN_ON_FALSE(config, ESP_ERR_INVALID_ARG, USBPHY_TAG, "config argument is invalid");
     ESP_RETURN_ON_FALSE(phy_target < USB_PHY_TARGET_MAX, ESP_ERR_INVALID_ARG, USBPHY_TAG, "specified PHY argument is invalid");
     ESP_RETURN_ON_FALSE(config->controller < USB_PHY_CTRL_MAX, ESP_ERR_INVALID_ARG, USBPHY_TAG, "specified source argument is invalid");
@@ -367,14 +359,19 @@ esp_err_t usb_new_phy(const usb_phy_config_t *config, usb_phy_handle_t *handle_r
         usb_wrap_hal_phy_set_external(&phy_context->wrap_hal, (phy_target == USB_PHY_TARGET_EXT));
 #endif
     }
-
-    // For FSLS PHY that shares pads with GPIO peripheral, we must set drive capability to 3 (40mA)
-#if !CONFIG_IDF_TARGET_ESP32P4 // TODO: We must set drive capability for FSLS PHY for P4 too, to pass Full Speed eye diagram test
-    if (phy_target == USB_PHY_TARGET_INT) {
-        gpio_set_drive_capability(USBPHY_DM_NUM, GPIO_DRIVE_CAP_3);
-        gpio_set_drive_capability(USBPHY_DP_NUM, GPIO_DRIVE_CAP_3);
+#if SOC_USB_SERIAL_JTAG_SUPPORTED && USB_SERIAL_JTAG_LL_EXT_PHY_SUPPORTED
+    else if (config->controller == USB_PHY_CTRL_SERIAL_JTAG) {
+        usb_serial_jtag_hal_phy_set_external(NULL, (config->target == USB_PHY_TARGET_EXT));
+        phy_context->otg_mode = USB_OTG_MODE_DEVICE;
     }
 #endif
+
+    // For FSLS PHY that shares pads with GPIO peripheral, we must set drive capability to 3 (40mA)
+    if (phy_target == USB_PHY_TARGET_INT) {
+        assert(usb_dwc_info.controllers[otg11_index].internal_phy_io);
+        gpio_set_drive_capability(usb_dwc_info.controllers[otg11_index].internal_phy_io->dm, GPIO_DRIVE_CAP_3);
+        gpio_set_drive_capability(usb_dwc_info.controllers[otg11_index].internal_phy_io->dp, GPIO_DRIVE_CAP_3);
+    }
 
     *handle_ret = (usb_phy_handle_t) phy_context;
     if (phy_target == USB_PHY_TARGET_EXT) {
@@ -386,9 +383,6 @@ esp_err_t usb_new_phy(const usb_phy_config_t *config, usb_phy_handle_t *handle_r
     }
     if (config->otg_mode != USB_PHY_MODE_DEFAULT) {
         ESP_ERROR_CHECK(usb_phy_otg_set_mode(*handle_ret, config->otg_mode));
-    }
-    if (config->otg_speed != USB_PHY_SPEED_UNDEFINED) {
-        ESP_ERROR_CHECK(usb_phy_otg_dev_set_speed(*handle_ret, config->otg_speed));
     }
     if (config->otg_io_conf && (phy_context->controller == USB_PHY_CTRL_OTG)) {
         const usb_otg_signal_conn_t *otg_sig = usb_dwc_info.controllers[otg11_index].otg_signals;

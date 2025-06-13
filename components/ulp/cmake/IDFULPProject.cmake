@@ -113,6 +113,8 @@ function(ulp_apply_default_sources ulp_app_name)
         "${IDF_PATH}/components/ulp/lp_core/lp_core/vector.S"
         "${IDF_PATH}/components/ulp/lp_core/lp_core/port/${IDF_TARGET}/vector_table.S"
         "${IDF_PATH}/components/ulp/lp_core/shared/ulp_lp_core_memory_shared.c"
+        "${IDF_PATH}/components/ulp/lp_core/shared/ulp_lp_core_lp_uart_shared.c"
+        "${IDF_PATH}/components/esp_driver_uart/src/uart_wakeup.c"
         "${IDF_PATH}/components/ulp/lp_core/shared/ulp_lp_core_lp_timer_shared.c"
         "${IDF_PATH}/components/ulp/lp_core/lp_core/lp_core_startup.c"
         "${IDF_PATH}/components/ulp/lp_core/lp_core/lp_core_utils.c"
@@ -129,6 +131,11 @@ function(ulp_apply_default_sources ulp_app_name)
         "${IDF_PATH}/components/ulp/lp_core/shared/ulp_lp_core_lp_adc_shared.c"
         "${IDF_PATH}/components/ulp/lp_core/shared/ulp_lp_core_lp_vad_shared.c"
         "${IDF_PATH}/components/ulp/lp_core/shared/ulp_lp_core_critical_section_shared.c")
+
+        if(CONFIG_SOC_TOUCH_SENSOR_SUPPORTED)
+            list(APPEND ULP_S_SOURCES
+                "${IDF_PATH}/components/ulp/lp_core/lp_core/lp_core_touch.c")
+        endif()
 
         set(target_folder ${IDF_TARGET})
 

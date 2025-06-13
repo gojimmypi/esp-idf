@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2016-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2016-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -258,19 +258,17 @@ esp_err_t adc_continuous_start(adc_continuous_handle_t handle)
     ESP_RETURN_ON_FALSE(handle->fsm == ADC_FSM_INIT, ESP_ERR_INVALID_STATE, ADC_TAG, "ADC continuous mode isn't in the init state, it's started already");
 
     ANALOG_CLOCK_ENABLE();
-#if SOC_ADC_CALIBRATION_V1_SUPPORTED
-    adc_hal_calibration_init(ADC_UNIT_1);
-    adc_hal_calibration_init(ADC_UNIT_2);
-#endif  //#if SOC_ADC_CALIBRATION_V1_SUPPORTED
 
     //reset ADC digital part to reset ADC sampling EOF counter
     ADC_BUS_CLK_ATOMIC() {
         adc_ll_reset_register();
     }
 
+#if CONFIG_PM_ENABLE
     if (handle->pm_lock) {
         ESP_RETURN_ON_ERROR(esp_pm_lock_acquire(handle->pm_lock), ADC_TAG, "acquire pm_lock failed");
     }
+#endif
 
     handle->fsm = ADC_FSM_STARTED;
     sar_periph_ctrl_adc_continuous_power_acquire();
@@ -284,9 +282,11 @@ esp_err_t adc_continuous_start(adc_continuous_handle_t handle)
 
 #if SOC_ADC_CALIBRATION_V1_SUPPORTED
     if (handle->use_adc1) {
+        adc_hal_calibration_init(ADC_UNIT_1);
         adc_set_hw_calibration_code(ADC_UNIT_1, handle->adc1_atten);
     }
     if (handle->use_adc2) {
+        adc_hal_calibration_init(ADC_UNIT_2);
         adc_set_hw_calibration_code(ADC_UNIT_2, handle->adc2_atten);
     }
 #endif  //#if SOC_ADC_CALIBRATION_V1_SUPPORTED
@@ -321,10 +321,10 @@ esp_err_t adc_continuous_start(adc_continuous_handle_t handle)
         adc_hal_set_controller(ADC_UNIT_2, ADC_HAL_CONTINUOUS_READ_MODE);
     }
 
-    adc_hal_digi_init(&handle->hal);
 #if !CONFIG_IDF_TARGET_ESP32
-    esp_clk_tree_enable_src((soc_module_clk_t)(handle->hal_digi_ctrlr_cfg.clk_src), true);
+    ESP_ERROR_CHECK(esp_clk_tree_enable_src((soc_module_clk_t)(handle->hal_digi_ctrlr_cfg.clk_src), true));
 #endif
+    adc_hal_digi_init(&handle->hal);
     adc_hal_digi_controller_config(&handle->hal, &handle->hal_digi_ctrlr_cfg);
     adc_hal_digi_enable(false);
 
@@ -362,7 +362,9 @@ esp_err_t adc_continuous_stop(adc_continuous_handle_t handle)
 #endif
 
     adc_hal_digi_deinit();
-
+#if !CONFIG_IDF_TARGET_ESP32
+    ESP_ERROR_CHECK(esp_clk_tree_enable_src((soc_module_clk_t)(handle->hal_digi_ctrlr_cfg.clk_src), false));
+#endif
     if (handle->use_adc2) {
         adc_lock_release(ADC_UNIT_2);
     }
@@ -371,11 +373,12 @@ esp_err_t adc_continuous_stop(adc_continuous_handle_t handle)
     }
     sar_periph_ctrl_adc_continuous_power_release();
 
+#if CONFIG_PM_ENABLE
     //release power manager lock
     if (handle->pm_lock) {
         ESP_RETURN_ON_ERROR(esp_pm_lock_release(handle->pm_lock), ADC_TAG, "release pm_lock failed");
     }
-
+#endif
     ANALOG_CLOCK_DISABLE();
 
     return ESP_OK;
@@ -424,9 +427,11 @@ esp_err_t adc_continuous_deinit(adc_continuous_handle_t handle)
         free(handle->ringbuf_struct);
     }
 
+#if CONFIG_PM_ENABLE
     if (handle->pm_lock) {
         esp_pm_lock_delete(handle->pm_lock);
     }
+#endif
 
     free(handle->rx_dma_buf);
     free(handle->hal.rx_desc);

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -221,6 +221,8 @@ static inline __attribute__((always_inline)) uint32_t clk_ll_xtal_get_freq_mhz(v
 {
     return PCR.sysclk_conf.clk_xtal_freq;
 }
+
+#define clk_ll_xtal_load_freq_mhz() clk_ll_xtal_get_freq_mhz()
 
 /**
  * @brief Get SPLL_CLK frequency
@@ -564,6 +566,15 @@ static inline __attribute__((always_inline)) void clk_ll_rc_slow_set_divider(uin
 {
     // No divider on the target
     HAL_ASSERT(divider == 1);
+}
+
+/**
+ * @brief Enable the RTC clock calibration reference XTAL source on timer group0.
+ * @param  enable enable or disable the XTAL source.
+ */
+static inline __attribute__((always_inline)) void clk_ll_enable_timergroup_rtc_calibration_clock(bool enable)
+{
+    PCR.timergroup_xtal_conf.tg0_xtal_clk_en = enable;
 }
 
 /************************** LP STORAGE REGISTER STORE/LOAD **************************/

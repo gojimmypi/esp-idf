@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -31,7 +31,7 @@ extern "C" {
 #define PCNT_LL_GET_HW(num)      (((num) == 0) ? (&PCNT) : NULL)
 #define PCNT_LL_MAX_GLITCH_WIDTH 1023
 #define PCNT_LL_MAX_LIM          SHRT_MAX
-#define PCNT_LL_MIN_LIN          SHRT_MIN
+#define PCNT_LL_MIN_LIM          SHRT_MIN
 
 typedef enum {
     PCNT_LL_WATCH_EVENT_INVALID = -1,
@@ -457,7 +457,10 @@ static inline void pcnt_ll_enable_bus_clock(int group_id, bool enable)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define pcnt_ll_enable_bus_clock(...) (void)__DECLARE_RCC_ATOMIC_ENV; pcnt_ll_enable_bus_clock(__VA_ARGS__)
+#define pcnt_ll_enable_bus_clock(...) do { \
+        (void)__DECLARE_RCC_ATOMIC_ENV; \
+        pcnt_ll_enable_bus_clock(__VA_ARGS__); \
+    } while(0)
 
 /**
  * @brief Reset the PCNT module
@@ -471,7 +474,10 @@ static inline void pcnt_ll_reset_register(int group_id)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_ATOMIC_ENV variable in advance
-#define pcnt_ll_reset_register(...) (void)__DECLARE_RCC_ATOMIC_ENV; pcnt_ll_reset_register(__VA_ARGS__)
+#define pcnt_ll_reset_register(...) do { \
+        (void)__DECLARE_RCC_ATOMIC_ENV; \
+        pcnt_ll_reset_register(__VA_ARGS__); \
+    } while(0)
 
 #ifdef __cplusplus
 }

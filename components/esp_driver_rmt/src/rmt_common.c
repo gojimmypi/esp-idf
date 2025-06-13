@@ -4,26 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <sys/lock.h>
-#include "sdkconfig.h"
-#if CONFIG_RMT_ENABLE_DEBUG_LOG
-// The local log level must be defined before including esp_log.h
-// Set the maximum log level for this source file
-#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
-#endif
-#include "esp_log.h"
-#include "esp_check.h"
 #include "rmt_private.h"
 #include "clk_ctrl_os.h"
 #include "soc/rtc.h"
-#include "soc/soc_caps.h"
-#include "soc/rmt_periph.h"
-#include "hal/rmt_ll.h"
 #include "driver/gpio.h"
-#include "esp_private/esp_clk_tree_common.h"
-#include "esp_private/periph_ctrl.h"
-
-static const char *TAG = "rmt";
 
 #if SOC_PERIPH_CLK_CTRL_SHARED
 #define RMT_CLOCK_SRC_ATOMIC() PERIPH_RCC_ATOMIC()
@@ -159,7 +143,7 @@ void rmt_release_group_handle(rmt_group_t *group)
 }
 
 #if !SOC_RMT_CHANNEL_CLK_INDEPENDENT
-static esp_err_t s_rmt_set_group_prescale(rmt_channel_t *chan, uint32_t expect_resolution_hz, uint32_t *ret_channel_prescale)
+static esp_err_t rmt_set_group_prescale(rmt_channel_t *chan, uint32_t expect_resolution_hz, uint32_t *ret_channel_prescale)
 {
     uint32_t periph_src_clk_hz = 0;
     rmt_group_t *group = chan->group;
@@ -256,7 +240,7 @@ esp_err_t rmt_select_periph_clock(rmt_channel_handle_t chan, rmt_clock_source_t 
     ESP_RETURN_ON_ERROR(ret, TAG, "create pm lock failed");
 #endif // CONFIG_PM_ENABLE
 
-    esp_clk_tree_enable_src((soc_module_clk_t)clk_src, true);
+    ESP_RETURN_ON_ERROR(esp_clk_tree_enable_src((soc_module_clk_t)clk_src, true), TAG, "clock source enable failed");
     uint32_t real_div;
 #if SOC_RMT_CHANNEL_CLK_INDEPENDENT
     uint32_t periph_src_clk_hz = 0;
@@ -272,7 +256,7 @@ esp_err_t rmt_select_periph_clock(rmt_channel_handle_t chan, rmt_clock_source_t 
     real_div = (group->resolution_hz + expect_channel_resolution / 2) / expect_channel_resolution;
 #else
     // set division for group clock source, to achieve highest resolution while guaranteeing the channel resolution.
-    ESP_RETURN_ON_ERROR(s_rmt_set_group_prescale(chan, expect_channel_resolution, &real_div), TAG, "set rmt group prescale failed");
+    ESP_RETURN_ON_ERROR(rmt_set_group_prescale(chan, expect_channel_resolution, &real_div), TAG, "set rmt group prescale failed");
 #endif // SOC_RMT_CHANNEL_CLK_INDEPENDENT
 
     if (chan->direction == RMT_CHANNEL_DIRECTION_TX) {
@@ -360,9 +344,9 @@ bool rmt_set_intr_priority_to_group(rmt_group_t *group, int intr_priority)
     return priority_conflict;
 }
 
-int rmt_get_isr_flags(rmt_group_t *group)
+int rmt_isr_priority_to_flags(rmt_group_t *group)
 {
-    int isr_flags = RMT_INTR_ALLOC_FLAG;
+    int isr_flags = 0;
     if (group->intr_priority) {
         // Use user-specified priority bit
         isr_flags |= (1 << (group->intr_priority));
@@ -398,3 +382,11 @@ void rmt_create_retention_module(rmt_group_t *group)
     _lock_release(&s_platform.mutex);
 }
 #endif // RMT_USE_RETENTION_LINK
+
+#if CONFIG_RMT_ENABLE_DEBUG_LOG
+__attribute__((constructor))
+static void rmt_override_default_log_level(void)
+{
+    esp_log_level_set(TAG, ESP_LOG_VERBOSE);
+}
+#endif

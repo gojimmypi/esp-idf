@@ -37,6 +37,7 @@
 #include "common/sae.h"
 #include "esp_eap_client_i.h"
 #include "esp_wpa3_i.h"
+#include "eap_peer/eap.h"
 
 /**
  * eapol_sm_notify_eap_success - Notification of external EAP success trigger
@@ -108,6 +109,12 @@ wifi_cipher_type_t cipher_type_map_supp_to_public(unsigned wpa_cipher)
 
     case WPA_CIPHER_AES_128_CMAC:
         return WIFI_CIPHER_TYPE_AES_CMAC128;
+
+    case WPA_CIPHER_BIP_GMAC_128:
+        return WIFI_CIPHER_TYPE_AES_GMAC128;
+
+    case WPA_CIPHER_BIP_GMAC_256:
+        return WIFI_CIPHER_TYPE_AES_GMAC256;
 
     case WPA_CIPHER_SMS4:
         return WIFI_CIPHER_TYPE_SMS4;
@@ -373,7 +380,6 @@ static void wpa_sm_pmksa_free_cb(struct rsn_pmksa_cache_entry *entry,
         wpa_sm_deauthenticate(sm, WLAN_REASON_UNSPECIFIED);
     }
 }
-
 
 
 
@@ -681,7 +687,7 @@ void wpa_supplicant_process_1_of_4(struct wpa_sm *sm,
 
 #ifdef CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
     if (is_wpa2_enterprise_connection()) {
-        pmksa_cache_set_current(sm, NULL, sm->bssid, 0, 0);
+        pmksa_cache_set_current(sm, NULL, sm->bssid, sm->okc ? (void*)sm->network_ctx : NULL, sm->okc);
     }
 #endif
 
@@ -2167,11 +2173,13 @@ void wpa_sm_deinit(void)
 {
     struct wpa_sm *sm = &gWpaSm;
     pmksa_cache_deinit(sm->pmksa);
+    sm->pmksa = NULL;
     os_free(sm->ap_rsnxe);
     sm->ap_rsnxe = NULL;
     os_free(sm->assoc_rsnxe);
     wpa_sm_drop_sa(sm);
     sm->assoc_rsnxe = NULL;
+    memset(sm, 0, sizeof(*sm));
 }
 
 
@@ -2259,7 +2267,7 @@ void wpa_set_profile(u32 wpa_proto, u8 auth_mode)
     struct wpa_sm *sm = &gWpaSm;
 
     sm->proto = wpa_proto;
-    if (auth_mode == WPA2_AUTH_ENT) {
+    if (auth_mode == WPA2_AUTH_ENT || (auth_mode == WPA_AUTH_UNSPEC)) {
         sm->key_mgmt = WPA_KEY_MGMT_IEEE8021X; /* for wpa2 enterprise */
     } else if (auth_mode == WPA2_AUTH_ENT_SHA256) {
         sm->key_mgmt = WPA_KEY_MGMT_IEEE8021X_SHA256; /* for wpa2 enterprise sha256 */
@@ -2313,6 +2321,8 @@ int wpa_set_bss(char *macddr, char * bssid, u8 pairwise_cipher, u8 group_cipher,
     bool use_pmk_cache = !esp_wifi_skip_supp_pmkcaching();
     u8 assoc_rsnxe[20];
     size_t assoc_rsnxe_len = sizeof(assoc_rsnxe);
+    bool reassoc_same_ess = false;
+    int try_opportunistic = 0;
 
     /* Incase AP has changed it's SSID, don't try with PMK caching for SAE connection */
     /* Ideally we should use network_ctx for this purpose however currently network profile block
@@ -2324,17 +2334,23 @@ int wpa_set_bss(char *macddr, char * bssid, u8 pairwise_cipher, u8 group_cipher,
         (os_memcmp(sm->ssid, ssid, ssid_len) != 0)) {
         use_pmk_cache = false;
     }
+
+    if (os_memcmp(sm->ssid, ssid, ssid_len) == 0) {
+	wpa_printf(MSG_DEBUG, "reassoc same ess and okc is %d", sm->okc);
+	if (sm->okc == 1) {
+            try_opportunistic = 1;
+	}
+	reassoc_same_ess = true;
+    }
+    sm->network_ctx = ssid;
+
     sm->pairwise_cipher = BIT(pairwise_cipher);
     sm->group_cipher = BIT(group_cipher);
-    sm->rx_replay_counter_set = 0;  //init state not intall replay counter value
-    memset(sm->rx_replay_counter, 0, WPA_REPLAY_COUNTER_LEN);
-    sm->wpa_ptk_rekey = 0;
     sm->renew_snonce = 1;
     memcpy(sm->own_addr, macddr, ETH_ALEN);
     memcpy(sm->bssid, bssid, ETH_ALEN);
     sm->ap_notify_completed_rsne = esp_wifi_sta_is_ap_notify_completed_rsne_internal();
     sm->use_ext_key_id = (sm->proto == WPA_PROTO_WPA);
-    pmksa_cache_clear_current(sm);
     sm->sae_pwe = esp_wifi_get_config_sae_pwe_h2e_internal(WIFI_IF_STA);
 
     struct rsn_pmksa_cache_entry *pmksa = NULL;
@@ -2345,7 +2361,11 @@ int wpa_set_bss(char *macddr, char * bssid, u8 pairwise_cipher, u8 group_cipher,
         }
     }
     if (wpa_key_mgmt_supports_caching(sm->key_mgmt) && use_pmk_cache) {
-        pmksa_cache_set_current(sm, NULL, (const u8*) bssid, 0, 0);
+	if (reassoc_same_ess && wpa_key_mgmt_wpa_ieee8021x(sm->key_mgmt)) {
+            pmksa_cache_set_current(sm, NULL, (const u8*) bssid, (void*)sm->network_ctx, try_opportunistic);
+	} else {
+            pmksa_cache_set_current(sm, NULL, (const u8*) bssid, 0, try_opportunistic);
+	}
         wpa_sm_set_pmk_from_pmksa(sm);
     } else {
         if (pmksa) {
@@ -2353,7 +2373,6 @@ int wpa_set_bss(char *macddr, char * bssid, u8 pairwise_cipher, u8 group_cipher,
         }
     }
 
-    sm->eapol1_count = 0;
 #ifdef CONFIG_IEEE80211W
     if (esp_wifi_sta_pmf_enabled()) {
         wifi_config_t wifi_cfg;
@@ -2368,7 +2387,7 @@ int wpa_set_bss(char *macddr, char * bssid, u8 pairwise_cipher, u8 group_cipher,
 	}
 #ifdef CONFIG_SUITEB192
         extern bool g_wpa_suiteb_certification;
-        if (g_wpa_suiteb_certification) {
+        if (is_wpa2_enterprise_connection() && g_wpa_suiteb_certification) {
             if (sm->mgmt_group_cipher != WPA_CIPHER_BIP_GMAC_256) {
                 wpa_printf(MSG_ERROR, "suite-b 192bit certification, only GMAC256 is supported");
                 return -1;
@@ -2471,7 +2490,7 @@ wpa_set_passphrase(char * passphrase, u8 *ssid, size_t ssid_len)
         return;
 
     /* This is really SLOW, so just re cacl while reset param */
-    if (esp_wifi_sta_get_reset_param_internal() != 0) {
+    if (esp_wifi_sta_get_reset_nvs_pmk_internal() != 0) {
         // check it's psk
         if (strlen((char *)esp_wifi_sta_get_prof_password_internal()) == 64) {
             if (hexstr2bin((char *)esp_wifi_sta_get_prof_password_internal(),
@@ -2482,7 +2501,7 @@ wpa_set_passphrase(char * passphrase, u8 *ssid, size_t ssid_len)
                         4096, esp_wifi_sta_get_ap_info_prof_pmk_internal(), PMK_LEN);
         }
         esp_wifi_sta_update_ap_info_internal();
-        esp_wifi_sta_set_reset_param_internal(0);
+        esp_wifi_sta_set_reset_nvs_pmk_internal(0);
     }
 
     if (sm->key_mgmt == WPA_KEY_MGMT_IEEE8021X) {
@@ -2994,4 +3013,12 @@ fail:
     return -1;
 }
 #endif // CONFIG_OWE_STA
+
+
+void wpa_sm_pmksa_cache_flush(struct wpa_sm *sm, void *network_ctx)
+{
+    if (sm->pmksa) {
+        pmksa_cache_flush(sm->pmksa, network_ctx, NULL, 0);
+    }
+}
 #endif // ESP_SUPPLICANT

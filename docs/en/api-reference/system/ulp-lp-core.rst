@@ -212,7 +212,7 @@ The ULP has the following wake-up sources:
     * :c:macro:`ULP_LP_CORE_WAKEUP_SOURCE_LP_TIMER` - LP core can be woken up by the LP timer.
     * :c:macro:`ULP_LP_CORE_WAKEUP_SOURCE_ETM` - LP core can be woken up by a ETM event. (Not yet supported)
     * :c:macro:`ULP_LP_CORE_WAKEUP_SOURCE_LP_IO` - LP core can be woken up when LP IO level changes. (Not yet supported)
-    * :c:macro:`ULP_LP_CORE_WAKEUP_SOURCE_LP_UART` - LP core can be woken up after receiving a certain number of UART RX pulses. (Not yet supported)
+    * :c:macro:`ULP_LP_CORE_WAKEUP_SOURCE_LP_UART` - LP core can be woken up when LP UART receives wakeup data based on different modes.
 
 When the ULP is woken up, it will go through the following steps:
 
@@ -292,13 +292,13 @@ Debugging ULP LP-Core Applications
 
 When programming the LP core, it can sometimes be challenging to figure out why the program is not behaving as expected. Here are some strategies to help you debug your LP core program:
 
-* Use the LP-UART to print: the LP core has access to the LP-UART peripheral, which can be used for printing information independently of the main CPU sleep state. See :example:`system/ulp/lp_core/lp_uart/lp_uart_print` for an example of how to use this driver.
+* Use the LP UART to print: the LP core has access to the LP UART peripheral, which can be used for printing information independently of the main CPU sleep state. See :example:`system/ulp/lp_core/lp_uart/lp_uart_print` for an example of how to use this driver.
 
 * Routing :cpp:func:`lp_core_printf` to the HP-Core console UART with :ref:`CONFIG_ULP_HP_UART_CONSOLE_PRINT`. This allows you to easily print LP core information to the already connected HP-Core console UART. The drawback of this approach is that it requires the main CPU to be awake and since there is no synchronization between the LP and HP cores, the output may be interleaved.
 
 * Share program state through shared variables: as described in :ref:`ulp-lp-core-access-variables`, both the main CPU and the ULP core can easily access global variables in RTC memory. Writing state information to such a variable from the ULP and reading it from the main CPU can help you discern what is happening on the ULP core. The downside of this approach is that it requires the main CPU to be awake, which will not always be the case. Keeping the main CPU awake might even, in some cases, mask problems, as some issues may only occur when certain power domains are powered down.
 
-* Panic handler: the LP core has a panic handler that can dump the state of the LP core registers by the LP-UART when an exception is detected. To enable the panic handler, set the :ref:`CONFIG_ULP_PANIC_OUTPUT_ENABLE` option to ``y``. This option can be kept disabled to reduce LP-RAM usage by the LP core application. To recover a backtrace from the panic dump, it is possible to use ``idf.py monitor``.
+* Panic handler: the LP core has a panic handler that can dump the state of the LP core registers by the LP UART when an exception is detected. To enable the panic handler, set the :ref:`CONFIG_ULP_PANIC_OUTPUT_ENABLE` option to ``y``. This option can be kept disabled to reduce LP-RAM usage by the LP core application. To recover a backtrace from the panic dump, it is possible to use ``idf.py monitor``.
 
 .. warning::
 
@@ -390,6 +390,7 @@ Application Examples
     :esp32c6: - :example:`system/ulp/lp_core/lp_i2c` reads external I2C ambient light sensor (BH1750) while the main CPU is in Deep-sleep and wakes up the main CPU once a threshold is met.
     - :example:`system/ulp/lp_core/lp_uart/lp_uart_echo` reads data written to a serial console and echoes it back. This example demonstrates the usage of the LP UART driver running on the LP core.
     - :example:`system/ulp/lp_core/lp_uart/lp_uart_print` shows how to print various statements from a program running on the LP core.
+    - :example:`system/ulp/lp_core/lp_uart/lp_uart_char_seq_wakeup` shows how to trigger a wakeup using the LP UART specific character sequence wakeup mode.
     - :example:`system/ulp/lp_core/interrupt` shows how to register an interrupt handler on the LP core to receive an interrupt triggered by the main CPU.
     - :example:`system/ulp/lp_core/gpio_intr_pulse_counter` shows how to use GPIO interrupts to count pulses while the main CPU is in Deep-sleep mode.
     - :example:`system/ulp/lp_core/build_system/` demonstrates how to include custom ``CMakeLists.txt`` file for the ULP app.
@@ -430,3 +431,7 @@ LP Core API Reference
     .. include-build-file:: inc/ulp_lp_core_spi.inc
 
 .. _esp-idf-monitor: https://github.com/espressif/esp-idf-monitor
+
+.. only:: SOC_UART_HAS_LP_UART
+
+    .. include-build-file:: inc/ulp_lp_core_lp_uart_shared.inc

@@ -14,6 +14,7 @@ NVS 加密
 
     根据要使用的具体方案，可以选择启用 :ref:`CONFIG_NVS_ENCRYPTION` 和 :ref:`CONFIG_NVS_SEC_KEY_PROTECTION_SCHEME` > ``CONFIG_NVS_SEC_KEY_PROTECT_USING_FLASH_ENC`` 或 ``CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC`` 实现 NVS 加密。
 
+.. _nvs_encr_flash_enc_scheme:
 
 NVS 加密：基于 flash 加密的方案
 -------------------------------------
@@ -104,6 +105,8 @@ NVS 密钥分区
 
 .. only:: SOC_HMAC_SUPPORTED
 
+    .. _nvs_encr_hmac_scheme:
+
     NVS 加密：基于 HMAC 外设的方案
     --------------------------------------------
 
@@ -121,7 +124,7 @@ NVS 密钥分区
 
     .. note::
 
-        :ref:`CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID` 配置的有效范围为 ``0`` (:cpp:enumerator:`hmac_key_id_t::HMAC_KEY0`) 到 ``5`` (:cpp:enumerator:`hmac_key_id_t::HMAC_KEY5`)。默认情况下该配置为 ``6`` (:cpp:enumerator:`hmac_key_id_t::HMAC_KEY_MAX`)，须在构建用户应用程序之前进行修改。
+        :ref:`CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID` 配置的有效范围为 ``0`` (:cpp:enumerator:`hmac_key_id_t::HMAC_KEY0`) 到 ``5`` (:cpp:enumerator:`hmac_key_id_t::HMAC_KEY5`)。默认情况下该配置为 ``-1``，须在构建用户应用程序之前进行修改。
 
     - 如果找不到密钥，会内部生成一个密钥，并储存在 :ref:`CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID` 指定的 eFuse 块中。
     - 如果找到用于 :cpp:enumerator:`esp_efuse_purpose_t::ESP_EFUSE_KEY_PURPOSE_HMAC_UP` 的密钥，该密钥也会用于 XTS 加密密钥的生成。

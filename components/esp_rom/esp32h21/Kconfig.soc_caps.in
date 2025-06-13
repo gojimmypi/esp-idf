@@ -39,11 +39,19 @@ config ESP_ROM_HAS_HEAP_TLSF
     bool
     default y
 
+config ESP_ROM_MULTI_HEAP_WALK_PATCH
+    bool
+    default y
+
 config ESP_ROM_HAS_LAYOUT_TABLE
     bool
     default y
 
 config ESP_ROM_HAS_SPI_FLASH
+    bool
+    default y
+
+config ESP_ROM_HAS_SPI_FLASH_MMAP
     bool
     default y
 
@@ -79,10 +87,10 @@ config ESP_ROM_HAS_VERSION
     bool
     default y
 
-config ESP_ROM_SUPPORT_DEEP_SLEEP_WAKEUP_STUB
+config ESP_ROM_HAS_OUTPUT_PUTC_FUNC
     bool
     default y
 
-config ESP_ROM_HAS_OUTPUT_PUTC_FUNC
+config ESP_ROM_HAS_SUBOPTIMAL_NEWLIB_ON_MISALIGNED_MEMORY
     bool
     default y

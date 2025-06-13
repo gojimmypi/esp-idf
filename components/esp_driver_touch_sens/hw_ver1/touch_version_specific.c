@@ -198,6 +198,7 @@ esp_err_t touch_priv_config_controller(touch_sensor_handle_t sens_handle, const 
     sens_handle->sample_cfg_num = 1;  // Only have one set of sampling configuration
 
     /* Configure the hardware */
+    assert(hal_cfg.sample_cfg_num == 1);
     TOUCH_ENTER_CRITICAL(TOUCH_PERIPH_LOCK);
     touch_hal_config_controller(&hal_cfg);
     touch_ll_reset_trigger_groups();
@@ -279,7 +280,7 @@ esp_err_t touch_sensor_config_sleep_wakeup(touch_sensor_handle_t sens_handle, co
     touch_hal_config_t *hal_cfg_ptr = NULL;
 
     xSemaphoreTakeRecursive(sens_handle->mutex, portMAX_DELAY);
-    ESP_GOTO_ON_FALSE(!sens_handle->is_enabled, ESP_ERR_INVALID_STATE, err, TAG, "Please disable the touch sensor first");
+    TOUCH_GOTO_ON_FALSE_FSM(!sens_handle->is_enabled, ESP_ERR_INVALID_STATE, err, TAG, "Please disable the touch sensor first");
 
     if (sleep_cfg) {
         ESP_GOTO_ON_FALSE(sleep_cfg->slp_wakeup_lvl == TOUCH_LIGHT_SLEEP_WAKEUP || sleep_cfg->slp_wakeup_lvl == TOUCH_DEEP_SLEEP_WAKEUP,

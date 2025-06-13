@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -38,54 +38,30 @@ extern "C" {
 #define GPIO_LL_PRO_CPU_INTR_ENA      (BIT(0))
 #define GPIO_LL_PRO_CPU_NMI_INTR_ENA  (BIT(1))
 
+#define GPIO_LL_INTR_SOURCE0   ETS_GPIO_INTR_SOURCE
+
 /**
  * @brief Get the configuration for an IO
  *
  * @param hw Peripheral GPIO hardware instance address.
  * @param gpio_num GPIO number
- * @param pu Pull-up enabled or not
- * @param pd Pull-down enabled or not
- * @param ie Input enabled or not
- * @param oe Output enabled or not
- * @param od Open-drain enabled or not
- * @param drv Drive strength value
- * @param fun_sel IOMUX function selection value
- * @param sig_out Outputting peripheral signal index
- * @param slp_sel Pin sleep mode enabled or not
+ * @param[out] io_config Pointer to the structure that saves the specific IO configuration
  */
-static inline void gpio_ll_get_io_config(gpio_dev_t *hw, uint32_t gpio_num,
-                                         bool *pu, bool *pd, bool *ie, bool *oe, bool *od, uint32_t *drv,
-                                         uint32_t *fun_sel, uint32_t *sig_out, bool *slp_sel)
+static inline void gpio_ll_get_io_config(gpio_dev_t *hw, uint32_t gpio_num, gpio_io_config_t *io_config)
 {
     uint32_t bit_mask = 1 << gpio_num;
     uint32_t iomux_reg_val = REG_READ(IO_MUX_GPIO0_REG + (gpio_num * 4));
-    if (pu) {
-        *pu = (iomux_reg_val & FUN_PU_M) >> FUN_PU_S;
-    }
-    if (pd) {
-        *pd = (iomux_reg_val & FUN_PD_M) >> FUN_PD_S;
-    }
-    if (ie) {
-        *ie = (iomux_reg_val & FUN_IE_M) >> FUN_IE_S;
-    }
-    if (oe) {
-        *oe = (hw->enable.val & bit_mask) >> gpio_num;
-    }
-    if (od) {
-        *od = hw->pin[gpio_num].pad_driver;
-    }
-    if (drv) {
-        *drv = (iomux_reg_val & FUN_DRV_M) >> FUN_DRV_S;
-    }
-    if (fun_sel) {
-        *fun_sel = (iomux_reg_val & MCU_SEL_M) >> MCU_SEL_S;
-    }
-    if (sig_out) {
-        *sig_out = HAL_FORCE_READ_U32_REG_FIELD(hw->func_out_sel_cfg[gpio_num], out_sel);
-    }
-    if (slp_sel) {
-        *slp_sel = (iomux_reg_val & SLP_SEL_M) >> SLP_SEL_S;
-    }
+    io_config->pu = (iomux_reg_val & FUN_PU_M) >> FUN_PU_S;
+    io_config->pd = (iomux_reg_val & FUN_PD_M) >> FUN_PD_S;
+    io_config->ie = (iomux_reg_val & FUN_IE_M) >> FUN_IE_S;
+    io_config->oe = (hw->enable.val & bit_mask) >> gpio_num;
+    io_config->oe_ctrl_by_periph = !(hw->func_out_sel_cfg[gpio_num].oen_sel);
+    io_config->oe_inv = hw->func_out_sel_cfg[gpio_num].oen_inv_sel;
+    io_config->od = hw->pin[gpio_num].pad_driver;
+    io_config->drv = (gpio_drive_cap_t)((iomux_reg_val & FUN_DRV_M) >> FUN_DRV_S);
+    io_config->fun_sel = (iomux_reg_val & MCU_SEL_M) >> MCU_SEL_S;
+    io_config->sig_out = HAL_FORCE_READ_U32_REG_FIELD(hw->func_out_sel_cfg[gpio_num], out_sel);
+    io_config->slp_sel = (iomux_reg_val & SLP_SEL_M) >> SLP_SEL_S;
 }
 
 /**
@@ -94,7 +70,7 @@ static inline void gpio_ll_get_io_config(gpio_dev_t *hw, uint32_t gpio_num,
   * @param hw Peripheral GPIO hardware instance address.
   * @param gpio_num GPIO number
   */
-static inline void gpio_ll_pullup_en(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_pullup_en(gpio_dev_t *hw, uint32_t gpio_num)
 {
     REG_SET_BIT(IO_MUX_GPIO0_REG + (gpio_num * 4), FUN_PU);
 }
@@ -106,7 +82,7 @@ static inline void gpio_ll_pullup_en(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_pullup_dis(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_pullup_dis(gpio_dev_t *hw, uint32_t gpio_num)
 {
     // The pull-up value of the USB pins are controlled by the pins’ pull-up value together with USB pull-up value
     // USB DP pin is default to PU enabled
@@ -126,7 +102,7 @@ static inline void gpio_ll_pullup_dis(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param hw Peripheral GPIO hardware instance address.
   * @param gpio_num GPIO number
   */
-static inline void gpio_ll_pulldown_en(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_pulldown_en(gpio_dev_t *hw, uint32_t gpio_num)
 {
     REG_SET_BIT(IO_MUX_GPIO0_REG + (gpio_num * 4), FUN_PD);
 }
@@ -138,7 +114,7 @@ static inline void gpio_ll_pulldown_en(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_pulldown_dis(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_pulldown_dis(gpio_dev_t *hw, uint32_t gpio_num)
 {
 
     REG_CLR_BIT(IO_MUX_GPIO0_REG + (gpio_num * 4), FUN_PD);
@@ -151,7 +127,7 @@ static inline void gpio_ll_pulldown_dis(gpio_dev_t *hw, gpio_num_t gpio_num)
  * @param  gpio_num GPIO number. If you want to set the trigger type of e.g. of GPIO16, gpio_num should be GPIO_NUM_16 (16);
  * @param  intr_type Interrupt type, select from gpio_int_type_t
  */
-static inline void gpio_ll_set_intr_type(gpio_dev_t *hw, gpio_num_t gpio_num, gpio_int_type_t intr_type)
+static inline void gpio_ll_set_intr_type(gpio_dev_t *hw, uint32_t gpio_num, gpio_int_type_t intr_type)
 {
     hw->pin[gpio_num].int_type = intr_type;
 }
@@ -215,7 +191,7 @@ static inline void gpio_ll_clear_intr_status_high(gpio_dev_t *hw, uint32_t mask)
  * @param  gpio_num GPIO number. If you want to enable the interrupt of e.g. GPIO16, gpio_num should be GPIO_NUM_16 (16);
  */
 __attribute__((always_inline))
-static inline void gpio_ll_intr_enable_on_core(gpio_dev_t *hw, uint32_t core_id, gpio_num_t gpio_num)
+static inline void gpio_ll_intr_enable_on_core(gpio_dev_t *hw, uint32_t core_id, uint32_t gpio_num)
 {
     HAL_ASSERT(core_id == 0 && "target SoC only has a single core");
     GPIO.pin[gpio_num].int_ena = GPIO_LL_PRO_CPU_INTR_ENA;     //enable pro cpu intr
@@ -228,7 +204,7 @@ static inline void gpio_ll_intr_enable_on_core(gpio_dev_t *hw, uint32_t core_id,
  * @param  gpio_num GPIO number. If you want to disable the interrupt of e.g. GPIO16, gpio_num should be GPIO_NUM_16 (16);
  */
 __attribute__((always_inline))
-static inline void gpio_ll_intr_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_intr_disable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     hw->pin[gpio_num].int_ena = 0;                             //disable GPIO intr
 }
@@ -240,7 +216,7 @@ static inline void gpio_ll_intr_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_input_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_input_disable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_INPUT_DISABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -252,7 +228,7 @@ static inline void gpio_ll_input_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_input_enable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_input_enable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_INPUT_ENABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -330,7 +306,7 @@ static inline void gpio_ll_pin_input_hysteresis_disable(gpio_dev_t *hw, uint32_t
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_output_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_output_disable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     hw->enable_w1tc.enable_w1tc = (0x1 << gpio_num);
 }
@@ -342,7 +318,7 @@ static inline void gpio_ll_output_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_output_enable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_output_enable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     hw->enable_w1ts.enable_w1ts = (0x1 << gpio_num);
 }
@@ -353,7 +329,7 @@ static inline void gpio_ll_output_enable(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param hw Peripheral GPIO hardware instance address.
   * @param gpio_num GPIO number
   */
-static inline void gpio_ll_od_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_od_disable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     hw->pin[gpio_num].pad_driver = 0;
 }
@@ -364,7 +340,7 @@ static inline void gpio_ll_od_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param hw Peripheral GPIO hardware instance address.
   * @param gpio_num GPIO number
   */
-static inline void gpio_ll_od_enable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_od_enable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     hw->pin[gpio_num].pad_driver = 1;
 }
@@ -389,7 +365,7 @@ static inline void gpio_ll_matrix_out_default(gpio_dev_t *hw, uint32_t gpio_num)
  * @param  level Output level. 0: low ; 1: high
  */
 __attribute__((always_inline))
-static inline void gpio_ll_set_level(gpio_dev_t *hw, gpio_num_t gpio_num, uint32_t level)
+static inline void gpio_ll_set_level(gpio_dev_t *hw, uint32_t gpio_num, uint32_t level)
 {
     if (level) {
         hw->out_w1ts.val = 1 << gpio_num;
@@ -411,7 +387,7 @@ static inline void gpio_ll_set_level(gpio_dev_t *hw, gpio_num_t gpio_num, uint32
  *     - 1 the GPIO input level is 1
  */
 __attribute__((always_inline))
-static inline int gpio_ll_get_level(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline int gpio_ll_get_level(gpio_dev_t *hw, uint32_t gpio_num)
 {
     return (hw->in.in_data_next >> gpio_num) & 0x1;
 }
@@ -423,7 +399,7 @@ static inline int gpio_ll_get_level(gpio_dev_t *hw, gpio_num_t gpio_num)
  * @param gpio_num GPIO number.
  * @param intr_type GPIO wake-up type. Only GPIO_INTR_LOW_LEVEL or GPIO_INTR_HIGH_LEVEL can be used.
  */
-static inline void gpio_ll_wakeup_enable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_wakeup_enable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     hw->pin[gpio_num].wakeup_enable = 1;
 }
@@ -434,7 +410,7 @@ static inline void gpio_ll_wakeup_enable(gpio_dev_t *hw, gpio_num_t gpio_num)
  * @param hw Peripheral GPIO hardware instance address.
  * @param gpio_num GPIO number
  */
-static inline void gpio_ll_wakeup_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_wakeup_disable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     hw->pin[gpio_num].wakeup_enable = 0;
 }
@@ -446,7 +422,7 @@ static inline void gpio_ll_wakeup_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param gpio_num GPIO number, only support output GPIOs
   * @param strength Drive capability of the pad
   */
-static inline void gpio_ll_set_drive_capability(gpio_dev_t *hw, gpio_num_t gpio_num, gpio_drive_cap_t strength)
+static inline void gpio_ll_set_drive_capability(gpio_dev_t *hw, uint32_t gpio_num, gpio_drive_cap_t strength)
 {
     SET_PERI_REG_BITS(IO_MUX_GPIO0_REG + (gpio_num * 4), FUN_DRV_V, strength, FUN_DRV_S);
 }
@@ -458,7 +434,7 @@ static inline void gpio_ll_set_drive_capability(gpio_dev_t *hw, gpio_num_t gpio_
   * @param gpio_num GPIO number, only support output GPIOs
   * @param strength Pointer to accept drive capability of the pad
   */
-static inline void gpio_ll_get_drive_capability(gpio_dev_t *hw, gpio_num_t gpio_num, gpio_drive_cap_t *strength)
+static inline void gpio_ll_get_drive_capability(gpio_dev_t *hw, uint32_t gpio_num, gpio_drive_cap_t *strength)
 {
     *strength = (gpio_drive_cap_t)GET_PERI_REG_BITS2(IO_MUX_GPIO0_REG + (gpio_num * 4), FUN_DRV_V, FUN_DRV_S);
 }
@@ -470,7 +446,7 @@ static inline void gpio_ll_get_drive_capability(gpio_dev_t *hw, gpio_num_t gpio_
   * @param gpio_num GPIO number, only support output GPIOs
   */
 __attribute__((always_inline))
-static inline void gpio_ll_hold_en(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_hold_en(gpio_dev_t *hw, uint32_t gpio_num)
 {
     LP_AON.gpio_hold0.gpio_hold0 |= GPIO_HOLD_MASK[gpio_num];
 }
@@ -482,7 +458,7 @@ static inline void gpio_ll_hold_en(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param gpio_num GPIO number, only support output GPIOs
   */
 __attribute__((always_inline))
-static inline void gpio_ll_hold_dis(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_hold_dis(gpio_dev_t *hw, uint32_t gpio_num)
 {
     LP_AON.gpio_hold0.gpio_hold0 &= ~GPIO_HOLD_MASK[gpio_num];
 }
@@ -506,32 +482,30 @@ static inline bool gpio_ll_is_digital_io_hold(gpio_dev_t *hw, uint32_t gpio_num)
 }
 
 /**
-  * @brief Set pad input to a peripheral signal through the IOMUX.
+  * @brief Configure peripheral signal input whether to bypass GPIO matrix.
   *
   * @param hw Peripheral GPIO hardware instance address.
-  * @param gpio_num GPIO number of the pad.
   * @param signal_idx Peripheral signal id to input. One of the ``*_IN_IDX`` signals in ``soc/gpio_sig_map.h``.
+  * @param from_gpio_matrix True if not to bypass GPIO matrix, otherwise False.
   */
 __attribute__((always_inline))
-static inline void gpio_ll_iomux_in(gpio_dev_t *hw, uint32_t gpio, uint32_t signal_idx)
+static inline void gpio_ll_set_input_signal_from(gpio_dev_t *hw, uint32_t signal_idx, bool from_gpio_matrix)
 {
-    hw->func_in_sel_cfg[signal_idx].sig_in_sel = 0;
-    PIN_INPUT_ENABLE(IO_MUX_GPIO0_REG + (gpio * 4));
+    hw->func_in_sel_cfg[signal_idx].sig_in_sel = from_gpio_matrix;
 }
 
 /**
- * @brief  Select a function for the pin in the IOMUX
- *
- * @param  pin_name Pin name to configure
- * @param  func Function to assign to the pin
- */
-static inline void gpio_ll_iomux_func_sel(uint32_t pin_name, uint32_t func)
+  * @brief Configure the source of output enable signal for the GPIO pin.
+  *
+  * @param hw Peripheral GPIO hardware instance address.
+  * @param gpio_num GPIO number of the pad.
+  * @param ctrl_by_periph True if use output enable signal from peripheral, false if force the output enable signal to be sourced from bit n of GPIO_ENABLE_REG
+  * @param oen_inv True if the output enable needs to be inverted, otherwise False.
+  */
+static inline void gpio_ll_set_output_enable_ctrl(gpio_dev_t *hw, uint8_t gpio_num, bool ctrl_by_periph, bool oen_inv)
 {
-    // Disable USB Serial JTAG if pins 26 or pins 27 needs to select an IOMUX function
-    if (pin_name == IO_MUX_GPIO26_REG || pin_name == IO_MUX_GPIO27_REG) {
-        CLEAR_PERI_REG_MASK(USB_SERIAL_JTAG_CONF0_REG, USB_SERIAL_JTAG_USB_PAD_ENABLE);
-    }
-    PIN_FUNC_SELECT(pin_name, func);
+    hw->func_out_sel_cfg[gpio_num].oen_inv_sel = oen_inv;       // control valid only when using gpio matrix to route signal to the IO
+    hw->func_out_sel_cfg[gpio_num].oen_sel = !ctrl_by_periph;
 }
 
 /**
@@ -549,22 +523,6 @@ static inline void gpio_ll_func_sel(gpio_dev_t *hw, uint8_t gpio_num, uint32_t f
         CLEAR_PERI_REG_MASK(USB_SERIAL_JTAG_CONF0_REG, USB_SERIAL_JTAG_USB_PAD_ENABLE);
     }
     PIN_FUNC_SELECT(IO_MUX_GPIO0_REG + (gpio_num * 4), func);
-}
-
-/**
-  * @brief Set peripheral output to an GPIO pad through the IOMUX.
-  *
-  * @param hw Peripheral GPIO hardware instance address.
-  * @param gpio_num gpio_num GPIO number of the pad.
-  * @param func The function number of the peripheral pin to output pin.
-  *        One of the ``FUNC_X_*`` of specified pin (X) in ``soc/io_mux_reg.h``.
-  * @param oen_inv True if the output enable needs to be inverted, otherwise False.
-  */
-static inline void gpio_ll_iomux_out(gpio_dev_t *hw, uint8_t gpio_num, int func, uint32_t oen_inv)
-{
-    hw->func_out_sel_cfg[gpio_num].oen_sel = 0;
-    hw->func_out_sel_cfg[gpio_num].oen_inv_sel = oen_inv;
-    gpio_ll_func_sel(hw, gpio_num, func);
 }
 
 /**
@@ -646,7 +604,7 @@ static inline void gpio_ll_force_unhold_all(void)
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_sleep_sel_en(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_sleep_sel_en(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_SLP_SEL_ENABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -659,7 +617,7 @@ static inline void gpio_ll_sleep_sel_en(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_sleep_sel_dis(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_sleep_sel_dis(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_SLP_SEL_DISABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -671,7 +629,7 @@ static inline void gpio_ll_sleep_sel_dis(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_sleep_pullup_dis(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_sleep_pullup_dis(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_SLP_PULLUP_DISABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -683,7 +641,7 @@ static inline void gpio_ll_sleep_pullup_dis(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_sleep_pullup_en(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_sleep_pullup_en(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_SLP_PULLUP_ENABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -695,7 +653,7 @@ static inline void gpio_ll_sleep_pullup_en(gpio_dev_t *hw, gpio_num_t gpio_num)
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_sleep_pulldown_en(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_sleep_pulldown_en(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_SLP_PULLDOWN_ENABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -707,7 +665,7 @@ static inline void gpio_ll_sleep_pulldown_en(gpio_dev_t *hw, gpio_num_t gpio_num
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_sleep_pulldown_dis(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_sleep_pulldown_dis(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_SLP_PULLDOWN_DISABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -719,7 +677,7 @@ static inline void gpio_ll_sleep_pulldown_dis(gpio_dev_t *hw, gpio_num_t gpio_nu
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_sleep_input_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_sleep_input_disable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_SLP_INPUT_DISABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -731,7 +689,7 @@ static inline void gpio_ll_sleep_input_disable(gpio_dev_t *hw, gpio_num_t gpio_n
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_sleep_input_enable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_sleep_input_enable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_SLP_INPUT_ENABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -743,7 +701,7 @@ static inline void gpio_ll_sleep_input_enable(gpio_dev_t *hw, gpio_num_t gpio_nu
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_sleep_output_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_sleep_output_disable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_SLP_OUTPUT_DISABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -755,7 +713,7 @@ static inline void gpio_ll_sleep_output_disable(gpio_dev_t *hw, gpio_num_t gpio_
   * @param gpio_num GPIO number
   */
 __attribute__((always_inline))
-static inline void gpio_ll_sleep_output_enable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_sleep_output_enable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     PIN_SLP_OUTPUT_ENABLE(IO_MUX_GPIO0_REG + (gpio_num * 4));
 }
@@ -767,7 +725,7 @@ static inline void gpio_ll_sleep_output_enable(gpio_dev_t *hw, gpio_num_t gpio_n
  * @param gpio_num GPIO number.
  * @param intr_type GPIO wake-up type. Only GPIO_INTR_LOW_LEVEL or GPIO_INTR_HIGH_LEVEL can be used.
  */
-static inline void gpio_ll_deepsleep_wakeup_enable(gpio_dev_t *hw, gpio_num_t gpio_num, gpio_int_type_t intr_type)
+static inline void gpio_ll_deepsleep_wakeup_enable(gpio_dev_t *hw, uint32_t gpio_num, gpio_int_type_t intr_type)
 {
     HAL_ASSERT((gpio_num >= GPIO_NUM_7 && gpio_num <= GPIO_NUM_14) &&
                "only gpio7~14 support deep sleep wake-up function");
@@ -794,7 +752,7 @@ static inline void gpio_ll_deepsleep_wakeup_enable(gpio_dev_t *hw, gpio_num_t gp
  * @param hw Peripheral GPIO hardware instance address.
  * @param gpio_num GPIO number
  */
-static inline void gpio_ll_deepsleep_wakeup_disable(gpio_dev_t *hw, gpio_num_t gpio_num)
+static inline void gpio_ll_deepsleep_wakeup_disable(gpio_dev_t *hw, uint32_t gpio_num)
 {
     HAL_ASSERT((gpio_num >= GPIO_NUM_7 && gpio_num <= GPIO_NUM_14) &&
                "only gpio7~14 support deep sleep wake-up function");

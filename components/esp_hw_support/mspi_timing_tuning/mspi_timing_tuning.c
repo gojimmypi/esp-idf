@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -14,14 +14,13 @@
 #include "soc/io_mux_reg.h"
 #include "soc/soc.h"
 #include "hal/spi_flash_hal.h"
-#include "hal/cache_hal.h"
-#include "hal/cache_ll.h"
 #include "hal/mspi_ll.h"
+#include "esp_private/esp_cache_private.h"
 #include "esp_private/mspi_timing_tuning.h"
 #include "esp_private/mspi_timing_config.h"
-#include "mspi_timing_by_mspi_delay.h"
-#include "mspi_timing_by_dqs.h"
-#include "mspi_timing_by_flash_delay.h"
+#include "esp_private/mspi_timing_by_mspi_delay.h"
+#include "esp_private/mspi_timing_by_dqs.h"
+#include "esp_private/mspi_timing_by_flash_delay.h"
 #if SOC_MEMSPI_TIMING_TUNING_BY_MSPI_DELAY || SOC_MEMSPI_TIMING_TUNING_BY_DQS || SOC_MEMSPI_TIMING_TUNING_BY_FLASH_DELAY
 #include "mspi_timing_tuning_configs.h"
 #endif
@@ -234,6 +233,9 @@ static void s_sweep_for_success_sample_points(uint8_t *reference_data, void *con
 #endif
             if (memcmp(reference_data, read_data, sizeof(read_data)) == 0) {
                 out_array[config_idx] += 1;
+                ESP_EARLY_LOGV(TAG, "config_idx: %d, good", config_idx);
+            } else {
+                ESP_EARLY_LOGV(TAG, "config_idx: %d, bad", config_idx);
             }
         }
     }
@@ -270,8 +272,17 @@ static void s_find_max_consecutive_success_points(uint32_t *array, uint32_t size
         i++;
     }
 
-    *out_length = match_num > max ? match_num : max;
-    *out_end_index = match_num == size ? size : end;
+    /**
+     * this is to deal with the case when the last points are consecutive 1, e.g.
+     * {1, 0, 0, 1, 1, 1, 1, 1, 1}
+     */
+    if (match_num > max) {
+        max = match_num;
+        end = i - 1;
+    }
+
+    *out_length = max;
+    *out_end_index = end;
 }
 
 static void s_select_best_tuning_config(mspi_timing_config_t *config, uint32_t consecutive_length, uint32_t end, const uint8_t *reference_data, bool is_flash)
@@ -540,7 +551,7 @@ void mspi_timing_change_speed_mode_cache_safe(bool switch_down)
      * for preventing concurrent from MSPI to external memory
      */
 #if SOC_CACHE_FREEZE_SUPPORTED
-    cache_hal_freeze(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
+    esp_cache_freeze_ext_mem_cache();
 #endif  //#if SOC_CACHE_FREEZE_SUPPORTED
 
     if (switch_down) {
@@ -552,7 +563,7 @@ void mspi_timing_change_speed_mode_cache_safe(bool switch_down)
     }
 
 #if SOC_CACHE_FREEZE_SUPPORTED
-    cache_hal_unfreeze(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_ALL);
+    esp_cache_unfreeze_ext_mem_cache();
 #endif  //#if SOC_CACHE_FREEZE_SUPPORTED
 
 #if SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE && !CONFIG_FREERTOS_UNICORE
@@ -611,9 +622,8 @@ void spi_timing_get_flash_timing_param(spi_flash_hal_timing_config_t *out_timing
  *----------------------------------------------------------------------------*/
 void mspi_timing_set_pin_drive_strength(void)
 {
-#if SOC_MEMSPI_TIMING_TUNING_BY_MSPI_DELAY
-    //For now, set them all to 3. Need to check after QVL test results are out. TODO: IDF-3663
+#if CONFIG_IDF_TARGET_ESP32S3
     //Set default pin drive
     mspi_timing_ll_set_all_pin_drive(0, 3);
-#endif  //  #if SOC_MEMSPI_TIMING_TUNING_BY_MSPI_DELAY
+#endif
 }

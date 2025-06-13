@@ -120,6 +120,7 @@ static esp_err_t esp_core_dump_uart_write_data(core_dump_write_data_t *wr_data, 
         /* Copy to stack to avoid alignment restrictions. */
         char *tmp = buf + (sizeof(buf) - len);
         memcpy(tmp, addr, len);
+        esp_core_dump_checksum_update(&wr_data->checksum_ctx, tmp, len);
         esp_core_dump_b64_encode((const uint8_t *)tmp, len, (uint8_t *)buf);
         addr += len;
         ESP_COREDUMP_PRINT("%s\r\n", buf);
@@ -127,7 +128,6 @@ static esp_err_t esp_core_dump_uart_write_data(core_dump_write_data_t *wr_data, 
 
     if (wr_data) {
         wr_data->off += data_len;
-        esp_core_dump_checksum_update(&wr_data->checksum_ctx, data, data_len);
     }
     return err;
 }
@@ -154,7 +154,7 @@ static esp_err_t esp_core_dump_uart_hw_init(void)
 
     //Make sure txd/rxd are enabled
     // use direct reg access instead of gpio_pullup_dis which can cause exception when flash cache is disabled
-    REG_CLR_BIT(GPIO_PIN_REG_1, FUN_PU); //TODO: IDF-9948
+    gpio_hal_pullup_dis(&gpio_hal, U0TXD_GPIO_NUM);
     gpio_hal_func_sel(&gpio_hal, U0RXD_GPIO_NUM, U0RXD_MUX_FUNC);
     gpio_hal_func_sel(&gpio_hal, U0TXD_GPIO_NUM, U0TXD_MUX_FUNC);
     ESP_COREDUMP_LOGI("Press Enter to print core dump to UART...");

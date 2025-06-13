@@ -111,6 +111,23 @@ typedef struct {
     int intr_flags;                             /**< Interrupt flags for the underlying ISR used by the USB Host stack */
     usb_host_enum_filter_cb_t enum_filter_cb;   /**< Enumeration filter callback. Enable CONFIG_USB_HOST_ENABLE_ENUM_FILTER_CALLBACK
                                                      to use this feature. Set to NULL otherwise. */
+    struct {
+        uint32_t nptx_fifo_lines; /**< Required: Number of non-periodic TX FIFO lines.
+                                       Must be > 0 to enable custom configuration. */
+        uint32_t ptx_fifo_lines;  /**< Optional: Number of periodic TX FIFO lines.
+                                       Can be 0 if periodic TX endpoints are not used. */
+        uint32_t rx_fifo_lines;   /**< Required: Number of RX FIFO lines.
+                                       Must be > 0 to enable custom configuration. */
+    } fifo_settings_custom;       /**< Optional custom FIFO configuration (advanced use).
+                                       RX and NPTX must be > 0. If all fields are zero,
+                                       a default configuration will be selected based on Kconfig bias. */
+    unsigned peripheral_map;      /**< Selects the USB peripheral(s) to use.
+                                       - On targets with multiple USB peripherals, this field can be used to specify which ones to enable.
+                                       - Set to 0 to use the default peripheral.
+                                       - On High-Speed capable targets, the default is the High-Speed peripheral.
+                                       - On Full-Speed only targets, the default is the Full-Speed peripheral.
+                                       - Example: peripheral_map = BIT1; installs USB host on peripheral 1.
+                                       - The mapping of bits to specific peripherals is defined in the USB_DWC_LL_GET_HW() macro. */
 } usb_host_config_t;
 
 /**
@@ -323,9 +340,8 @@ esp_err_t usb_host_device_open(usb_host_client_handle_t client_hdl, uint8_t dev_
  * @return
  *    - ESP_OK: Device closed successfully
  *    - ESP_ERR_INVALID_ARG: Invalid argument
- *    - ESP_ERR_NOT_FOUND: Device address not found among opened devices
- *    - ESP_ERR_INVALID_STATE: The client never opened the device, or the client has not released
- *      all the interfaces from the device
+ *    - ESP_ERR_NOT_FOUND: The client never opened the device (the device address not found among opened devices)
+ *    - ESP_ERR_INVALID_STATE: The client has not released all interfaces from the device
  */
 esp_err_t usb_host_device_close(usb_host_client_handle_t client_hdl, usb_device_handle_t dev_hdl);
 
@@ -570,6 +586,7 @@ esp_err_t usb_host_endpoint_clear(usb_device_handle_t dev_hdl, uint8_t bEndpoint
  *
  * - This function allocates a transfer object
  * - Each transfer object has a fixed sized buffer specified on allocation
+ * - The resulting data_buffer_size can be bigger that the requested size. This is to ensure that the data buffer is cache aligned
  * - A transfer object can be re-used indefinitely
  * - A transfer can be submitted using usb_host_transfer_submit() or usb_host_transfer_submit_control()
  *

@@ -15,8 +15,6 @@
 #include "compressed_enum_table.hpp"
 #include "string.h"
 
-using namespace std;
-
 namespace nvs
 {
 
@@ -93,11 +91,11 @@ public:
 
     uint32_t calculateCrc32() const;
     uint32_t calculateCrc32WithoutValue() const;
-    static uint32_t calculateCrc32(const uint8_t* data, size_t size);
+    static uint32_t calculateCrc32(const uint8_t* data, size_t size, uint32_t* initial_crc32 = nullptr);
 
     void getKey(char* dst, size_t dstSize)
     {
-        strncpy(dst, key, min(dstSize, sizeof(key)));
+        strncpy(dst, key, std::min(dstSize, sizeof(key)));
         dst[dstSize-1] = 0;
     }
 

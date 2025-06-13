@@ -61,7 +61,7 @@ if(NOT "$ENV{IDF_COMPONENT_MANAGER}" EQUAL "0")
     idf_build_set_property(IDF_COMPONENT_MANAGER 1)
 endif()
 # Set component manager interface version
-idf_build_set_property(__COMPONENT_MANAGER_INTERFACE_VERSION 3)
+idf_build_set_property(__COMPONENT_MANAGER_INTERFACE_VERSION 4)
 
 #
 # Parse and store the VERSION argument provided to the project() command.
@@ -504,7 +504,7 @@ function(__project_init components_var test_components_var)
             message(WARNING "The MINIMAL_BUILD property is disregarded because the COMPONENTS variable is defined.")
             set(minimal_build OFF)
         else()
-            set(COMPONENTS main)
+            set(COMPONENTS main ${TEST_COMPONENTS})
             set(minimal_build ON)
         endif()
     else()
@@ -587,6 +587,7 @@ macro(project project_name)
 
     # The actual call to project()
     __project(${project_name} C CXX ASM)
+    __linux_build_set_lang_version()
 
     # Generate compile_commands.json (needs to come after project call).
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -732,14 +733,31 @@ macro(project project_name)
 
     message(STATUS "Building ESP-IDF components for target ${IDF_TARGET}")
 
-    idf_build_process(${IDF_TARGET}
-                    SDKCONFIG_DEFAULTS "${sdkconfig_defaults}"
-                    SDKCONFIG ${sdkconfig}
-                    BUILD_DIR ${build_dir}
-                    PROJECT_NAME ${CMAKE_PROJECT_NAME}
-                    PROJECT_DIR ${CMAKE_CURRENT_LIST_DIR}
-                    PROJECT_VER "${project_ver}"
-                    COMPONENTS "${components};${test_components}")
+    set(result 0)
+    set(retried 0)
+
+    while(true)
+        idf_build_process(${IDF_TARGET}
+            SDKCONFIG_DEFAULTS "${sdkconfig_defaults}"
+            SDKCONFIG ${sdkconfig}
+            BUILD_DIR ${build_dir}
+            PROJECT_NAME ${CMAKE_PROJECT_NAME}
+            PROJECT_DIR ${CMAKE_CURRENT_LIST_DIR}
+            PROJECT_VER "${project_ver}"
+            COMPONENTS "${components};${test_components}"
+        )
+
+        if(result EQUAL 0)
+            break()
+        elseif(result EQUAL 10 AND retried EQUAL 0)
+            message(WARNING "Missing kconfig option. Re-run the build process...")
+            set(retried 1)
+        elseif(result EQUAL 10 AND retried EQUAL 1)
+            message(FATAL_ERROR "Missing required kconfig option after retry.")
+        else()
+            message(FATAL_ERROR "idf_build_process failed with exit code ${result}")
+        endif()
+    endwhile()
 
     # Special treatment for 'main' component for standard projects (not part of core build system).
     # Have it depend on every other component in the build. This is
@@ -785,21 +803,6 @@ macro(project project_name)
         target_link_libraries(${project_elf} PRIVATE "-Wl,--start-group")
     endif()
 
-    if(test_components)
-        target_link_libraries(${project_elf} PRIVATE "-Wl,--whole-archive")
-        foreach(test_component ${test_components})
-            if(TARGET ${test_component})
-                target_link_libraries(${project_elf} PRIVATE ${test_component})
-            endif()
-        endforeach()
-        target_link_libraries(${project_elf} PRIVATE "-Wl,--no-whole-archive")
-    endif()
-
-    idf_build_get_property(build_components BUILD_COMPONENT_ALIASES)
-    if(test_components)
-        list(REMOVE_ITEM build_components ${test_components})
-    endif()
-
     if(CONFIG_IDF_TARGET_LINUX AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
         # Compiling for the host, and the host is macOS, so the linker is Darwin LD.
         # Note, when adding support for Clang and LLD based toolchain this check will
@@ -807,6 +810,29 @@ macro(project project_name)
         set(linker_type "Darwin")
     else()
         set(linker_type "GNU")
+    endif()
+
+    if(test_components)
+        if(linker_type STREQUAL "GNU")
+            target_link_libraries(${project_elf} PRIVATE "-Wl,--whole-archive")
+            foreach(test_component ${test_components})
+                if(TARGET ${test_component})
+                    target_link_libraries(${project_elf} PRIVATE ${test_component})
+                endif()
+            endforeach()
+            target_link_libraries(${project_elf} PRIVATE "-Wl,--no-whole-archive")
+        elseif(linker_type STREQUAL "Darwin")
+            foreach(test_component ${test_components})
+                if(TARGET ${test_component})
+                    target_link_libraries(${project_elf} PRIVATE "-Wl,-force_load" ${test_component})
+                endif()
+            endforeach()
+        endif()
+    endif()
+
+    idf_build_get_property(build_components BUILD_COMPONENT_ALIASES)
+    if(test_components)
+        list(REMOVE_ITEM build_components ${test_components})
     endif()
 
     foreach(build_component ${build_components})

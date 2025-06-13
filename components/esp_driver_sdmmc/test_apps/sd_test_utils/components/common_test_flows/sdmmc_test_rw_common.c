@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include "esp_heap_caps.h"
+#include "esp_timer.h"
 #include "test_utils.h"
 #include "sdkconfig.h"
 #include "soc/soc_caps.h"
@@ -157,7 +158,7 @@ void sdmmc_test_rw_performance(sdmmc_card_t *card, FILE *perf_log)
 void sdmmc_test_rw_with_offset(sdmmc_card_t* card)
 {
     sdmmc_card_print_info(stdout, card);
-    printf("  sector  | count | align | size(kB)  | wr_time(ms) | wr_speed(MB/s)  |  rd_time(ms)  | rd_speed(MB/s)\n");
+    printf("  sector  | count | align | alloc | size(kB)  | wr_time(ms) | wr_speed(MB/s)  |  rd_time(ms)  | rd_speed(MB/s)\n");
     /* aligned */
     do_single_rw_perf_test(card, 1, 16, 4, NULL, 0);
     do_single_rw_perf_test(card, 16, 32, 4, NULL, 0);
@@ -177,4 +178,45 @@ void sdmmc_test_rw_with_offset(sdmmc_card_t* card)
     do_single_rw_perf_test(card, card->csd.capacity / 2, 1, 1, NULL, 0);
     do_single_rw_perf_test(card, card->csd.capacity / 2, 8, 1, NULL, 0);
     do_single_rw_perf_test(card, card->csd.capacity / 2, 128, 1, NULL, 0);
+}
+
+typedef struct {
+    SemaphoreHandle_t stop;
+    SemaphoreHandle_t done;
+    uint32_t busy_time_us;
+} highprio_busy_task_args_t;
+
+static void highprio_busy_task(void* varg)
+{
+    highprio_busy_task_args_t* args = (highprio_busy_task_args_t*) varg;
+    while (xSemaphoreTake(args->stop, 0) != pdTRUE) {
+        vTaskDelay(1);
+        int64_t start = esp_timer_get_time();
+        while (esp_timer_get_time() - start < args->busy_time_us) {
+            usleep(100);
+        }
+    }
+    xSemaphoreGive(args->done);
+    vTaskDelete(NULL);
+}
+
+void sdmmc_test_rw_highprio_task(sdmmc_card_t* card)
+{
+    highprio_busy_task_args_t args = {
+        .stop = xSemaphoreCreateBinary(),
+        .done = xSemaphoreCreateBinary(),
+        .busy_time_us = 250000,
+    };
+
+    TEST_ASSERT(xTaskCreatePinnedToCore(highprio_busy_task, "highprio_busy_task", 4096, &args, 20, NULL, 0));
+
+    for (int i = 0; i < 4; ++i) {
+        do_single_rw_perf_test(card, 0, 64, 0, NULL, 0);
+    }
+
+    xSemaphoreGive(args.stop);
+    xSemaphoreTake(args.done, portMAX_DELAY);
+    vTaskDelay(1);
+    vSemaphoreDelete(args.stop);
+    vSemaphoreDelete(args.done);
 }

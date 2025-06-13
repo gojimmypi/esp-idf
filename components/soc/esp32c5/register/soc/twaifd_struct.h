@@ -120,14 +120,7 @@ typedef union {
          *  0b1 - TXBBM_ENABLED - TXT Buffer Backup mode enabled\\
          */
         uint32_t txbbm:1;
-        /** sam : R/W; bitpos: [11]; default: 0;
-         *  Self-acknowledge mode.\\
-         *  0b0 - SAM_DISABLE - Do not send dominant ACK bit when CTU CAN FD sends Acknowledge
-         *  bit.\\
-         *  0b1 - SAM_ENABLE - Send dominant ACK bit when CTU CAN FD transmits CAN frame.\\
-         */
-        uint32_t sam:1;
-        uint32_t reserved_12:4;
+        uint32_t reserved_11:5;
         /** rtrle : R/W; bitpos: [16]; default: 0;
          *  Retransmitt Limit Enable. If enabled, CTU CAN FD only attempts to retransmitt each
          *  frame up to RTR_TH
@@ -1755,7 +1748,7 @@ typedef struct {
 /**
  * @brief TWAI frame buffer register types
  */
-typedef union {
+typedef union twaifd_frame_buffer_t {
     struct {
         union {
             struct {
@@ -1796,7 +1789,7 @@ typedef struct {
     uint32_t reserved_50[44];
 } twaifd_frame_mem_t;
 
-typedef struct {
+typedef struct twaifd_dev_t {
     volatile twaifd_device_id_version_reg_t device_id_version;
     volatile twaifd_mode_settings_reg_t mode_settings;
     volatile twaifd_status_reg_t status;

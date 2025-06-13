@@ -3,6 +3,8 @@ USB Host
 
 :link_to_translation:`zh_CN:[中文]`
 
+{IDF_TARGET_OTG_NUM_HOST_CHAN: default="8", esp32p4="16"}
+
 The document provides information regarding the USB Host Library. This document is split into the following sections:
 
 .. contents:: Sections
@@ -31,6 +33,7 @@ The Host Library has the following features:
     :esp32p4: - Supports High Speed (HS), Full Speed (FS) and Low Speed (LS) Devices.
     - Supports all four transfer types: Control, Bulk, Interrupt, and Isochronous.
     :esp32p4: - Supports High-Bandwidth Isochronous endpoints.
+    :esp32p4: - {IDF_TARGET_NAME} includes two USB 2.0 OTG peripherals: one High-Speed and one Full-Speed. Both support USB Host functionality. However, due to a current software limitation, only one can operate as a USB Host at a time. Support for dual USB Host operation is planned for a future update.
     - Allows multiple class drivers to run simultaneously, i.e., multiple clients of the Host Library.
     - A single device can be used by multiple clients simultaneously, e.g., composite devices.
     - The Host Library itself and the underlying Host Stack does not internally instantiate any OS tasks. The number of tasks is entirely controlled by how the Host Library interface is used. However, a general rule of thumb regarding the number of tasks is ``(the number of host class drivers running + 1)``.
@@ -44,8 +47,6 @@ Currently, the Host Library and the underlying Host Stack has the following limi
     - Only supports Asynchronous transfers.
     - Only supports using one configuration. Changing to other configurations after enumeration is not supported yet.
     - Transfer timeouts are not supported yet.
-    :esp32p4: - {IDF_TARGET_NAME} contains two USB-OTG peripherals USB 2.0 OTG High-Speed and USB 2.0 OTG Full-Speed. Only the High-Speed instance is supported now.
-    - The External Hub Driver: Supports only devices with the same speed as upstream port speed (e.g., Low-speed device won't work through Full-speed external Hub).
     - The External Hub Driver: Remote Wakeup feature is not supported (External Hubs are active, even if there are no devices inserted).
     - The External Hub Driver: Doesn't handle error cases (overcurrent handling, errors during initialization etc. are not implemented yet).
     - The External Hub Driver: No Interface selection. The Driver uses the first available Interface with Hub Class code (09h).
@@ -402,7 +403,7 @@ UVC
 """
 
 * A host class driver for the USB Video Device Class is distributed as a managed component via the `ESP Component Registry <https://components.espressif.com/component/espressif/usb_host_uvc>`__.
-* :example:`peripherals/usb/host/uvc` demonstrates how to capture video from a USB camera using the `libuvc` library and stream the video over Wi-Fi by hosting a TCP server, with the option to visualize the captured video on a PC using the provided `player.py` script.
+* :example:`peripherals/usb/host/uvc` demonstrates how to capture video frames from a USB camera using the UVC driver.
 
 .. ---------------------------------------------- USB Host Menuconfig --------------------------------------------------
 
@@ -471,7 +472,7 @@ When external Hubs support feature is enabled (:ref:`CONFIG_USB_HOST_HUBS_SUPPOR
 
 To handle each attached device, different amount of channels are required. This amount does depend on the device class (EPs number).
 
-Supported amount of channels for {IDF_TARGET_NAME} is {OTG_NUM_HOST_CHAN}.
+Supported amount of channels for {IDF_TARGET_NAME} is {IDF_TARGET_OTG_NUM_HOST_CHAN}.
 
 .. note::
 

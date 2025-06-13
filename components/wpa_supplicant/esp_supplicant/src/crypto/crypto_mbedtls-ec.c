@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -147,6 +147,42 @@ const struct crypto_bignum *crypto_ec_get_prime(struct crypto_ec *e)
 const struct crypto_bignum *crypto_ec_get_order(struct crypto_ec *e)
 {
     return (const struct crypto_bignum *) & ((mbedtls_ecp_group *)e)->N;
+}
+
+struct crypto_bignum * crypto_ec_get_a(struct crypto_ec *e)
+{
+    int ret = -1;
+    struct crypto_bignum *a;
+    mbedtls_mpi *m_a;
+    mbedtls_ecp_group *grp = (mbedtls_ecp_group *)e;
+    if (mbedtls_ecp_get_type(grp) != MBEDTLS_ECP_TYPE_SHORT_WEIERSTRASS) {
+        return NULL;
+    }
+    a = crypto_bignum_init();
+    if (!a) {
+        return NULL;
+    }
+    m_a = (mbedtls_mpi *)a;
+    /* Handle Mbed TLS quirk.
+     *
+     * Mbed TLS default ECP implementation is using grp->A = NULL to represent A = -3 for
+     * Short Weierstrass curves(e.g. P-256) thus accessing A needs some tweaking.
+     *
+     * See mbedtls/ecp.h for details. */
+#ifdef MBEDTLS_ECP_SHORT_WEIERSTRASS_ENABLED
+    if (mbedtls_ecp_group_a_is_minus_3(grp)) {
+        MBEDTLS_MPI_CHK(mbedtls_mpi_sub_int(m_a, &grp->P, 3));
+    } else {
+        MBEDTLS_MPI_CHK(mbedtls_mpi_copy(m_a, &grp->A));
+    }
+#else
+    goto cleanup;
+#endif
+    return a;
+
+cleanup:
+    crypto_bignum_deinit(a, 0);
+    return NULL;
 }
 
 const struct crypto_bignum * crypto_ec_get_b(struct crypto_ec *e)
@@ -844,21 +880,23 @@ int crypto_ec_key_verify_signature_r_s(struct crypto_ec_key *csign,
 
 void crypto_ec_key_debug_print(struct crypto_ec_key *key, const char *title)
 {
-#ifdef DEBUG_PRINT
+#if defined(CONFIG_LOG_DEFAULT_LEVEL_DEBUG) || defined(CONFIG_LOG_DEFAULT_LEVEL_VERBOSE)
+#if defined(DEBUG_PRINT)
     mbedtls_pk_context *pkey = (mbedtls_pk_context *)key;
     mbedtls_ecp_keypair *ecp = mbedtls_pk_ec(*pkey);
     u8 x[32], y[32], d[32];
-    wpa_printf(MSG_INFO, "curve: %s",
+    wpa_printf(MSG_EXCESSIVE, "curve: %s",
                mbedtls_ecp_curve_info_from_grp_id(ecp->MBEDTLS_PRIVATE(grp).id)->name);
     int len = mbedtls_mpi_size((mbedtls_mpi *)crypto_ec_get_prime((struct crypto_ec *)crypto_ec_get_group_from_key(key)));
 
-    wpa_printf(MSG_INFO, "prime len is %d", len);
+    wpa_printf(MSG_EXCESSIVE, "prime len is %d", len);
     crypto_ec_point_to_bin((struct crypto_ec *)crypto_ec_get_group_from_key(key), crypto_ec_key_get_public_key(key), x, y);
     crypto_bignum_to_bin(crypto_ec_key_get_private_key(key),
                          d, len, len);
-    wpa_hexdump(MSG_INFO, "Q_x:", x, 32);
-    wpa_hexdump(MSG_INFO, "Q_y:", y, 32);
-    wpa_hexdump(MSG_INFO, "d:     ",  d, 32);
+    wpa_hexdump(MSG_EXCESSIVE, "Q_x:", x, 32);
+    wpa_hexdump(MSG_EXCESSIVE, "Q_y:", y, 32);
+    wpa_hexdump(MSG_EXCESSIVE, "d:     ",  d, 32);
+#endif
 #endif
 }
 
@@ -1139,6 +1177,7 @@ struct wpabuf * crypto_ecdh_get_pubkey(struct crypto_ecdh *ecdh, int y)
 {
     struct wpabuf *public_key = NULL;
     uint8_t *buf = NULL;
+    int ret;
     mbedtls_ecdh_context *ctx = (mbedtls_ecdh_context *)ecdh;
     size_t prime_len = ACCESS_ECDH(ctx, grp).pbits / 8;
 
@@ -1149,8 +1188,13 @@ struct wpabuf * crypto_ecdh_get_pubkey(struct crypto_ecdh *ecdh, int y)
     }
 
     /* Export an MPI into unsigned big endian binary data of fixed size */
-    mbedtls_mpi_write_binary(ACCESS_ECDH(&ctx, Q).MBEDTLS_PRIVATE(X), buf, prime_len);
+    ret = mbedtls_mpi_write_binary(ACCESS_ECDH(&ctx, Q).MBEDTLS_PRIVATE(X), buf, prime_len);
+    if (ret) {
+        goto cleanup;
+    }
     public_key = wpabuf_alloc_copy(buf, 32);
+
+cleanup:
     os_free(buf);
     return public_key;
 }

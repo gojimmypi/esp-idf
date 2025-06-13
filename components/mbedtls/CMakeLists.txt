@@ -5,6 +5,18 @@ idf_build_get_property(esp_tee_build ESP_TEE_BUILD)
 if(esp_tee_build)
     include(${COMPONENT_DIR}/esp_tee/esp_tee_mbedtls.cmake)
     return()
+
+elseif(BOOTLOADER_BUILD)   # TODO: IDF-11673
+    if(CONFIG_MBEDTLS_USE_CRYPTO_ROM_IMPL_BOOTLOADER)
+        set(include_dirs "${COMPONENT_DIR}/mbedtls/include"
+                         "port/mbedtls_rom")
+        set(srcs "port/mbedtls_rom/mbedtls_rom_osi_bootloader.c")
+    endif()
+
+    idf_component_register(SRCS "${srcs}"
+                           INCLUDE_DIRS "${include_dirs}"
+                           PRIV_REQUIRES hal)
+    return()
 endif()
 
 if(NOT ${IDF_TARGET} STREQUAL "linux")
@@ -87,7 +99,6 @@ if(CONFIG_MBEDTLS_CERTIFICATE_BUNDLE)
         APPEND PROPERTY ADDITIONAL_CLEAN_FILES
         "${crt_bundle}")
 endif()
-
 
 # Only build mbedtls libraries
 set(ENABLE_TESTING CACHE BOOL OFF)
@@ -180,12 +191,10 @@ endif()
 # Choose peripheral type
 
 if(CONFIG_SOC_SHA_SUPPORTED)
-    if(CONFIG_SOC_SHA_SUPPORT_DMA)
-        set(SHA_PERIPHERAL_TYPE "dma")
-    elseif(CONFIG_SOC_SHA_SUPPORT_PARALLEL_ENG)
+    if(CONFIG_SOC_SHA_SUPPORT_PARALLEL_ENG)
         set(SHA_PERIPHERAL_TYPE "parallel_engine")
     else()
-        set(SHA_PERIPHERAL_TYPE "block")
+        set(SHA_PERIPHERAL_TYPE "core")
     endif()
 endif()
 
@@ -197,15 +206,15 @@ if(CONFIG_SOC_AES_SUPPORTED)
     endif()
 endif()
 
-if(SHA_PERIPHERAL_TYPE STREQUAL "dma")
-    target_include_directories(mbedcrypto PRIVATE "${COMPONENT_DIR}/port/sha/dma/include")
+if(SHA_PERIPHERAL_TYPE STREQUAL "core")
+    target_include_directories(mbedcrypto PRIVATE "${COMPONENT_DIR}/port/sha/core/include")
 
-    if(NOT CONFIG_SOC_SHA_GDMA)
-        set(SHA_DMA_SRCS "${COMPONENT_DIR}/port/sha/dma/esp_sha_crypto_dma_impl.c")
-    else()
-        set(SHA_DMA_SRCS "${COMPONENT_DIR}/port/sha/dma/esp_sha_gdma_impl.c")
+    if(CONFIG_SOC_SHA_GDMA)
+        set(SHA_CORE_SRCS "${COMPONENT_DIR}/port/sha/core/esp_sha_gdma_impl.c")
+    elseif(CONFIG_SOC_SHA_CRYPTO_DMA)
+        set(SHA_CORE_SRCS "${COMPONENT_DIR}/port/sha/core/esp_sha_crypto_dma_impl.c")
     endif()
-    target_sources(mbedcrypto PRIVATE  "${SHA_DMA_SRCS}")
+    target_sources(mbedcrypto PRIVATE  "${SHA_CORE_SRCS}")
 endif()
 
 if(AES_PERIPHERAL_TYPE STREQUAL "dma")
@@ -221,7 +230,7 @@ if(AES_PERIPHERAL_TYPE STREQUAL "dma")
     target_sources(mbedcrypto PRIVATE  "${AES_DMA_SRCS}")
 endif()
 
-if(SHA_PERIPHERAL_TYPE STREQUAL "dma" OR AES_PERIPHERAL_TYPE STREQUAL "dma")
+if((SHA_PERIPHERAL_TYPE STREQUAL "core" AND CONFIG_SOC_SHA_SUPPORT_DMA) OR AES_PERIPHERAL_TYPE STREQUAL "dma")
     target_link_libraries(mbedcrypto PRIVATE idf::esp_mm)
     if(CONFIG_SOC_SHA_GDMA OR CONFIG_SOC_AES_GDMA)
         if(CONFIG_SOC_AXI_DMA_EXT_MEM_ENC_ALIGNMENT)
@@ -285,27 +294,40 @@ if(CONFIG_MBEDTLS_HARDWARE_ECC)
                                        "${COMPONENT_DIR}/port/ecc/ecc_alt.c")
 endif()
 
-if(CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN OR CONFIG_MBEDTLS_HARDWARE_ECDSA_VERIFY)
-    target_sources(mbedcrypto PRIVATE  "${COMPONENT_DIR}/port/ecdsa/ecdsa_alt.c")
+if(CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN OR CONFIG_MBEDTLS_HARDWARE_ECDSA_VERIFY OR CONFIG_MBEDTLS_TEE_SEC_STG_ECDSA_SIGN)
+    target_sources(mbedcrypto PRIVATE "${COMPONENT_DIR}/port/ecdsa/ecdsa_alt.c")
 
-    if(CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN)
-        target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=mbedtls_ecdsa_sign")
-        target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=mbedtls_ecdsa_sign_restartable")
-        target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=mbedtls_ecdsa_write_signature")
-        target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=mbedtls_ecdsa_write_signature_restartable")
+    set(WRAP_FUNCTIONS_SIGN
+        mbedtls_ecdsa_sign
+        mbedtls_ecdsa_sign_restartable
+        mbedtls_ecdsa_write_signature
+        mbedtls_ecdsa_write_signature_restartable)
+
+    set(WRAP_FUNCTIONS_VERIFY
+        mbedtls_ecdsa_verify
+        mbedtls_ecdsa_verify_restartable
+        mbedtls_ecdsa_read_signature
+        mbedtls_ecdsa_read_signature_restartable)
+
+    if(CONFIG_MBEDTLS_HARDWARE_ECDSA_SIGN OR CONFIG_MBEDTLS_TEE_SEC_STG_ECDSA_SIGN)
+        foreach(wrap ${WRAP_FUNCTIONS_SIGN})
+            target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=${wrap}")
+        endforeach()
 
         if(CONFIG_SOC_ECDSA_SUPPORT_DETERMINISTIC_MODE)
             target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=mbedtls_ecdsa_sign_det_ext")
             target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=mbedtls_ecdsa_sign_det_restartable")
         endif()
-
     endif()
 
     if(CONFIG_MBEDTLS_HARDWARE_ECDSA_VERIFY)
-        target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=mbedtls_ecdsa_verify")
-        target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=mbedtls_ecdsa_verify_restartable")
-        target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=mbedtls_ecdsa_read_signature")
-        target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=mbedtls_ecdsa_read_signature_restartable")
+        foreach(wrap ${WRAP_FUNCTIONS_VERIFY})
+            target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=${wrap}")
+        endforeach()
+    endif()
+
+    if(CONFIG_MBEDTLS_TEE_SEC_STG_ECDSA_SIGN)
+        target_link_libraries(mbedcrypto PRIVATE idf::tee_sec_storage)
     endif()
 endif()
 
@@ -329,6 +351,7 @@ if(CONFIG_MBEDTLS_DYNAMIC_BUFFER)
     set(WRAP_FUNCTIONS
         mbedtls_ssl_write_client_hello
         mbedtls_ssl_handshake_client_step
+        mbedtls_ssl_tls13_handshake_client_step
         mbedtls_ssl_handshake_server_step
         mbedtls_ssl_read
         mbedtls_ssl_write

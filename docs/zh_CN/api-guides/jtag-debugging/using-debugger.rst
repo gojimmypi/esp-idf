@@ -9,7 +9,7 @@
 * :ref:`jtag-debugging-using-debugger-command-line`
 * :ref:`jtag-debugging-with-idf-py`
 
-关于如何使用 VS Code 进行调试，请参阅文档 `使用 VS Code 调试 <https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/DEBUGGING.md>`__。
+关于如何使用 VS Code 进行调试，请参阅文档 `使用 VS Code 调试 <https://docs.espressif.com/projects/vscode-esp-idf-extension/zh_CN/latest/debugproject.html>`__。
 
 
 .. _jtag-debugging-using-debugger-eclipse:
@@ -232,7 +232,7 @@
 
 4.  ``idf.py gdbgui``
 
-    启动 `gdbgui <https://www.gdbgui.com>`_，在浏览器中打开调试器的前端界面。请在运行安装脚本时添加 "--enable-gdbgui" 参数，即运行 ``install.sh --enable-gdbgui``，从而确保支持 ``gdbgui`` 选项。
+    启动 `gdbgui <https://www.gdbgui.com>`_，在浏览器中打开调试器的前端界面。要启用此选项，请参照 `安装说明 <https://www.gdbgui.com/installation/>`_，使用 ``pipx`` 方法设置该工具。关于系统依赖项、限制及其他注意事项，请参考安装页面和 `问题追踪 <https://github.com/cs01/gdbgui/issues>`_。
 
 
     上述这些命令也可以合并到一起使用，``idf.py`` 会自动将后台进程（比如 openocd）最先运行，交互式进程（比如 GDB，monitor）最后运行。

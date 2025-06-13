@@ -9,7 +9,7 @@ This section covers the steps to configure and run a debugger using various meth
 * :ref:`jtag-debugging-using-debugger-command-line`
 * :ref:`jtag-debugging-with-idf-py`
 
-For how to run a debugger from VS Code, see `Configuration for Visual Studio Code Debug <https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/DEBUGGING.md>`__.
+For how to run a debugger from VS Code, see `Configuration for Visual Studio Code Debug <https://docs.espressif.com/projects/vscode-esp-idf-extension/en/latest/debugproject.html>`__.
 
 
 .. _jtag-debugging-using-debugger-eclipse:
@@ -232,7 +232,7 @@ It is also possible to execute the described debugging tools conveniently from `
 
 4.  ``idf.py gdbgui``
 
-    Starts `gdbgui <https://www.gdbgui.com>`_ debugger frontend enabling out-of-the-box debugging in a browser window. To enable this option, run the install script with the "--enable-gdbgui" argument, e.g., ``install.sh --enable-gdbgui``.
+    Starts `gdbgui <https://www.gdbgui.com>`_ debugger frontend, which enables out-of-the-box debugging in a browser window. To enable this option, follow the `installation instructions <https://www.gdbgui.com/installation/>`_ to set up the tool using the ``pipx`` method. For system dependencies, restrictions, and other limitations, please refer to the installation page and the `issue tracker <https://github.com/cs01/gdbgui/issues>`_.
 
 
     You can combine these debugging actions on a single command line, allowing for convenient setup of blocking and non-blocking actions in one step. ``idf.py`` implements a simple logic to move the background actions (such as openocd) to the beginning and the interactive ones (such as gdb, monitor) to the end of the action list.

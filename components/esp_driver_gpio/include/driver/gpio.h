@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -71,15 +71,13 @@ typedef struct {
 esp_err_t gpio_config(const gpio_config_t *pGPIOConfig);
 
 /**
- * @brief Reset an gpio to default state (select gpio function, enable pullup and disable input and output).
+ * @brief Reset a GPIO to a certain state (select gpio function, enable pullup and disable input and output).
  *
  * @param gpio_num GPIO number.
  *
- * @note This function also configures the IOMUX for this pin to the GPIO
- *       function, and disconnects any other peripheral output configured via GPIO
- *       Matrix.
- *
- * @return Always return ESP_OK.
+ * @return
+ *     - ESP_OK  Success
+ *     - ESP_ERR_INVALID_ARG Parameter error
  */
 esp_err_t gpio_reset_pin(gpio_num_t gpio_num);
 
@@ -295,6 +293,50 @@ esp_err_t gpio_pulldown_en(gpio_num_t gpio_num);
 esp_err_t gpio_pulldown_dis(gpio_num_t gpio_num);
 
 /**
+ * @brief Enable output for an IO (as a simple GPIO output)
+ *
+ * @param gpio_num GPIO number
+ *
+ * @return
+ *      - ESP_OK Success
+ *      - ESP_ERR_INVALID_ARG GPIO number error
+ */
+esp_err_t gpio_output_enable(gpio_num_t gpio_num);
+
+/**
+ * @brief Disable output for an IO
+ *
+ * @param gpio_num GPIO number
+ *
+ * @return
+ *      - ESP_OK Success
+ *      - ESP_ERR_INVALID_ARG GPIO number error
+ */
+esp_err_t gpio_output_disable(gpio_num_t gpio_num);
+
+/**
+ * @brief Enable open-drain for an IO
+ *
+ * @param gpio_num GPIO number
+ *
+ * @return
+ *      - ESP_OK Success
+ *      - ESP_ERR_INVALID_ARG GPIO number error
+ */
+esp_err_t gpio_od_enable(gpio_num_t gpio_num);
+
+/**
+ * @brief Disable open-drain for an IO
+ *
+ * @param gpio_num GPIO number
+ *
+ * @return
+ *      - ESP_OK Success
+ *      - ESP_ERR_INVALID_ARG GPIO number error
+ */
+esp_err_t gpio_od_disable(gpio_num_t gpio_num);
+
+/**
   * @brief Install the GPIO driver's ETS_GPIO_INTR_SOURCE ISR handler service, which allows per-pin GPIO interrupt handlers.
   *
   * This function is incompatible with gpio_isr_register() - if that function is used, a single global ISR is registered for all GPIO interrupts. If this function is used, the ISR service provides a global GPIO ISR and individual pin handlers are registered via the gpio_isr_handler_add() function.
@@ -460,7 +502,7 @@ void gpio_deep_sleep_hold_dis(void);
   * @param gpio_num GPIO number of the pad.
   * @param signal_idx Peripheral signal id to input. One of the ``*_IN_IDX`` signals in ``soc/gpio_sig_map.h``.
   */
-void gpio_iomux_in(uint32_t gpio_num, uint32_t signal_idx);
+void gpio_iomux_in(uint32_t gpio_num, uint32_t signal_idx) __attribute__((deprecated("Please use `gpio_iomux_input` instead")));
 
 /**
   * @brief Set peripheral output to an GPIO pad through the IOMUX.
@@ -469,7 +511,7 @@ void gpio_iomux_in(uint32_t gpio_num, uint32_t signal_idx);
   *        One of the ``FUNC_X_*`` of specified pin (X) in ``soc/io_mux_reg.h``.
   * @param out_en_inv True if the output enable needs to be inverted, otherwise False.
   */
-void gpio_iomux_out(uint8_t gpio_num, int func, bool out_en_inv);
+void gpio_iomux_out(uint8_t gpio_num, int func, bool out_en_inv) __attribute__((deprecated("Please use `gpio_iomux_output` instead")));
 
 #if SOC_GPIO_SUPPORT_FORCE_HOLD
 /**
@@ -594,23 +636,13 @@ esp_err_t gpio_dump_io_configuration(FILE *out_stream, uint64_t io_bit_mask);
  * @brief Get the configuration for an IO
  *
  * @param gpio_num GPIO number
- * @param pu Pointer to accept the status of pull-up enabled or not, passing in NULL if this info is unwanted
- * @param pd Pointer to accept the status of pull-down enabled or not, passing in NULL if this info is unwanted
- * @param ie Pointer to accept the status of input enabled or not, passing in NULL if this info is unwanted
- * @param oe Pointer to accept the status of output enabled or not, passing in NULL if this info is unwanted
- * @param od Pointer to accept the status of open-drain enabled or not, passing in NULL if this info is unwanted
- * @param drv Pointer to accept the value of drive strength, passing in NULL if this info is unwanted
- * @param fun_sel Pointer to accept the value of IOMUX function selection, passing in NULL if this info is unwanted
- * @param sig_out Pointer to accept the index of outputting peripheral signal, passing in NULL if this info is unwanted
- * @param slp_sel Pointer to accept the status of pin sleep mode enabled or not, passing in NULL if this info is unwanted
+ * @param[out] out_io_config Pointer to the structure that saves the specific IO configuration
  *
  * @return
  *    - ESP_OK Success
  *    - ESP_ERR_INVALID_ARG Parameter error
  */
-esp_err_t gpio_get_io_config(gpio_num_t gpio_num,
-                             bool *pu, bool *pd, bool *ie, bool *oe, bool *od, uint32_t *drv,
-                             uint32_t *fun_sel, uint32_t *sig_out, bool *slp_sel);
+esp_err_t gpio_get_io_config(gpio_num_t gpio_num, gpio_io_config_t *out_io_config);
 
 #ifdef __cplusplus
 }

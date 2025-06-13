@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,7 +12,6 @@
 #include "soc/pcr_struct.h"
 #include "hal/assert.h"
 
-//TODO: [ESP32H21] IDF-11596, inherit from h2
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,7 +50,10 @@ static inline void systimer_ll_enable_bus_clock(bool enable)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_RC_ATOMIC_ENV variable in advance
-#define systimer_ll_enable_bus_clock(...) (void)__DECLARE_RCC_RC_ATOMIC_ENV; systimer_ll_enable_bus_clock(__VA_ARGS__)
+#define systimer_ll_enable_bus_clock(...) do { \
+        (void)__DECLARE_RCC_RC_ATOMIC_ENV; \
+        systimer_ll_enable_bus_clock(__VA_ARGS__); \
+    } while(0)
 
 /**
  * @brief Reset the systimer module
@@ -66,7 +68,10 @@ static inline void systimer_ll_reset_register(void)
 
 /// use a macro to wrap the function, force the caller to use it in a critical section
 /// the critical section needs to declare the __DECLARE_RCC_RC_ATOMIC_ENV variable in advance
-#define systimer_ll_reset_register(...) (void)__DECLARE_RCC_RC_ATOMIC_ENV; systimer_ll_reset_register(__VA_ARGS__)
+#define systimer_ll_reset_register(...) do { \
+        (void)__DECLARE_RCC_RC_ATOMIC_ENV; \
+        systimer_ll_reset_register(__VA_ARGS__); \
+    } while(0)
 
 /********************** ETM *****************************/
 

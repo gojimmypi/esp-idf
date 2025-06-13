@@ -4,7 +4,7 @@
 :link_to_translation:`en:[English]`
 
 {IDF_TARGET_CONTROLLER_CORE_CONFIG:default="CONFIG_BT_CTRL_PINNED_TO_CORE", esp32="CONFIG_BTDM_CTRL_PINNED_TO_CORE_CHOICE", esp32s3="CONFIG_BT_CTRL_PINNED_TO_CORE_CHOICE"}
-{IDF_TARGET_RF_TYPE:default="Wi-Fi/蓝牙", esp32s2="Wi-Fi", esp32c6="Wi-Fi/蓝牙/802.15.4", esp32h2="蓝牙/802.15.4, esp32c5="Wi-Fi/蓝牙/802.15.4"}
+{IDF_TARGET_RF_TYPE:default="Wi-Fi/蓝牙", esp32s2="Wi-Fi", esp32c6="Wi-Fi/蓝牙/802.15.4", esp32c61="Wi-Fi/蓝牙", esp32h2="蓝牙/802.15.4", esp32h21="蓝牙/802.15.4", esp32h4="蓝牙/802.15.4", esp32c5="Wi-Fi/蓝牙/802.15.4"}
 
 概述
 -----------
@@ -87,6 +87,7 @@
     :SOC_CPU_HAS_FPU: - 避免使用浮点运算 ``float``。尽管 {IDF_TARGET_NAME} 具备单精度浮点运算器，但是浮点运算总是慢于整数运算。因此可以考虑使用不同的整数表示方法进行运算，如定点表示法，或者将部分计算用整数运算后再切换为浮点运算。
     :not SOC_CPU_HAS_FPU: - 避免使用浮点运算 ``float``。{IDF_TARGET_NAME} 通过软件模拟进行浮点运算，因此速度非常慢。可以考虑使用不同的整数表示方法进行运算，如定点表示法，或者将部分计算用整数运算后再切换为浮点运算。
     - 避免使用双精度浮点运算 ``double``。{IDF_TARGET_NAME} 通过软件模拟进行双精度浮点运算，因此速度非常慢。可以考虑使用基于整数的表示方法或单精度浮点数。
+    :CONFIG_ESP_ROM_HAS_SUBOPTIMAL_NEWLIB_ON_MISALIGNED_MEMORY: - 在性能要求较高的代码段中，应避免执行未对齐的 4 字节内存访问。为提升性能，可以考虑启用 :ref:`CONFIG_LIBC_OPTIMIZED_MISALIGNED_ACCESS`。启用此选项将额外占用约 190 字节的 IRAM 和 870 字节的 flash 存储。请注意，正确对齐的内存操作始终能够以全速执行，且不会产生性能损耗。
 
 
 .. only:: esp32s2 or esp32s3 or esp32p4

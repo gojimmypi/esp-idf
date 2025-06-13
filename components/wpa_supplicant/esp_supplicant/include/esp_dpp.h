@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2020-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,7 +16,6 @@
 extern "C" {
 #endif
 
-#define ESP_DPP_AUTH_TIMEOUT_SECS 1
 #define ESP_DPP_MAX_CHAN_COUNT 5
 
 #define ESP_ERR_DPP_FAILURE         (ESP_ERR_WIFI_BASE + 151)   /*!< Generic failure during DPP Operation */
@@ -24,6 +23,7 @@ extern "C" {
 #define ESP_ERR_DPP_INVALID_ATTR    (ESP_ERR_WIFI_BASE + 153)   /*!< Encountered invalid DPP Attribute */
 #define ESP_ERR_DPP_AUTH_TIMEOUT    (ESP_ERR_WIFI_BASE + 154)   /*!< DPP Auth response was not received in time */
 #define ESP_ERR_DPP_INVALID_LIST    (ESP_ERR_WIFI_BASE + 155)   /*!< Channel list given in esp_supp_dpp_bootstrap_gen() is not valid or too big */
+#define ESP_ERR_DPP_CONF_TIMEOUT    (ESP_ERR_WIFI_BASE + 156)   /*!< DPP Configuration was not received in time */
 
 /** @brief Types of Bootstrap Methods for DPP. */
 typedef enum dpp_bootstrap_type {
@@ -55,7 +55,10 @@ typedef void (*esp_supp_dpp_event_cb_t)(esp_supp_dpp_event_t evt, void *data);
   *
   *        Starts DPP Supplicant and initializes related Data Structures.
   *
-  * @param evt_cb Callback function to receive DPP related events
+  * @note The `evt_cb` parameter is deprecated and will be ignored in future IDF versions.
+  *       Directly register for WiFi events to get DPP events.
+  *
+  * @param evt_cb (Deprecated) Callback function to receive DPP related events
   *
   * return
   *    - ESP_OK: Success
@@ -64,7 +67,7 @@ typedef void (*esp_supp_dpp_event_cb_t)(esp_supp_dpp_event_t evt, void *data);
 esp_err_t esp_supp_dpp_init(esp_supp_dpp_event_cb_t evt_cb);
 
 /**
-  * @brief De-initalize DPP Supplicant
+  * @brief De-initialize DPP Supplicant
   *
   *        Frees memory from DPP Supplicant Data Structures.
   *

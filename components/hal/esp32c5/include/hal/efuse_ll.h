@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -13,6 +13,7 @@
 #include "soc/efuse_periph.h"
 #include "hal/assert.h"
 #include "rom/efuse.h"
+#include "hal/ecdsa_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,7 +39,7 @@ __attribute__((always_inline)) static inline uint32_t efuse_ll_get_flash_crypt_c
 
 __attribute__((always_inline)) static inline uint32_t efuse_ll_get_wdt_delay_sel(void)
 {
-    return EFUSE.rd_repeat_data1.wdt_delay_sel;
+    return EFUSE.rd_repeat_data0.wdt_delay_sel;
 }
 
 __attribute__((always_inline)) static inline uint32_t efuse_ll_get_mac0(void)
@@ -93,14 +94,64 @@ __attribute__((always_inline)) static inline uint32_t efuse_ll_get_chip_ver_pkg(
     return EFUSE.rd_mac_sys2.pkg_version;
 }
 
-__attribute__((always_inline)) static inline void efuse_ll_set_ecdsa_key_blk(int efuse_blk)
+__attribute__((always_inline)) static inline void efuse_ll_set_ecdsa_key_blk(ecdsa_curve_t curve, int efuse_blk)
 {
-    EFUSE.conf.cfg_ecdsa_blk = efuse_blk;
+    switch (curve) {
+        case ECDSA_CURVE_SECP192R1:
+            EFUSE.ecdsa.cfg_ecdsa_p192_blk = efuse_blk;
+            break;
+        case ECDSA_CURVE_SECP256R1:
+            EFUSE.ecdsa.cfg_ecdsa_p256_blk = efuse_blk;
+            break;
+        default:
+            HAL_ASSERT(false && "Unsupported curve");
+            break;
+    }
 }
 
 __attribute__((always_inline)) static inline uint32_t efuse_ll_get_ocode(void)
 {
     return EFUSE.rd_sys_part1_data4.ocode;
+}
+
+__attribute__((always_inline)) static inline uint32_t efuse_ll_get_active_hp_dbias(void)
+{
+    return EFUSE.rd_mac_sys3.active_hp_dbias;
+}
+
+__attribute__((always_inline)) static inline uint32_t efuse_ll_get_active_lp_dbias(void)
+{
+    return EFUSE.rd_mac_sys3.active_lp_dbias;
+}
+
+__attribute__((always_inline)) static inline uint32_t efuse_ll_get_lslp_dbg(void)
+{
+    return EFUSE.rd_mac_sys3.lslp_hp_dbg;
+}
+
+__attribute__((always_inline)) static inline uint32_t efuse_ll_get_lslp_hp_dbias(void)
+{
+    return EFUSE.rd_mac_sys3.lslp_hp_dbias;
+}
+
+__attribute__((always_inline)) static inline uint32_t efuse_ll_get_dslp_dbg(void)
+{
+    return EFUSE.rd_mac_sys3.dslp_lp_dbg;
+}
+
+__attribute__((always_inline)) static inline uint32_t efuse_ll_get_dslp_lp_dbias(void)
+{
+    return (EFUSE.rd_mac_sys4.dslp_lp_dbias_1 << 4)|EFUSE.rd_mac_sys3.dslp_lp_dbias;
+}
+
+__attribute__((always_inline)) static inline int32_t efuse_ll_get_dbias_vol_gap(void)
+{
+    return EFUSE.rd_mac_sys4.lp_hp_dbias_vol_gap;
+}
+
+__attribute__((always_inline)) static inline uint32_t efuse_ll_get_recovery_bootloader_sector(void)
+{
+    return (EFUSE.rd_repeat_data2.recovery_bootloader_flash_sector_hi << 9) | EFUSE.rd_repeat_data4.recovery_bootloader_flash_sector_lo;
 }
 
 /******************* eFuse control functions *************************/

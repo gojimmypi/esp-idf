@@ -57,6 +57,10 @@ __attribute__((unused)) static struct timeval tv_start, tv_stop;
 #if SOC_LIGHT_SLEEP_SUPPORTED
 TEST_CASE("wake up from light sleep using timer", "[lightsleep]")
 {
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, esp_sleep_enable_timer_wakeup(UINT64_MAX));
+    uint64_t lp_timer_max_allowed_time_in_us = ((BIT64(SOC_LP_TIMER_BIT_WIDTH_LO + SOC_LP_TIMER_BIT_WIDTH_HI) - 1) / esp_clk_tree_lp_slow_get_freq_hz(ESP_CLK_TREE_SRC_FREQ_PRECISION_APPROX)) * MHZ;
+    TEST_ASSERT_EQUAL(ESP_OK, esp_sleep_enable_timer_wakeup(lp_timer_max_allowed_time_in_us));
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, esp_sleep_enable_timer_wakeup(lp_timer_max_allowed_time_in_us + 1));
     esp_sleep_enable_timer_wakeup(2000000);
     gettimeofday(&tv_start, NULL);
     esp_light_sleep_start();
@@ -319,7 +323,7 @@ static void test_psram_accessible_after_lightsleep(void)
     esp_light_sleep_start();
     TEST_ASSERT_EQUAL(0, sleep_ctx.sleep_request_result);
 
-#if CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP
+#if CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP && !SOC_PM_TOP_PD_NOT_ALLOWED
     TEST_ASSERT_EQUAL(PMU_SLEEP_PD_TOP, sleep_ctx.sleep_flags & PMU_SLEEP_PD_TOP);
     TEST_ESP_OK(sleep_cpu_configure(false));
 #endif
