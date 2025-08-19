@@ -16,6 +16,12 @@
 
 #pragma once
 
+#if __has_include("soc/soc_caps_eval.h")
+#include "soc/soc_caps_eval.h"
+#endif
+
+#define _SOC_CAPS_TARGET_IS_ESP32H21  1 // [gen_soc_caps:ignore]
+
 /*-------------------------- COMMON CAPS ---------------------------------------*/
 // #define SOC_ADC_SUPPORTED               1    //TODO: [ESP32H21] IDF-11589, IDF-11592
 // #define SOC_ANA_CMPR_SUPPORTED          1
@@ -28,7 +34,7 @@
 // #define SOC_IEEE802154_SUPPORTED        1
 // #define SOC_IEEE802154_BLE_ONLY         1
 #define SOC_ASYNC_MEMCPY_SUPPORTED      1
-// #define SOC_USB_SERIAL_JTAG_SUPPORTED   1    //TODO: [ESP32H21] IDF-11616
+#define SOC_USB_SERIAL_JTAG_SUPPORTED   1
 // #define SOC_TEMP_SENSOR_SUPPORTED       1    //TODO: [ESP32H21] IDF-11624
 // #define SOC_SUPPORTS_SECURE_DL_MODE     1
 // #define SOC_ULP_SUPPORTED               1
@@ -54,11 +60,11 @@
 #define SOC_SECURE_BOOT_SUPPORTED       1
 // #define SOC_BOD_SUPPORTED               1    //TODO: [ESP32H21] IDF-11530
 // #define SOC_APM_SUPPORTED               1    //TODO: [ESP32H21] IDF-11494
-// #define SOC_PMU_SUPPORTED               1
+#define SOC_PMU_SUPPORTED               1
 // #define SOC_LP_TIMER_SUPPORTED          1
 // #define SOC_LP_AON_SUPPORTED            1
 // #define SOC_LP_PERIPHERALS_SUPPORTED    1
-// #define SOC_CLK_TREE_SUPPORTED          1    //TODO: [ESP32H21] IDF-11521
+#define SOC_CLK_TREE_SUPPORTED          1
 // #define SOC_ASSIST_DEBUG_SUPPORTED      1    //TODO: [ESP32H21] IDF-11544
 #define SOC_WDT_SUPPORTED               1
 #define SOC_SPI_FLASH_SUPPORTED         1       //TODO: [ESP32H21] IDF-11526
@@ -66,12 +72,12 @@
 #define SOC_MODEM_CLOCK_SUPPORTED       1
 #define SOC_REG_I2C_SUPPORTED           1
 // #define SOC_PHY_SUPPORTED               1
-// #define SOC_PCNT_SUPPORTED              1    //TODO: [ESP32H21] IDF-11566
+#define SOC_PCNT_SUPPORTED              1
 // #define SOC_MCPWM_SUPPORTED             1    //TODO: [ESP32H21] IDF-11601
-// #define SOC_TWAI_SUPPORTED              1    //TODO: [ESP32H21] IDF-11574
+#define SOC_TWAI_SUPPORTED              1
 // #define SOC_ETM_SUPPORTED               1    //TODO: [ESP32H21] IDF-11576
 // #define SOC_PARLIO_SUPPORTED            1    //TODO: [ESP32H21] IDF-11570, IDF-11572
-// #define SOC_RMT_SUPPORTED               1    //TODO: [ESP32H21] IDF-11622
+#define SOC_RMT_SUPPORTED               1
 #define SOC_AES_SUPPORTED               1
 // #define SOC_SDIO_SLAVE_SUPPORTED        1
 #define SOC_PAU_SUPPORTED               1
@@ -230,7 +236,7 @@
 // #define SOC_GPIO_CLOCKOUT_CHANNEL_NUM       (3)
 
 /*-------------------------- RTCIO CAPS --------------------------------------*/
-/* No dedicated LP_IOMUX subsystem on ESP32-H2. LP functions are still supported
+/* No dedicated LP_IOMUX subsystem on ESP32-H21. LP functions are still supported
  * for hold, wake & 32kHz crystal functions - via LP_AON registers */
 #define SOC_RTCIO_PIN_COUNT         (7U)
 #define SOC_RTCIO_HOLD_SUPPORTED    (1)
@@ -297,28 +303,30 @@
 // #define SOC_MPU_REGION_WO_SUPPORTED               0
 
 /*-------------------------- PCNT CAPS ---------------------------------------*/
-// #define SOC_PCNT_GROUPS                       1U
-// #define SOC_PCNT_UNITS_PER_GROUP              4
-// #define SOC_PCNT_CHANNELS_PER_UNIT            2
-// #define SOC_PCNT_THRES_POINT_PER_UNIT         2
-// #define SOC_PCNT_SUPPORT_RUNTIME_THRES_UPDATE 1
+#define SOC_PCNT_GROUPS                       1U
+#define SOC_PCNT_UNITS_PER_GROUP              4
+#define SOC_PCNT_CHANNELS_PER_UNIT            2
+#define SOC_PCNT_THRES_POINT_PER_UNIT         2
+#define SOC_PCNT_SUPPORT_RUNTIME_THRES_UPDATE 1
+#define SOC_PCNT_SUPPORT_CLEAR_SIGNAL         1
+#define SOC_PCNT_SUPPORT_STEP_NOTIFY          1
 
 /*--------------------------- RMT CAPS ---------------------------------------*/
-// #define SOC_RMT_GROUPS                        1U /*!< One RMT group */
-// #define SOC_RMT_TX_CANDIDATES_PER_GROUP       2  /*!< Number of channels that capable of Transmit */
-// #define SOC_RMT_RX_CANDIDATES_PER_GROUP       2  /*!< Number of channels that capable of Receive */
-// #define SOC_RMT_CHANNELS_PER_GROUP            4  /*!< Total 4 channels */
-// #define SOC_RMT_MEM_WORDS_PER_CHANNEL         48 /*!< Each channel owns 48 words memory (1 word = 4 Bytes) */
-// #define SOC_RMT_SUPPORT_RX_PINGPONG           1  /*!< Support Ping-Pong mode on RX path */
-// #define SOC_RMT_SUPPORT_RX_DEMODULATION       1  /*!< Support signal demodulation on RX path (i.e. remove carrier) */
-// #define SOC_RMT_SUPPORT_TX_ASYNC_STOP         1  /*!< Support stop transmission asynchronously */
-// #define SOC_RMT_SUPPORT_TX_LOOP_COUNT         1  /*!< Support transmit specified number of cycles in loop mode */
-// #define SOC_RMT_SUPPORT_TX_LOOP_AUTO_STOP     1  /*!< Hardware support of auto-stop in loop mode */
-// #define SOC_RMT_SUPPORT_TX_SYNCHRO            1  /*!< Support coordinate a group of TX channels to start simultaneously */
-// #define SOC_RMT_SUPPORT_TX_CARRIER_DATA_ONLY  1  /*!< TX carrier can be modulated to data phase only */
-// #define SOC_RMT_SUPPORT_XTAL                  1  /*!< Support set XTAL clock as the RMT clock source */
-// #define SOC_RMT_SUPPORT_RC_FAST               1  /*!< Support set RC_FAST as the RMT clock source */
-// #define SOC_RMT_SUPPORT_SLEEP_RETENTION       1  /*!< The sleep retention feature can help back up RMT registers before sleep */
+#define SOC_RMT_GROUPS                        1U /*!< One RMT group */
+#define SOC_RMT_TX_CANDIDATES_PER_GROUP       2  /*!< Number of channels that capable of Transmit */
+#define SOC_RMT_RX_CANDIDATES_PER_GROUP       2  /*!< Number of channels that capable of Receive */
+#define SOC_RMT_CHANNELS_PER_GROUP            4  /*!< Total 4 channels */
+#define SOC_RMT_MEM_WORDS_PER_CHANNEL         48 /*!< Each channel owns 48 words memory (1 word = 4 Bytes) */
+#define SOC_RMT_SUPPORT_RX_PINGPONG           1  /*!< Support Ping-Pong mode on RX path */
+#define SOC_RMT_SUPPORT_RX_DEMODULATION       1  /*!< Support signal demodulation on RX path (i.e. remove carrier) */
+#define SOC_RMT_SUPPORT_ASYNC_STOP            1  /*!< Support stop transmission asynchronously */
+#define SOC_RMT_SUPPORT_TX_LOOP_COUNT         1  /*!< Support transmit specified number of cycles in loop mode */
+#define SOC_RMT_SUPPORT_TX_LOOP_AUTO_STOP     1  /*!< Hardware support of auto-stop in loop mode */
+#define SOC_RMT_SUPPORT_TX_SYNCHRO            1  /*!< Support coordinate a group of TX channels to start simultaneously */
+#define SOC_RMT_SUPPORT_TX_CARRIER_DATA_ONLY  1  /*!< TX carrier can be modulated to data phase only */
+#define SOC_RMT_SUPPORT_XTAL                  1  /*!< Support set XTAL clock as the RMT clock source */
+#define SOC_RMT_SUPPORT_RC_FAST               1  /*!< Support set RC_FAST as the RMT clock source */
+#define SOC_RMT_SUPPORT_SLEEP_RETENTION       1  /*!< The sleep retention feature can help back up RMT registers before sleep */
 
 /*-------------------------- MCPWM CAPS --------------------------------------*/
 // #define SOC_MCPWM_GROUPS                     (1U)   ///< 1 MCPWM groups on the chip (i.e., the number of independent MCPWM peripherals)
@@ -409,16 +417,12 @@
 
 /*-------------------------- SPI MEM CAPS ---------------------------------------*/
 #define SOC_SPI_MEM_SUPPORT_AUTO_WAIT_IDLE                (1)
-// #define SOC_SPI_MEM_SUPPORT_AUTO_SUSPEND                  (1) //TODO: [ESP32H21] IDF-11526
+#define SOC_SPI_MEM_SUPPORT_AUTO_SUSPEND                  (1)
 #define SOC_SPI_MEM_SUPPORT_AUTO_RESUME                   (1)
 #define SOC_SPI_MEM_SUPPORT_IDLE_INTR                     (1)
 #define SOC_SPI_MEM_SUPPORT_SW_SUSPEND                    (1)
 #define SOC_SPI_MEM_SUPPORT_CHECK_SUS                     (1)
 #define SOC_SPI_MEM_SUPPORT_WRAP                          (1)
-
-#define SOC_MEMSPI_SRC_FREQ_64M_SUPPORTED         1
-#define SOC_MEMSPI_SRC_FREQ_32M_SUPPORTED         1
-#define SOC_MEMSPI_SRC_FREQ_16M_SUPPORTED         1
 
 /*-------------------------- SYSTIMER CAPS ----------------------------------*/
 #define SOC_SYSTIMER_COUNTER_NUM            2  // Number of counter units
@@ -436,12 +440,6 @@
 #define SOC_LP_TIMER_BIT_WIDTH_HI           16 // Bit width of lp_timer high part
 
 /*--------------------------- TIMER GROUP CAPS ---------------------------------------*/
-#define SOC_TIMER_GROUPS                  (2)
-#define SOC_TIMER_GROUP_TIMERS_PER_GROUP  (1U)
-#define SOC_TIMER_GROUP_TOTAL_TIMERS      (2)
-#define SOC_TIMER_GROUP_COUNTER_BIT_WIDTH (54)
-#define SOC_TIMER_GROUP_SUPPORT_XTAL      (1)
-#define SOC_TIMER_GROUP_SUPPORT_RC_FAST   (1)
 // #define SOC_TIMER_SUPPORT_ETM             (1)    //TODO: [ESP32H21] IDF-11576
 #define SOC_TIMER_SUPPORT_SLEEP_RETENTION (1)
 
@@ -450,11 +448,13 @@
 #define SOC_MWDT_SUPPORT_SLEEP_RETENTION   (1)
 
 /*-------------------------- TWAI CAPS ---------------------------------------*/
-// #define SOC_TWAI_CONTROLLER_NUM         1UL
-// #define SOC_TWAI_CLK_SUPPORT_XTAL       1
-// #define SOC_TWAI_BRP_MIN                2
-// #define SOC_TWAI_BRP_MAX                32768
-// #define SOC_TWAI_SUPPORTS_RX_STATUS     1
+#define SOC_TWAI_CONTROLLER_NUM             1U
+#define SOC_TWAI_MASK_FILTER_NUM            1U
+#define SOC_TWAI_CLK_SUPPORT_XTAL           1
+#define SOC_TWAI_BRP_MIN                    2
+#define SOC_TWAI_BRP_MAX                    32768
+#define SOC_TWAI_SUPPORTS_RX_STATUS         1
+#define SOC_TWAI_SUPPORT_SLEEP_RETENTION    1
 
 /*-------------------------- eFuse CAPS----------------------------*/
 #define SOC_EFUSE_DIS_PAD_JTAG 1
@@ -462,7 +462,6 @@
 #define SOC_EFUSE_DIS_DIRECT_BOOT 1
 #define SOC_EFUSE_SOFT_DIS_JTAG 1
 #define SOC_EFUSE_DIS_ICACHE 1
-#define SOC_EFUSE_BLOCK9_KEY_PURPOSE_QUIRK 1  // XTS-AES and ECDSA key purposes not supported for this block
 // #define SOC_EFUSE_ECDSA_USE_HARDWARE_K 1 // Force use hardware TRNG supplied K for ECDSA
 #define SOC_EFUSE_ECDSA_KEY 1
 
@@ -541,14 +540,16 @@
 #define SOC_PM_MODEM_RETENTION_BY_REGDMA           (1)
 #define SOC_PM_SUPPORT_DEEPSLEEP_CHECK_STUB_ONLY   (1) /*!<Supports CRC only the stub code in RTC memory */
 
+#define SOC_PM_SUPPORT_PMU_CLK_ICG          (1)
+
 /*-------------------------- CLOCK SUBSYSTEM CAPS ----------------------------------------*/
-// #define SOC_CLK_RC_FAST_SUPPORT_CALIBRATION       (1)
+#define SOC_CLK_RC_FAST_SUPPORT_CALIBRATION       (1)
 
 #define SOC_CLK_XTAL32K_SUPPORTED                 (1)     /*!< Support to connect an external low frequency crystal */
 #define SOC_CLK_OSC_SLOW_SUPPORTED                (1)     /*!< Support to connect an external oscillator, not a crystal */
-#define SOC_CLK_RC32K_SUPPORTED                   (1)     /*!< Support an internal 32kHz RC oscillator */
 
-#define SOC_CLK_LP_FAST_SUPPORT_LP_PLL            (1)      /*!< Support LP_PLL clock as the LP_FAST clock source */
+#define SOC_CLK_LP_FAST_SUPPORT_XTAL_D2           (1)     /*!< Support XTAL_D2 clock as the LP_FAST clock source */
+
 #define SOC_MODEM_CLOCK_IS_INDEPENDENT            (1)
 
 #define SOC_RCC_IS_INDEPENDENT                    1       /*!< Reset and Clock Control is independent, thanks to the PCR registers */

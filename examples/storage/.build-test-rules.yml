@@ -13,8 +13,8 @@ examples/storage/emmc:
     - esp_driver_sdmmc
     - esp_driver_sdspi
   enable:
-    - if: IDF_TARGET == "esp32s3"
-      reason: only support on esp32s3
+    - if: IDF_TARGET in ["esp32s3", "esp32p4"]
+      reason: only support on esp32s3 and esp32p4
 
 examples/storage/partition_api/partition_find:
   depends_components:

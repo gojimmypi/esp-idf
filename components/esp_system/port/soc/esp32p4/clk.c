@@ -63,7 +63,7 @@
 #include "esp_private/periph_ctrl.h"
 #include "esp_private/esp_clk.h"
 #include "esp_private/esp_pmu.h"
-#include "esp_rom_uart.h"
+#include "esp_rom_serial_output.h"
 #include "esp_rom_sys.h"
 
 /* Number of cycles to wait from the 32k XTAL oscillator to consider it running.
@@ -78,6 +78,7 @@ static void select_rtc_slow_clk(soc_rtc_slow_clk_src_t rtc_slow_clk_src);
 
 static const char *TAG = "clk";
 
+// This function must be allocated in IRAM.
 void IRAM_ATTR esp_rtc_init(void)
 {
 #if SOC_PMU_SUPPORTED
@@ -94,7 +95,9 @@ __attribute__((weak)) void esp_clk_init(void)
     rtc_clk_fast_src_set(SOC_RTC_FAST_CLK_SRC_RC_FAST);
 #elif CONFIG_RTC_FAST_CLK_SRC_XTAL
     rtc_clk_fast_src_set(SOC_RTC_FAST_CLK_SRC_XTAL);
-    esp_sleep_sub_mode_config(ESP_SLEEP_RTC_FAST_USE_XTAL_MODE, true);
+    if (esp_sleep_sub_mode_dump_config(NULL)[ESP_SLEEP_RTC_FAST_USE_XTAL_MODE] == 0) {
+        esp_sleep_sub_mode_config(ESP_SLEEP_RTC_FAST_USE_XTAL_MODE, true);
+    }
 #else
 #error "No RTC fast clock source configured"
 #endif
@@ -169,10 +172,10 @@ static void select_rtc_slow_clk(soc_rtc_slow_clk_src_t rtc_slow_clk_src)
              * will time out, returning 0.
              */
             ESP_EARLY_LOGD(TAG, "waiting for 32k oscillator to start up");
-            rtc_cal_sel_t cal_sel = 0;
+            soc_clk_freq_calculation_src_t cal_sel = -1;
             if (rtc_slow_clk_src == SOC_RTC_SLOW_CLK_SRC_XTAL32K) {
                 rtc_clk_32k_enable(true);
-                cal_sel = RTC_CAL_32K_XTAL;
+                cal_sel = CLK_CAL_32K_XTAL;
             }
             // When SLOW_CLK_CAL_CYCLES is set to 0, clock calibration will not be performed at startup.
             if (SLOW_CLK_CAL_CYCLES > 0) {
@@ -203,7 +206,7 @@ static void select_rtc_slow_clk(soc_rtc_slow_clk_src_t rtc_slow_clk_src)
             /* TODO: 32k XTAL oscillator has some frequency drift at startup.
              * Improve calibration routine to wait until the frequency is stable.
              */
-            cal_val = rtc_clk_cal(RTC_CAL_RTC_MUX, SLOW_CLK_CAL_CYCLES);
+            cal_val = rtc_clk_cal(CLK_CAL_RTC_SLOW, SLOW_CLK_CAL_CYCLES);
         } else {
             const uint64_t cal_dividend = (1ULL << RTC_CLK_CAL_FRACT) * 1000000ULL;
             cal_val = (uint32_t)(cal_dividend / rtc_clk_slow_freq_get_hz());
@@ -380,7 +383,10 @@ __attribute__((weak)) void esp_perip_clk_init(void)
         REG_CLR_BIT(HP_SYS_CLKRST_REF_CLK_CTRL1_REG, HP_SYS_CLKRST_REG_REF_50M_CLK_EN);
         REG_CLR_BIT(HP_SYS_CLKRST_REF_CLK_CTRL1_REG, HP_SYS_CLKRST_REG_REF_25M_CLK_EN);
         // 240M CLK is for Key Management use, should not be gated
+#if !CONFIG_ESP_ENABLE_PVT
         REG_CLR_BIT(HP_SYS_CLKRST_REF_CLK_CTRL2_REG, HP_SYS_CLKRST_REG_REF_160M_CLK_EN);
+#endif
+        // 160M CLK is for PVT use, should not be gated
         REG_CLR_BIT(HP_SYS_CLKRST_REF_CLK_CTRL2_REG, HP_SYS_CLKRST_REG_REF_120M_CLK_EN);
         REG_CLR_BIT(HP_SYS_CLKRST_REF_CLK_CTRL2_REG, HP_SYS_CLKRST_REG_REF_80M_CLK_EN);
         REG_CLR_BIT(HP_SYS_CLKRST_REF_CLK_CTRL2_REG, HP_SYS_CLKRST_REG_REF_20M_CLK_EN);

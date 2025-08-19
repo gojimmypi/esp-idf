@@ -141,7 +141,7 @@ extern void esp_panic_handler_feed_wdts(void);
 #endif // CONFIG_BT_LE_CONTROLLER_LOG_ENABLED
 extern int ble_controller_deinit(void);
 extern int ble_controller_enable(uint8_t mode);
-extern int ble_controller_disable(void);
+extern void ble_controller_disable(void);
 extern int esp_register_ext_funcs (struct ext_funcs_t *);
 extern void esp_unregister_ext_funcs (void);
 extern int esp_ble_ll_set_public_addr(const uint8_t *addr);
@@ -1077,9 +1077,9 @@ esp_err_t esp_bt_controller_disable(void)
         ESP_LOGW(NIMBLE_PORT_LOG_TAG, "invalid controller state");
         return ESP_FAIL;
     }
-    if (ble_controller_disable() != 0) {
-        return ESP_FAIL;
-    }
+    ble_controller_status = ESP_BT_CONTROLLER_STATUS_INITED;
+
+    ble_controller_disable();
     ble_stack_disable();
     if (s_ble_active) {
         esp_phy_disable(PHY_MODEM_BT);
@@ -1091,7 +1091,6 @@ esp_err_t esp_bt_controller_disable(void)
 #if CONFIG_SW_COEXIST_ENABLE
     coex_disable();
 #endif
-    ble_controller_status = ESP_BT_CONTROLLER_STATUS_INITED;
     return ESP_OK;
 }
 
@@ -1157,15 +1156,15 @@ esp_err_t esp_bt_mem_release(esp_bt_mode_t mode)
 {
     esp_err_t ret = ESP_OK;
 
-#if CONFIG_BT_RELEASE_IRAM && CONFIG_ESP_SYSTEM_PMP_IDRAM_SPLIT
+#if CONFIG_BT_RELEASE_IRAM && CONFIG_ESP_SYSTEM_MEMPROT
     /* Release Bluetooth text section and merge Bluetooth data, bss & text into a large free heap
      * region when esp_bt_mem_release is called, total saving ~21kB or more of IRAM. ESP32-C2 has
      * only 3 configurable PMP entries available, rest of them are hard-coded. We cannot split the
-     * memory into 3 different regions (IRAM, BLE-IRAM, DRAM). So `ESP_SYSTEM_PMP_IDRAM_SPLIT` needs
+     * memory into 3 different regions (IRAM, BLE-IRAM, DRAM). So `ESP_SYSTEM_MEMPROT` needs
      * to be disabled.
      */
-    #error "ESP_SYSTEM_PMP_IDRAM_SPLIT should be disabled to allow BT to be released"
-#endif // CONFIG_BT_RELEASE_IRAM && CONFIG_ESP_SYSTEM_PMP_IDRAM_SPLIT
+    #error "ESP_SYSTEM_MEMPROT should be disabled to allow BT to be released"
+#endif // CONFIG_BT_RELEASE_IRAM && CONFIG_ESP_SYSTEM_MEMPROT
 
     if (ble_controller_status != ESP_BT_CONTROLLER_STATUS_IDLE) {
         return ESP_ERR_INVALID_STATE;
@@ -1574,3 +1573,10 @@ int ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv)
 
 #endif // CONFIG_BT_LE_SM_LEGACY || CONFIG_BT_LE_SM_SC
 #endif // (!CONFIG_BT_NIMBLE_ENABLED) && (CONFIG_BT_CONTROLLER_ENABLED)
+
+#if CONFIG_BT_LE_MEM_CHECK_ENABLED
+void ble_memory_count_limit_set(uint16_t count_limit)
+{
+    bt_osi_mem_count_limit_set(count_limit);
+}
+#endif // CONFIG_BT_LE_MEM_CHECK_ENABLED

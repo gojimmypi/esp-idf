@@ -29,6 +29,12 @@
 #include "soc/dport_reg.h"
 #endif
 
+#if SOC_PERIPH_CLK_CTRL_SHARED
+#define SPI_COMMON_PERI_CLOCK_ATOMIC() PERIPH_RCC_ATOMIC()
+#else
+#define SPI_COMMON_PERI_CLOCK_ATOMIC()
+#endif
+
 #if CONFIG_SPI_MASTER_ISR_IN_IRAM || CONFIG_SPI_SLAVE_ISR_IN_IRAM
 #define SPI_COMMON_ISR_ATTR IRAM_ATTR
 #else
@@ -87,6 +93,9 @@ esp_err_t spicommon_bus_alloc(spi_host_device_t host_id, const char *name)
         spicommon_periph_free(host_id);
         return ESP_ERR_NO_MEM;
     }
+    SPI_COMMON_PERI_CLOCK_ATOMIC() {
+        spi_ll_enable_clock(host_id, true);
+    }
     ctx->host_id = host_id;
     bus_ctx[host_id] = ctx;
     return ESP_OK;
@@ -96,6 +105,9 @@ esp_err_t spicommon_bus_free(spi_host_device_t host_id)
 {
     assert(bus_ctx[host_id]);
     spicommon_periph_free(host_id);
+    SPI_COMMON_PERI_CLOCK_ATOMIC() {
+        spi_ll_enable_clock(host_id, false);
+    }
     free(bus_ctx[host_id]);
     bus_ctx[host_id] = NULL;
     return ESP_OK;
@@ -515,6 +527,7 @@ static void bus_iomux_pins_set_quad(spi_host_device_t host, const spi_bus_config
 // check if the GPIO is already used by others
 static void s_spi_common_gpio_check_reserve(gpio_num_t gpio_num)
 {
+    assert(GPIO_IS_VALID_GPIO(gpio_num));  //coverity check
     uint64_t orig_occupied_map = esp_gpio_reserve(BIT64(gpio_num));
     if (orig_occupied_map & BIT64(gpio_num)) {
         ESP_LOGW(SPI_TAG, "GPIO %d is conflict with others and be overwritten", gpio_num);
@@ -523,6 +536,7 @@ static void s_spi_common_gpio_check_reserve(gpio_num_t gpio_num)
 
 static void s_spi_common_bus_via_gpio(gpio_num_t gpio_num, int in_sig, int out_sig, uint64_t *io_mask)
 {
+    assert(GPIO_IS_VALID_GPIO(gpio_num));  //coverity check
     if (in_sig != -1) {
         gpio_input_enable(gpio_num);
         esp_rom_gpio_connect_in_signal(gpio_num, in_sig, false);
@@ -807,6 +821,7 @@ esp_err_t spi_bus_initialize(spi_host_device_t host_id, const spi_bus_config_t *
     ESP_RETURN_ON_ERROR(spicommon_bus_alloc(host_id, "spi master"), SPI_TAG, "alloc host failed");
     spi_bus_attr_t *bus_attr = (spi_bus_attr_t *)spi_bus_get_attr(host_id);
     spicommon_bus_context_t *ctx = __containerof(bus_attr, spicommon_bus_context_t, bus_attr);
+    assert(bus_attr && ctx);  //coverity check
     bus_attr->bus_cfg = *bus_config;
 
     if (dma_chan != SPI_DMA_DISABLED) {

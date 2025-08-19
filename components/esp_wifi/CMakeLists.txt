@@ -60,7 +60,7 @@ idf_component_register(SRCS "${srcs}"
                     INCLUDE_DIRS "include" "include/local" "wifi_apps/include" "wifi_apps/nan_app/include"
 
                     REQUIRES esp_event esp_phy esp_netif
-                    PRIV_REQUIRES esptool_py esp_pm esp_timer nvs_flash
+                    PRIV_REQUIRES esp_pm esp_timer nvs_flash
                                   wpa_supplicant hal lwip esp_coex
                     PRIV_INCLUDE_DIRS ../wpa_supplicant/src/ ../wpa_supplicant/esp_supplicant/src/
                                   wifi_apps/roaming_app/include
@@ -96,6 +96,12 @@ if(CONFIG_ESP_WIFI_ENABLED OR CONFIG_ESP_HOST_WIFI_ENABLED)
             set_property(TARGET ${blob} APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${blob_reqs})
             target_link_libraries(${COMPONENT_LIB} PUBLIC ${blob})
         endforeach()
+    endif()
+    # TODO IDF-13365: remove the following lines
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU")
+        set_source_files_properties(regulatory/esp_wifi_regulatory.c
+                                    PROPERTIES COMPILE_FLAGS
+                                    -Wno-unterminated-string-initialization)
     endif()
 endif()
 

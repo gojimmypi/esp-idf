@@ -11,8 +11,7 @@ endif()
 
 set(requires soc)
 # only esp_hw_support/adc_share_hw_ctrl.c requires efuse component
-# TODO: remove esp_security from REQUIRES in ESP-IDF v6.0 (see IDF-10733)
-set(priv_requires efuse spi_flash bootloader_support esp_security)
+set(priv_requires efuse spi_flash bootloader_support)
 
 if(${target} STREQUAL "esp32c6")
     list(APPEND priv_requires hal)
@@ -30,13 +29,16 @@ if(NOT non_os_build)
                      "rtc_module.c"
                      "regi2c_ctrl.c"
                      "esp_gpio_reserve.c"
-                     "sar_periph_ctrl_common.c"
+                     "sar_tsens_ctrl.c"
                      "port/${target}/io_mux.c"
                      "port/${target}/esp_clk_tree.c"
                      "dma/esp_dma_utils.c"
                      "dma/gdma_link.c"
                      "spi_bus_lock.c"
                      "clk_utils.c")
+    if(CONFIG_SOC_USB_OTG_SUPPORTED)
+        list(APPEND srcs "usb_phy/usb_phy.c")
+    endif()
     if(CONFIG_SOC_CLK_TREE_SUPPORTED)
         list(APPEND srcs "port/esp_clk_tree_common.c")
     endif()
@@ -77,7 +79,7 @@ if(NOT non_os_build)
     endif()
 
     if(CONFIG_SOC_GDMA_SUPPORTED)
-        list(APPEND srcs "dma/gdma.c" "deprecated/gdma_legacy.c")
+        list(APPEND srcs "dma/gdma.c")
         if(CONFIG_SOC_GDMA_SUPPORT_SLEEP_RETENTION AND CONFIG_SOC_PAU_SUPPORTED)
             list(APPEND srcs "dma/gdma_sleep_retention.c")
         endif()
@@ -172,10 +174,16 @@ else()
     list(APPEND priv_requires "esp_system")
 endif()
 
-set(public_include_dirs "include" "include/soc" "include/soc/${target}"
+set(public_include_dirs "include" "include/soc"
                         "dma/include" "ldo/include" "debug_probe/include"
                         "mspi_timing_tuning/include" "mspi_timing_tuning/tuning_scheme_impl/include"
                         "power_supply/include")
+
+if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/include/soc/${target}")
+    list(APPEND public_include_dirs
+        "include/soc/${target}"
+    )
+endif()
 
 if(CONFIG_IDF_TARGET_ESP32H4)
     list(REMOVE_ITEM srcs

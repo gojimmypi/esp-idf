@@ -315,6 +315,10 @@ config SOC_SHARED_IDCACHE_SUPPORTED
     bool
     default y
 
+config SOC_CACHE_FREEZE_SUPPORTED
+    bool
+    default y
+
 config SOC_CACHE_MEMORY_IBANK_SIZE
     hex
     default 0x4000
@@ -615,7 +619,7 @@ config SOC_RMT_SUPPORT_RX_DEMODULATION
     bool
     default y
 
-config SOC_RMT_SUPPORT_TX_ASYNC_STOP
+config SOC_RMT_SUPPORT_ASYNC_STOP
     bool
     default y
 
@@ -700,18 +704,6 @@ config SOC_SHA_SUPPORT_SHA224
     default y
 
 config SOC_SHA_SUPPORT_SHA256
-    bool
-    default y
-
-config SOC_SDM_GROUPS
-    int
-    default 1
-
-config SOC_SDM_CHANNELS_PER_GROUP
-    int
-    default 4
-
-config SOC_SDM_CLK_SUPPORT_APB
     bool
     default y
 
@@ -858,30 +850,6 @@ config SOC_SYSTIMER_INT_LEVEL
 config SOC_SYSTIMER_ALARM_MISS_COMPENSATE
     bool
     default y
-
-config SOC_TIMER_GROUPS
-    int
-    default 2
-
-config SOC_TIMER_GROUP_TIMERS_PER_GROUP
-    int
-    default 1
-
-config SOC_TIMER_GROUP_COUNTER_BIT_WIDTH
-    int
-    default 54
-
-config SOC_TIMER_GROUP_SUPPORT_XTAL
-    bool
-    default y
-
-config SOC_TIMER_GROUP_SUPPORT_APB
-    bool
-    default y
-
-config SOC_TIMER_GROUP_TOTAL_TIMERS
-    int
-    default 2
 
 config SOC_LP_TIMER_BIT_WIDTH_LO
     int

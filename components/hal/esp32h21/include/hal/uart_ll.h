@@ -28,6 +28,8 @@ extern "C" {
 #define UART_LL_FIFO_DEF_LEN  (SOC_UART_FIFO_LEN)
 // Get UART hardware instance with giving uart num
 #define UART_LL_GET_HW(num) (((num) == UART_NUM_0) ? (&UART0) : (&UART1))
+// Get UART sleep clock with giving uart num
+#define UART_LL_SLEEP_CLOCK(num) (((num) == UART_NUM_0) ? (ESP_SLEEP_CLOCK_UART0) : (ESP_SLEEP_CLOCK_UART1))
 
 #define UART_LL_PULSE_TICK_CNT_MAX          UART_LOWPULSE_MIN_CNT_V
 
@@ -244,7 +246,7 @@ FORCE_INLINE_ATTR void uart_ll_get_sclk(uart_dev_t *hw, soc_module_clk_t *source
  *
  * @return True if baud-rate set successfully; False if baud-rate requested cannot be achieved
  */
-FORCE_INLINE_ATTR bool uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud, uint32_t sclk_freq)
+FORCE_INLINE_ATTR bool _uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud, uint32_t sclk_freq)
 {
 #define DIV_UP(a, b)    (((a) + (b) - 1) / (b))
     if (baud == 0) {
@@ -266,6 +268,8 @@ FORCE_INLINE_ATTR bool uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud, uint3
     uart_ll_update(hw);
     return true;
 }
+
+#define uart_ll_set_baudrate(...) _uart_ll_set_baudrate(__VA_ARGS__)
 
 /**
  * @brief  Get the current baud-rate.

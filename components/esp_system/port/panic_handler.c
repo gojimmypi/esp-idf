@@ -24,14 +24,6 @@
 #include "sdkconfig.h"
 #include "esp_rom_sys.h"
 
-#if CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
-#ifdef CONFIG_IDF_TARGET_ESP32S2
-#include "esp32s2/memprot.h"
-#else
-#include "esp_memprot.h"
-#endif
-#endif
-
 #include "esp_private/panic_internal.h"
 #include "esp_private/panic_reason.h"
 
@@ -287,6 +279,7 @@ static void IRAM_ATTR panic_enable_cache(void)
 }
 #endif
 
+// This function must always be in IRAM as it is required to re-enable the flash cache.
 void IRAM_ATTR panicHandler(void *frame)
 {
 #if !CONFIG_APP_BUILD_TYPE_PURE_RAM_APP
@@ -299,6 +292,7 @@ void IRAM_ATTR panicHandler(void *frame)
     panic_handler(frame, true);
 }
 
+// This function must always be in IRAM as it is required to re-enable the flash cache.
 void IRAM_ATTR xt_unhandled_exception(void *frame)
 {
 #if !CONFIG_APP_BUILD_TYPE_PURE_RAM_APP

@@ -227,6 +227,10 @@ config SOC_SHARED_IDCACHE_SUPPORTED
     bool
     default y
 
+config SOC_CACHE_FREEZE_SUPPORTED
+    bool
+    default y
+
 config SOC_CPU_CORES_NUM
     int
     default 1
@@ -598,26 +602,6 @@ config SOC_SYSTIMER_INT_LEVEL
 config SOC_SYSTIMER_ALARM_MISS_COMPENSATE
     bool
     default y
-
-config SOC_TIMER_GROUPS
-    int
-    default 1
-
-config SOC_TIMER_GROUP_TIMERS_PER_GROUP
-    int
-    default 1
-
-config SOC_TIMER_GROUP_COUNTER_BIT_WIDTH
-    int
-    default 54
-
-config SOC_TIMER_GROUP_SUPPORT_XTAL
-    bool
-    default y
-
-config SOC_TIMER_GROUP_TOTAL_TIMERS
-    int
-    default 1
 
 config SOC_LP_TIMER_BIT_WIDTH_LO
     int

@@ -6,8 +6,8 @@
 
 /*******************************************************************************
  * NOTICE
- * The LL layer for SPI register operations
- * Not public api, don't use in application code.
+ * The LL layer for ESP32H21 SPI register operations
+ * It is NOT public api, don't use in application code.
  ******************************************************************************/
 
 #pragma once
@@ -20,7 +20,6 @@
 #include "soc/spi_struct.h"
 #include "soc/chip_revision.h"
 #include "soc/pcr_struct.h"
-#include "soc/lldesc.h"
 #include "hal/assert.h"
 #include "hal/misc.h"
 #include "hal/efuse_hal.h"
@@ -162,11 +161,13 @@ static inline void spi_ll_master_init(spi_dev_t *hw)
     hw->user.usr_miso_highpart = 0;
     hw->user.usr_mosi_highpart = 0;
 
+    //Disable unused error_end condition
+    hw->user1.mst_wfull_err_end_en = 0;
+    hw->user2.mst_rempty_err_end_en = 0;
+
     //Disable unneeded ints
     hw->slave.val = 0;
     hw->user.val = 0;
-
-    PCR.spi2_clkm_conf.spi2_clkm_sel = 0;
 
     hw->dma_conf.val = 0;
     hw->dma_conf.slv_tx_seg_trans_clr_en = 1;

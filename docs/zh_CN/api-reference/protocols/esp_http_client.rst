@@ -44,6 +44,21 @@ HTTP 基本请求
         .use_secure_element = true,
     };
 
+为 TLS 使用 ECDSA 外设
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ECDSA 外设可用于 HTTP 客户端连接中的底层 TLS 连接。详细内容请参考 :doc:`ESP-TLS 文档 </api-reference/protocols/esp_tls>` 中的 **ECDSA 外设与 ESP-TLS** 小节。可以按如下方式配置 HTTP 客户端以使用 ECDSA 外设：
+
+.. code-block:: c
+
+    esp_http_client_config_t cfg = {
+        /* other configurations options */
+        .use_ecdsa_peripheral = true,
+        .ecdsa_key_efuse_blk = 4,    // ECDSA 密钥的低 eFuse 块
+        .ecdsa_key_efuse_blk_high = 5,   // ECDSA 密钥的高 eFuse 块（仅 SECP384R1）
+        .ecdsa_curve = ESP_TLS_ECDSA_CURVE_SECP384R1, // 设置为 ESP_TLS_ECDSA_CURVE_SECP256R1 以使用 SECP256R1 曲线
+    };
+
 
 HTTPS 请求
 -----------
@@ -126,14 +141,16 @@ ESP HTTP 客户端诊断信息
 
 事件循环中不同 HTTP 客户端事件的预期数据类型如下所示：
 
-    - HTTP_EVENT_ERROR            :   ``esp_http_client_handle_t``
-    - HTTP_EVENT_ON_CONNECTED     :   ``esp_http_client_handle_t``
-    - HTTP_EVENT_HEADERS_SENT     :   ``esp_http_client_handle_t``
-    - HTTP_EVENT_ON_HEADER        :   ``esp_http_client_handle_t``
-    - HTTP_EVENT_ON_DATA          :   ``esp_http_client_on_data_t``
-    - HTTP_EVENT_ON_FINISH        :   ``esp_http_client_handle_t``
-    - HTTP_EVENT_DISCONNECTED     :   ``esp_http_client_handle_t``
-    - HTTP_EVENT_REDIRECT         :   ``esp_http_client_redirect_event_data_t``
+    - HTTP_EVENT_ERROR              :   ``esp_http_client_handle_t``
+    - HTTP_EVENT_ON_CONNECTED       :   ``esp_http_client_handle_t``
+    - HTTP_EVENT_HEADERS_SENT       :   ``esp_http_client_handle_t``
+    - HTTP_EVENT_ON_HEADER          :   ``esp_http_client_handle_t``
+    - HTTP_EVENT_ON_HEADERS_COMPLETE:   ``esp_http_client_handle_t``
+    - HTTP_EVENT_ON_STATUS_CODE     :   ``esp_http_client_handle_t``
+    - HTTP_EVENT_ON_DATA            :   ``esp_http_client_on_data_t``
+    - HTTP_EVENT_ON_FINISH          :   ``esp_http_client_handle_t``
+    - HTTP_EVENT_DISCONNECTED       :   ``esp_http_client_handle_t``
+    - HTTP_EVENT_REDIRECT           :   ``esp_http_client_redirect_event_data_t``
 
 在无法接收到 :cpp:enumerator:`HTTP_EVENT_DISCONNECTED <esp_http_client_event_id_t::HTTP_EVENT_DISCONNECTED>` 之前，与事件数据一起接收到的 :cpp:type:`esp_http_client_handle_t` 将始终有效。这个句柄主要是为了区分不同的客户端连接，无法用于其他目的，因为它可能会随着客户端连接状态的变化而改变。
 

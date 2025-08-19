@@ -10,9 +10,11 @@
 #include "esp_private/system_internal.h"
 #include "esp_attr.h"
 #include "esp_log.h"
+#include "esp_macros.h"
 #include "esp_rom_sys.h"
 #include "riscv/rv_utils.h"
-#include "esp_rom_uart.h"
+#include "esp_rom_serial_output.h"
+#include "soc/soc_caps.h"
 #include "soc/gpio_reg.h"
 #include "esp_cpu.h"
 #include "soc/rtc.h"
@@ -20,11 +22,12 @@
 #include "soc/rtc_periph.h"
 #include "soc/uart_reg.h"
 #include "hal/wdt_hal.h"
+#include "hal/uart_ll.h"
 
 #include "esp32h4/rom/cache.h"
 // TODO: IDF-11911 need refactor
 
-void IRAM_ATTR esp_system_reset_modules_on_exit(void)
+void esp_system_reset_modules_on_exit(void)
 {
     // Flush any data left in UART FIFOs before reset the UART peripheral
     for (int i = 0; i < SOC_UART_HP_NUM; ++i) {
@@ -69,13 +72,17 @@ void IRAM_ATTR esp_system_reset_modules_on_exit(void)
     CLEAR_PERI_REG_MASK(PCR_HMAC_CONF_REG, PCR_HMAC_RST_EN);
     SET_PERI_REG_MASK(PCR_SHA_CONF_REG, PCR_SHA_RST_EN);
     CLEAR_PERI_REG_MASK(PCR_SHA_CONF_REG, PCR_SHA_RST_EN);
+
+    // UART's sclk is controlled in the PCR register and does not reset with the UART module. The ROM missed enabling
+    // it when initializing the ROM UART. If it is not turned on, it will trigger LP_WDT in the ROM.
+    uart_ll_sclk_enable(&UART0);
 }
 
 /* "inner" restart function for after RTOS, interrupts & anything else on this
  * core are already stopped. Stalls other core, resets hardware,
  * triggers restart.
 */
-void IRAM_ATTR esp_restart_noos(void)
+void esp_restart_noos(void)
 {
     // Disable interrupts
     rv_utils_intr_global_disable();
@@ -135,7 +142,5 @@ void IRAM_ATTR esp_restart_noos(void)
         esp_cpu_reset(1);
     }
 #endif
-    while (true) {
-        ;
-    }
+    ESP_INFINITE_LOOP();
 }

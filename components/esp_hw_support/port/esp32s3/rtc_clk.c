@@ -34,7 +34,7 @@ static uint32_t s_cur_pll_freq;
 static uint32_t s_apb_freq;
 
 void rtc_clk_cpu_freq_to_xtal(int freq, int div);
-static void rtc_clk_cpu_freq_to_8m(void);
+static void rtc_clk_cpu_freq_to_rc_fast(void);
 
 extern uint32_t g_dig_dbias_pvt_240m;
 extern uint32_t g_rtc_dbias_pvt_240m;
@@ -124,12 +124,12 @@ bool rtc_clk_8md256_enabled(void)
 void rtc_clk_slow_src_set(soc_rtc_slow_clk_src_t clk_src)
 {
 #ifndef BOOTLOADER_BUILD
-    soc_rtc_slow_clk_src_t clk_src_before_switch = clk_ll_rtc_slow_get_src();
     // Keep the RTC8M_CLK on in sleep if RTC clock is rc_fast_d256.
-    if (clk_src == SOC_RTC_SLOW_CLK_SRC_RC_FAST_D256 && clk_src_before_switch != SOC_RTC_SLOW_CLK_SRC_RC_FAST_D256) {       // Switch to RC_FAST_D256
+    if ((clk_src == SOC_RTC_SLOW_CLK_SRC_RC_FAST_D256) && (esp_sleep_sub_mode_dump_config(NULL)[ESP_SLEEP_RTC_USE_RC_FAST_MODE] == 0)) { // Switch to RC_FAST_D256
         esp_sleep_sub_mode_config(ESP_SLEEP_RTC_USE_RC_FAST_MODE, true);
-    } else if (clk_src != SOC_RTC_SLOW_CLK_SRC_RC_FAST_D256 && clk_src_before_switch == SOC_RTC_SLOW_CLK_SRC_RC_FAST_D256) { // Switch away from RC_FAST_D256
-        esp_sleep_sub_mode_config(ESP_SLEEP_RTC_USE_RC_FAST_MODE, false);
+    } else if (clk_src != SOC_RTC_SLOW_CLK_SRC_RC_FAST_D256) {
+        // This is the only user of ESP_SLEEP_RTC_USE_RC_FAST_MODE submode, so force disable it.
+        esp_sleep_sub_mode_force_disable(ESP_SLEEP_RTC_USE_RC_FAST_MODE);
     }
 #endif
 
@@ -308,7 +308,7 @@ void rtc_clk_cpu_freq_set_config(const rtc_cpu_freq_config_t *config)
         }
         rtc_clk_cpu_freq_to_pll_mhz(config->freq_mhz);
     } else if (config->source == SOC_CPU_CLK_SRC_RC_FAST) {
-        rtc_clk_cpu_freq_to_8m();
+        rtc_clk_cpu_freq_to_rc_fast();
         if ((old_cpu_clk_src == SOC_CPU_CLK_SRC_PLL) && !s_bbpll_digi_consumers_ref_count) {
             // We don't turn off the bbpll if some consumers depend on bbpll
             rtc_clk_bbpll_disable();
@@ -421,7 +421,7 @@ void rtc_clk_cpu_freq_to_xtal(int cpu_freq, int div)
     REG_SET_FIELD(RTC_CNTL_DATE_REG, RTC_CNTL_SLAVE_PD,  DEFAULT_LDO_SLAVE);
 }
 
-static void rtc_clk_cpu_freq_to_8m(void)
+static void rtc_clk_cpu_freq_to_rc_fast(void)
 {
     assert(0 && "LDO dbias need to modified");
     esp_rom_set_cpu_ticks_per_us(20);

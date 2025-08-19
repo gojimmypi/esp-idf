@@ -10,7 +10,7 @@
 #include "esp_image_format.h"
 #include "flash_qio_mode.h"
 #include "esp_rom_gpio.h"
-#include "esp_rom_uart.h"
+#include "esp_rom_serial_output.h"
 #include "esp_rom_sys.h"
 #include "esp_rom_spiflash.h"
 #include "soc/gpio_sig_map.h"
@@ -90,7 +90,6 @@ static inline void bootloader_hardware_init(void)
     SET_PERI_REG_MASK(PMU_RF_PWC_REG, PMU_XPD_FORCE_RFPLL);
 
     _regi2c_ctrl_ll_master_enable_clock(true); // keep ana i2c mst clock always enabled in bootloader
-    regi2c_ctrl_ll_master_force_enable_clock(true); // TODO: IDF-11548 Remove this?
     regi2c_ctrl_ll_master_configure_clock();
 }
 

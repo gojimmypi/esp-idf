@@ -10,7 +10,6 @@
 #include "soc/rtc_periph.h"
 #include "esp32h4/rom/rtc.h"
 
-// TODO: [ESP32H4] IDF-12307 inherited from verification branch, need check
 // IDF-11910 need refactor
 
 static void esp_reset_reason_clear_hint(void);
@@ -53,9 +52,18 @@ static esp_reset_reason_t get_reset_reason(soc_reset_reason_t rtc_reset_reason, 
     case RESET_REASON_SYS_BROWN_OUT:
         return ESP_RST_BROWNOUT;
 
+    case RESET_REASON_CORE_PWR_GLITCH:
+        return ESP_RST_PWR_GLITCH;
+
+    case RESET_REASON_CORE_EFUSE_CRC:
+        return ESP_RST_EFUSE;
+
     case RESET_REASON_CORE_USB_UART:
     case RESET_REASON_CORE_USB_JTAG:
         return ESP_RST_USB;
+
+    case RESET_REASON_CPU_LOCKUP:
+        return ESP_RST_CPU_LOCKUP;
 
     default:
         return ESP_RST_UNKNOWN;
@@ -93,7 +101,7 @@ esp_reset_reason_t esp_reset_reason(void)
 #define RST_REASON_SHIFT 16
 
 /* in IRAM, can be called from panic handler */
-void IRAM_ATTR esp_reset_reason_set_hint(esp_reset_reason_t hint)
+void esp_reset_reason_set_hint(esp_reset_reason_t hint)
 {
     assert((hint & (~RST_REASON_MASK)) == 0);
     uint32_t val = hint | (hint << RST_REASON_SHIFT) | RST_REASON_BIT;

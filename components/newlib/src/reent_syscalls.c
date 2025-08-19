@@ -13,8 +13,9 @@
 #include <errno.h>
 #include <reent.h>
 #include <sys/fcntl.h>
+#include <sys/stat.h>
 #include "sdkconfig.h"
-#include "esp_rom_uart.h"
+#include "esp_rom_serial_output.h"
 #include "esp_system_console.h"
 
 static int syscall_not_implemented(struct _reent *r, ...)

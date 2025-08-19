@@ -130,7 +130,7 @@ idf.py
 设置 Python 解释器
 ------------------
 
-ESP-IDF 适用于 Python 3.9 以上版本。
+ESP-IDF 适用于 Python 3.10 以上版本。
 
 ``idf.py`` 和其他的 Python 脚本会使用默认的 Python 解释器运行，如 ``python``。你可以通过 ``python3 $IDF_PATH/tools/idf.py ...`` 命令切换到别的 Python 解释器，或者通过设置 shell 别名或其他脚本来简化该命令。
 
@@ -343,7 +343,7 @@ ESP-IDF 在搜索所有待构建的组件时，会按照以下优先级搜索组
 
 上述目录通常设置为相对于 ``CMakeLists.txt`` 文件的相对路径，当然也可以设置为绝对路径。
 
-还有其它参数可以传递给 ``idf_component_register``，具体可参考 :ref:`here<cmake-component-register>`。
+还有其它参数可以传递给 ``idf_component_register``，具体可参考 :ref:`这里<cmake-component-register>`。
 
 有关更完整的 ``CMakeLists.txt`` 示例，请参阅 `组件依赖示例`_ 和 `组件 CMakeLists 示例`_。
 

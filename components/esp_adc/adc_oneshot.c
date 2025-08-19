@@ -20,6 +20,7 @@
 #include "esp_private/gpio.h"
 #include "esp_adc/adc_oneshot.h"
 #include "esp_clk_tree.h"
+#include "esp_sleep.h"
 #include "esp_private/adc_private.h"
 #include "esp_private/adc_share_hw_ctrl.h"
 #include "esp_private/regi2c_ctrl.h"
@@ -143,15 +144,15 @@ esp_err_t adc_oneshot_new_unit(const adc_oneshot_unit_init_cfg_t *init_config, a
 
     adc_oneshot_hal_init(&(unit->hal), &config);
 
-#if SOC_ADC_DIG_CTRL_SUPPORTED && !SOC_ADC_RTC_CTRL_SUPPORTED
-    //To enable the APB_SARADC periph if needed
-    _lock_acquire(&s_ctx.mutex);
-    s_ctx.apb_periph_ref_cnts++;
-    if (s_ctx.apb_periph_ref_cnts == 1) {
-        adc_apb_periph_claim();
+    if (ADC_LL_NEED_APB_PERIPH_CLAIM(unit->unit_id)) {
+        //To enable the APB_SARADC periph if needed
+        _lock_acquire(&s_ctx.mutex);
+        s_ctx.apb_periph_ref_cnts++;
+        if (s_ctx.apb_periph_ref_cnts == 1) {
+            adc_apb_periph_claim();
+        }
+        _lock_release(&s_ctx.mutex);
     }
-    _lock_release(&s_ctx.mutex);
-#endif
 
     if (init_config->ulp_mode == ADC_ULP_MODE_DISABLE) {
         sar_periph_ctrl_adc_oneshot_power_acquire();
@@ -163,9 +164,23 @@ esp_err_t adc_oneshot_new_unit(const adc_oneshot_unit_init_cfg_t *init_config, a
         esp_sleep_sub_mode_config(ESP_SLEEP_USE_ADC_TSEN_MONITOR_MODE, true);
 #endif
     }
+#if CONFIG_IDF_TARGET_ESP32
+    // SAR will be used in monitor state, forcibly disable analog lowpower mode to keep system functionality.
+    esp_sleep_sub_mode_force_disable(ESP_SLEEP_ANALOG_LOW_POWER_MODE);
+#endif
 
     ESP_LOGD(TAG, "new adc unit%"PRId32" is created", unit->unit_id);
     *ret_unit = unit;
+
+#if CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP
+    //TODO: IDF-8475: Depends to SLEEP_RETENTION_MODULE_CLOCK_MODEM retention module after ADC retention supported.
+#if SOC_PM_SUPPORT_MODEM_PD
+    ESP_ERROR_CHECK(esp_sleep_pd_config(ESP_PD_DOMAIN_MODEM, ESP_PD_OPTION_ON));
+    ESP_ERROR_CHECK(esp_sleep_pd_config(ESP_PD_DOMAIN_TOP, ESP_PD_OPTION_ON));
+#endif
+#elif ADC_LL_ADC_FE_ON_MODEM_DOMAIN
+    ESP_ERROR_CHECK(esp_sleep_pd_config(ESP_PD_DOMAIN_MODEM, ESP_PD_OPTION_ON));
+#endif
     return ESP_OK;
 
 err:
@@ -286,19 +301,29 @@ esp_err_t adc_oneshot_del_unit(adc_oneshot_unit_handle_t handle)
 #endif
         ESP_ERROR_CHECK(esp_clk_tree_enable_src((soc_module_clk_t)(handle->hal.clk_src), false));
     }
+
+    if (ADC_LL_NEED_APB_PERIPH_CLAIM(handle->unit_id)) {
+        //To free the APB_SARADC periph if needed
+        _lock_acquire(&s_ctx.mutex);
+        s_ctx.apb_periph_ref_cnts--;
+        assert(s_ctx.apb_periph_ref_cnts >= 0);
+        if (s_ctx.apb_periph_ref_cnts == 0) {
+            adc_apb_periph_free();
+        }
+        _lock_release(&s_ctx.mutex);
+    }
+
     free(handle);
 
-#if SOC_ADC_DIG_CTRL_SUPPORTED && !SOC_ADC_RTC_CTRL_SUPPORTED
-    //To free the APB_SARADC periph if needed
-    _lock_acquire(&s_ctx.mutex);
-    s_ctx.apb_periph_ref_cnts--;
-    assert(s_ctx.apb_periph_ref_cnts >= 0);
-    if (s_ctx.apb_periph_ref_cnts == 0) {
-        adc_apb_periph_free();
-    }
-    _lock_release(&s_ctx.mutex);
+#if CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP
+    //TODO: IDF-8475: Depends to SLEEP_RETENTION_MODULE_CLOCK_MODEM retention module after ADC retention supported.
+#if SOC_PM_SUPPORT_MODEM_PD
+    esp_sleep_pd_config(ESP_PD_DOMAIN_MODEM, ESP_PD_OPTION_OFF);
+    esp_sleep_pd_config(ESP_PD_DOMAIN_TOP, ESP_PD_OPTION_OFF);
 #endif
-
+#elif ADC_LL_ADC_FE_ON_MODEM_DOMAIN
+    esp_sleep_pd_config(ESP_PD_DOMAIN_MODEM, ESP_PD_OPTION_OFF);
+#endif
     return ESP_OK;
 }
 

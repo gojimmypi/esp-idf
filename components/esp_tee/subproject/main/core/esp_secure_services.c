@@ -193,10 +193,22 @@ void _ss_esp_sha_block(esp_sha_type sha_type, const void *data_block, bool is_fi
     esp_sha_block(sha_type, data_block, is_first_block);
 }
 
+void _ss_esp_sha_set_mode(esp_sha_type sha_type)
+{
+    esp_sha_set_mode(sha_type);
+}
+
 void _ss_esp_crypto_sha_enable_periph_clk(bool enable)
 {
     esp_crypto_sha_enable_periph_clk(enable);
 }
+
+#if SOC_SHA_SUPPORT_SHA512_T
+int _ss_esp_sha_512_t_init_hash(uint16_t t)
+{
+    return esp_sha_512_t_init_hash(t);
+}
+#endif
 
 /* ---------------------------------------------- HMAC ------------------------------------------------- */
 

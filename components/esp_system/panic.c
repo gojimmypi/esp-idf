@@ -192,12 +192,12 @@ void esp_panic_handler_disable_timg_wdts(void)
     wdt_hal_disable(&wdt0_context);
     wdt_hal_write_protect_enable(&wdt0_context);
 
-#if SOC_TIMER_GROUPS >= 2
+#if SOC_MODULE_ATTR(TIMG, INST_NUM) >= 2
     wdt_hal_context_t wdt1_context = {.inst = WDT_MWDT1, .mwdt_dev = &TIMERG1};
     wdt_hal_write_protect_disable(&wdt1_context);
     wdt_hal_disable(&wdt1_context);
     wdt_hal_write_protect_enable(&wdt1_context);
-#endif /* SOC_TIMER_GROUPS >= 2 */
+#endif /* SOC_MODULE_ATTR(TIMG, INST_NUM) >= 2 */
 }
 
 /* This function enables the RTC WDT with the given timeout in milliseconds */
@@ -232,7 +232,7 @@ void esp_panic_handler_feed_wdts(void)
         wdt_hal_write_protect_enable(&wdt0_context);
     }
 
-#if SOC_TIMER_GROUPS >= 2
+#if SOC_MODULE_ATTR(TIMG, INST_NUM) >= 2
     // Feed Timer Group 1 WDT
     wdt_hal_context_t wdt1_context = {.inst = WDT_MWDT1, .mwdt_dev = &TIMERG1};
     if (wdt_hal_is_enabled(&wdt1_context)) {
@@ -240,7 +240,7 @@ void esp_panic_handler_feed_wdts(void)
         wdt_hal_feed(&wdt1_context);
         wdt_hal_write_protect_enable(&wdt1_context);
     }
-#endif /* SOC_TIMER_GROUPS >= 2 */
+#endif /* SOC_MODULE_ATTR(TIMG, INST_NUM) >= 2 */
 
     // Feed RTC WDT
     if (wdt_hal_is_enabled(&rtc_wdt_ctx)) {
@@ -260,6 +260,14 @@ static inline void disable_all_wdts(void)
     wdt_hal_write_protect_disable(&rtc_wdt_ctx);
     wdt_hal_disable(&rtc_wdt_ctx);
     wdt_hal_write_protect_enable(&rtc_wdt_ctx);
+}
+
+/* IRAM-only halt stub: reset modules, then loop */
+void IRAM_ATTR esp_panic_handler_reset_modules_on_exit_and_halt(void)
+{
+    // Do not print or call non-IRAM functions beyond this point
+    esp_system_reset_modules_on_exit();
+    ESP_INFINITE_LOOP();
 }
 
 /********************** Panic handler functions **********************/
@@ -361,7 +369,7 @@ void esp_panic_handler(panic_info_t *info)
 #if CONFIG_APPTRACE_SV_ENABLE
         SEGGER_RTT_ESP_FlushNoLock(CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH, APPTRACE_ONPANIC_HOST_FLUSH_TMO);
 #else
-        esp_apptrace_flush_nolock(ESP_APPTRACE_DEST_TRAX, CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH,
+        esp_apptrace_flush_nolock(ESP_APPTRACE_DEST_JTAG, CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH,
                                   APPTRACE_ONPANIC_HOST_FLUSH_TMO);
 #endif
 #endif
@@ -401,7 +409,7 @@ void esp_panic_handler(panic_info_t *info)
 #if CONFIG_APPTRACE_SV_ENABLE
     SEGGER_RTT_ESP_FlushNoLock(CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH, APPTRACE_ONPANIC_HOST_FLUSH_TMO);
 #else
-    esp_apptrace_flush_nolock(ESP_APPTRACE_DEST_TRAX, CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH,
+    esp_apptrace_flush_nolock(ESP_APPTRACE_DEST_JTAG, CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH,
                               APPTRACE_ONPANIC_HOST_FLUSH_TMO);
 #endif
 #endif // CONFIG_APPTRACE_ENABLE
@@ -455,15 +463,15 @@ void esp_panic_handler(panic_info_t *info)
     panic_print_str("Rebooting...\r\n");
     panic_restart();
 #else /* CONFIG_ESP_SYSTEM_PANIC_PRINT_REBOOT || CONFIG_ESP_SYSTEM_PANIC_SILENT_REBOOT */
+    esp_panic_handler_feed_wdts();
     panic_print_str("CPU halted.\r\n");
-    esp_system_reset_modules_on_exit();
     disable_all_wdts();
-    ESP_INFINITE_LOOP();
+    esp_panic_handler_reset_modules_on_exit_and_halt();
 #endif /* CONFIG_ESP_SYSTEM_PANIC_PRINT_REBOOT || CONFIG_ESP_SYSTEM_PANIC_SILENT_REBOOT */
 #endif /* CONFIG_ESP_SYSTEM_PANIC_GDBSTUB */
 }
 
-void IRAM_ATTR __attribute__((noreturn, no_sanitize_undefined)) panic_abort(const char *details)
+void __attribute__((noreturn, no_sanitize_undefined)) panic_abort(const char *details)
 {
     g_panic_abort = true;
     g_panic_abort_details = (char *) details;
@@ -472,7 +480,7 @@ void IRAM_ATTR __attribute__((noreturn, no_sanitize_undefined)) panic_abort(cons
 #if CONFIG_APPTRACE_SV_ENABLE
     SEGGER_RTT_ESP_FlushNoLock(CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH, APPTRACE_ONPANIC_HOST_FLUSH_TMO);
 #else
-    esp_apptrace_flush_nolock(ESP_APPTRACE_DEST_TRAX, CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH,
+    esp_apptrace_flush_nolock(ESP_APPTRACE_DEST_JTAG, CONFIG_APPTRACE_POSTMORTEM_FLUSH_THRESH,
                               APPTRACE_ONPANIC_HOST_FLUSH_TMO);
 #endif
 #endif
@@ -490,11 +498,11 @@ void IRAM_ATTR __attribute__((noreturn, no_sanitize_undefined)) panic_abort(cons
  * If these weren't provided, reset reason code would be linked into the app
  * even if the app never called esp_reset_reason().
  */
-void IRAM_ATTR __attribute__((weak)) esp_reset_reason_set_hint(esp_reset_reason_t hint)
+void __attribute__((weak)) esp_reset_reason_set_hint(esp_reset_reason_t hint)
 {
 }
 
-esp_reset_reason_t IRAM_ATTR  __attribute__((weak)) esp_reset_reason_get_hint(void)
+esp_reset_reason_t __attribute__((weak)) esp_reset_reason_get_hint(void)
 {
     return ESP_RST_UNKNOWN;
 }

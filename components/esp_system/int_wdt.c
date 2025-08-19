@@ -17,7 +17,7 @@
 #include "esp_cpu.h"
 #include "esp_check.h"
 #include "esp_err.h"
-#include "esp_attr.h"
+#include "esp_private/esp_system_attr.h"
 #include "esp_log.h"
 #include "esp_intr_alloc.h"
 #include "esp_chip_info.h"
@@ -29,7 +29,7 @@
 #include "esp_private/sleep_retention.h"
 #endif
 
-#if SOC_TIMER_GROUPS > 1
+#if SOC_MODULE_ATTR(TIMG, INST_NUM) > 1
 
 /* If we have two hardware timer groups, use the second one for interrupt watchdog. */
 #define WDT_LEVEL_INTR_SOURCE   SYS_TG1_WDT_INTR_SOURCE
@@ -50,7 +50,7 @@
 #define IWDT_PERIPH             PERIPH_TIMG0_MODULE
 #define IWDT_TIMER_GROUP        0
 
-#endif // SOC_TIMER_GROUPS > 1
+#endif // SOC_MODULE_ATTR(TIMG, INST_NUM) > 1
 
 #if CONFIG_ESP_INT_WDT
 #if CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP && SOC_MWDT_SUPPORT_SLEEP_RETENTION
@@ -101,7 +101,7 @@ extern uint32_t _lx_intr_livelock_counter, _lx_intr_livelock_max;
 volatile bool int_wdt_cpu1_ticked = false;
 #endif
 
-static void IRAM_ATTR tick_hook(void)
+static void ESP_SYSTEM_IRAM_ATTR tick_hook(void)
 {
 #if CONFIG_ESP_INT_WDT_CHECK_CPU1
     if (esp_cpu_get_core_id() != 0) {

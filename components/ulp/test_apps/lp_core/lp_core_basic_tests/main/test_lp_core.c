@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -131,8 +131,7 @@ TEST_CASE("Test LP core delay", "[lp_core]")
 #define LP_TIMER_TEST_DURATION_S        (5)
 #define LP_TIMER_TEST_SLEEP_DURATION_US (20000)
 
-#if !TEMPORARY_DISABLED_FOR_TARGETS(ESP32C5)
-#if SOC_DEEP_SLEEP_SUPPORTED && CONFIG_RTC_FAST_CLK_SRC_RC_FAST
+#if SOC_DEEP_SLEEP_SUPPORTED
 
 static void do_ulp_wakeup_deepsleep(lp_core_test_commands_t ulp_cmd)
 {
@@ -156,7 +155,7 @@ static void do_ulp_wakeup_deepsleep(lp_core_test_commands_t ulp_cmd)
 
 static void check_reset_reason_ulp_wakeup(void)
 {
-    TEST_ASSERT_EQUAL(ESP_SLEEP_WAKEUP_ULP, esp_sleep_get_wakeup_cause());
+    TEST_ASSERT_EQUAL(BIT(ESP_SLEEP_WAKEUP_ULP), esp_sleep_get_wakeup_causes() & BIT(ESP_SLEEP_WAKEUP_ULP));
 }
 
 static void do_ulp_wakeup_after_short_delay_deepsleep(void)
@@ -213,7 +212,7 @@ static void check_reset_reason_and_sleep_duration(void)
     struct timeval tv_stop = {};
     gettimeofday(&tv_stop, NULL);
 
-    TEST_ASSERT_EQUAL(ESP_SLEEP_WAKEUP_ULP, esp_sleep_get_wakeup_cause());
+    TEST_ASSERT_EQUAL(BIT(ESP_SLEEP_WAKEUP_ULP), esp_sleep_get_wakeup_causes() & BIT(ESP_SLEEP_WAKEUP_ULP));
 
     int64_t sleep_duration = (tv_stop.tv_sec - tv_start.tv_sec) * 1000 + (tv_stop.tv_usec - tv_start.tv_usec) / 1000;
     int64_t expected_sleep_duration_ms = ulp_counter_wakeup_limit * LP_TIMER_TEST_SLEEP_DURATION_US / 1000;
@@ -229,8 +228,7 @@ TEST_CASE_MULTIPLE_STAGES("LP Timer can wakeup lp core periodically during deep 
                           do_ulp_wakeup_with_lp_timer_deepsleep,
                           check_reset_reason_and_sleep_duration);
 
-#endif //#if SOC_DEEP_SLEEP_SUPPORTED && CONFIG_RTC_FAST_CLK_SRC_RC_FAST
-#endif //!TEMPORARY_DISABLED_FOR_TARGETS(ESP32C5)
+#endif //#if SOC_DEEP_SLEEP_SUPPORTED
 
 TEST_CASE("LP Timer can wakeup lp core periodically", "[lp_core]")
 {

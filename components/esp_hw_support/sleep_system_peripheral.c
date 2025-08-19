@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,9 +8,10 @@
 #include <string.h>
 
 #include "sdkconfig.h"
-#include "soc/soc_caps.h"
+#include "soc/soc_caps_full.h"
 #include "soc/system_periph_retention.h"
 #include "soc/uart_periph.h"
+#include "soc/timer_periph.h"
 
 #include "esp_sleep.h"
 #include "esp_log.h"
@@ -121,6 +122,16 @@ esp_err_t sleep_pau_retention_init(void)
 }
 #endif
 
+#if CONFIG_ESP_ENABLE_PVT
+esp_err_t sleep_pvt_retention_init(void)
+{
+    esp_err_t err = sleep_retention_entries_create(pvt_regs_retention, ARRAY_SIZE(pvt_regs_retention), REGDMA_LINK_PRI_SYS_PERIPH_LOW, SLEEP_RETENTION_MODULE_SYS_PERIPH);
+    ESP_RETURN_ON_ERROR(err, TAG, "failed to allocate memory for system (PVT) retention");
+    ESP_LOGI(TAG, "PVT sleep retention initialization");
+    return ESP_OK;
+}
+#endif
+
 static __attribute__((unused)) esp_err_t sleep_sys_periph_retention_init(void *arg)
 {
     esp_err_t err;
@@ -152,6 +163,11 @@ static __attribute__((unused)) esp_err_t sleep_sys_periph_retention_init(void *a
     if(err) goto error;
 #if SOC_PAU_IN_TOP_DOMAIN
     err = sleep_pau_retention_init();
+    if(err) goto error;
+#endif
+#if CONFIG_ESP_ENABLE_PVT
+    err = sleep_pvt_retention_init();
+    if(err) goto error;
 #endif
 
 error:
@@ -173,7 +189,7 @@ bool peripheral_domain_pd_allowed(void)
 #if SOC_TIMER_SUPPORT_SLEEP_RETENTION
     mask.bitmap[SLEEP_RETENTION_MODULE_TG0_TIMER0 >> 5] |= BIT(SLEEP_RETENTION_MODULE_TG0_TIMER0 % 32);
     mask.bitmap[SLEEP_RETENTION_MODULE_TG1_TIMER0 >> 5] |= BIT(SLEEP_RETENTION_MODULE_TG1_TIMER0 % 32);
-#if (SOC_TIMER_GROUP_TIMERS_PER_GROUP > 1)
+#if SOC_GPTIMER_ATTR(TIMERS_PER_TIMG) > 1
     mask.bitmap[SLEEP_RETENTION_MODULE_TG0_TIMER1 >> 5] |= BIT(SLEEP_RETENTION_MODULE_TG0_TIMER1 % 32);
     mask.bitmap[SLEEP_RETENTION_MODULE_TG1_TIMER1 >> 5] |= BIT(SLEEP_RETENTION_MODULE_TG1_TIMER1 % 32);
 #endif
@@ -271,12 +287,16 @@ bool peripheral_domain_pd_allowed(void)
     mask.bitmap[SLEEP_RETENTION_MODULE_LEDC >> 5] |= BIT(SLEEP_RETENTION_MODULE_LEDC % 32);
 #endif
 
-#if SOC_PCNT_SUPPORT_SLEEP_RETENTION
-    mask.bitmap[SLEEP_RETENTION_MODULE_PCNT0 >> 5] |= BIT(SLEEP_RETENTION_MODULE_PCNT0 % 32);
-#endif
-
 #if SOC_MCPWM_SUPPORT_SLEEP_RETENTION
     mask.bitmap[SLEEP_RETENTION_MODULE_MCPWM0 >> 5] |= BIT(SLEEP_RETENTION_MODULE_MCPWM0 % 32);
+#endif
+
+#if SOC_SDM_SUPPORT_SLEEP_RETENTION
+    mask.bitmap[SLEEP_RETENTION_MODULE_SDM0 >> 5] |= BIT(SLEEP_RETENTION_MODULE_SDM0 % 32);
+#endif
+
+#if SOC_EMAC_SUPPORT_SLEEP_RETENTION
+    mask.bitmap[SLEEP_RETENTION_MODULE_EMAC >> 5] |= BIT(SLEEP_RETENTION_MODULE_EMAC % 32);
 #endif
 
     const sleep_retention_module_bitmap_t peripheral_domain_inited_modules = sleep_retention_module_bitmap_and(inited_modules, mask);

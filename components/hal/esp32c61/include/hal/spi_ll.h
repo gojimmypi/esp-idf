@@ -1,16 +1,14 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 /*******************************************************************************
  * NOTICE
- * The hal is not public api, don't use in application code.
- * See readme.md in soc/include/hal/readme.md
+ * The LL layer for ESP32C61 SPI register operations
+ * It is NOT public api, don't use in application code.
  ******************************************************************************/
-
-// The LL layer for SPI register operations
 
 #pragma once
 
@@ -20,11 +18,11 @@
 #include "esp_types.h"
 #include "soc/spi_periph.h"
 #include "soc/spi_struct.h"
-#include "soc/lldesc.h"
 #include "hal/assert.h"
 #include "hal/misc.h"
 #include "hal/spi_types.h"
 #include "soc/pcr_struct.h"
+#include "soc/pcr_reg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,11 +37,12 @@ extern "C" {
 #define HAL_SPI_SWAP_DATA_TX(data, len) HAL_SWAP32((uint32_t)(data) << (32 - len))
 #define SPI_LL_GET_HW(ID) (((ID)==1) ? &GPSPI2 : NULL)
 
-#define SPI_LL_DMA_MAX_BIT_LEN    (1 << 18)    //reg len: 18 bits
+#define SPI_LL_DMA_MAX_BIT_LEN    SPI_MS_DATA_BITLEN
 #define SPI_LL_CPU_MAX_BIT_LEN    (16 * 32)    //Fifo len: 16 words
 #define SPI_LL_MOSI_FREE_LEVEL    1            //Default level after bus initialized
 #define SPI_LL_SUPPORT_CLK_SRC_PRE_DIV      1  //clock source have divider before peripheral
-#define SPI_LL_CLK_SRC_PRE_DIV_MAX          256//div1(8bit)
+#define SPI_LL_SRC_PRE_DIV_MAX    (PCR_SPI2_CLKM_DIV_NUM + 1)   //source pre divider max
+#define SPI_LL_PERIPH_CLK_DIV_MAX   ((SPI_CLKCNT_N + 1) * (SPI_CLKDIV_PRE + 1)) //peripheral internal maxmum clock divider
 
 /**
  * The data structure holding calculated clock configuration. Since the
@@ -199,11 +198,13 @@ static inline void spi_ll_master_init(spi_dev_t *hw)
     hw->user.usr_miso_highpart = 0;
     hw->user.usr_mosi_highpart = 0;
 
+    //Disable unused error_end condition
+    hw->user1.mst_wfull_err_end_en = 0;
+    hw->user2.mst_rempty_err_end_en = 0;
+
     //Disable unneeded ints
     hw->slave.val = 0;
     hw->user.val = 0;
-
-    PCR.spi2_clkm_conf.spi2_clkm_sel = 1;
 
     hw->dma_conf.val = 0;
     hw->dma_conf.slv_tx_seg_trans_clr_en = 1;
@@ -717,7 +718,7 @@ static inline void spi_ll_master_keep_cs(spi_dev_t *hw, int keep_active)
  */
 static inline void spi_ll_master_set_rx_timing_mode(spi_dev_t *hw, spi_sampling_point_t sample_point)
 {
-    //This is not supported
+    hw->clock.clk_edge_sel = (sample_point == SPI_SAMPLING_POINT_PHASE_1);
 }
 
 /**
@@ -725,7 +726,7 @@ static inline void spi_ll_master_set_rx_timing_mode(spi_dev_t *hw, spi_sampling_
  */
 static inline bool spi_ll_master_is_rx_std_sample_supported(void)
 {
-    return false;
+    return true;
 }
 
 /**

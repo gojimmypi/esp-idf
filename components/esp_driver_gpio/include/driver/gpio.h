@@ -20,17 +20,6 @@
 extern "C" {
 #endif
 
-#define GPIO_PIN_COUNT                      (SOC_GPIO_PIN_COUNT)
-/// Check whether it is a valid GPIO number
-#define GPIO_IS_VALID_GPIO(gpio_num)        ((gpio_num >= 0) && \
-                                              (((1ULL << (gpio_num)) & SOC_GPIO_VALID_GPIO_MASK) != 0))
-/// Check whether it can be a valid GPIO number of output mode
-#define GPIO_IS_VALID_OUTPUT_GPIO(gpio_num) ((gpio_num >= 0) && \
-                                              (((1ULL << (gpio_num)) & SOC_GPIO_VALID_OUTPUT_GPIO_MASK) != 0))
-/// Check whether it can be a valid digital I/O pad
-#define GPIO_IS_VALID_DIGITAL_IO_PAD(gpio_num) ((gpio_num >= 0) && \
-                                                 (((1ULL << (gpio_num)) & SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK) != 0))
-
 typedef intr_handle_t gpio_isr_handle_t;
 
 /**
@@ -496,22 +485,6 @@ void gpio_deep_sleep_hold_en(void);
   */
 void gpio_deep_sleep_hold_dis(void);
 #endif //SOC_GPIO_SUPPORT_HOLD_IO_IN_DSLP && !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
-
-/**
-  * @brief Set pad input to a peripheral signal through the IOMUX.
-  * @param gpio_num GPIO number of the pad.
-  * @param signal_idx Peripheral signal id to input. One of the ``*_IN_IDX`` signals in ``soc/gpio_sig_map.h``.
-  */
-void gpio_iomux_in(uint32_t gpio_num, uint32_t signal_idx) __attribute__((deprecated("Please use `gpio_iomux_input` instead")));
-
-/**
-  * @brief Set peripheral output to an GPIO pad through the IOMUX.
-  * @param gpio_num gpio_num GPIO number of the pad.
-  * @param func The function number of the peripheral pin to output pin.
-  *        One of the ``FUNC_X_*`` of specified pin (X) in ``soc/io_mux_reg.h``.
-  * @param out_en_inv True if the output enable needs to be inverted, otherwise False.
-  */
-void gpio_iomux_out(uint8_t gpio_num, int func, bool out_en_inv) __attribute__((deprecated("Please use `gpio_iomux_output` instead")));
 
 #if SOC_GPIO_SUPPORT_FORCE_HOLD
 /**

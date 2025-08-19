@@ -23,6 +23,7 @@ if(NOT ${IDF_TARGET} STREQUAL "linux")
     set(priv_requires soc esp_hw_support)
     if(NOT BOOTLOADER_BUILD)
         list(APPEND priv_requires esp_pm)
+        set(requires esp_security)
     endif()
 endif()
 
@@ -41,6 +42,7 @@ endif()
 idf_component_register(SRCS "${mbedtls_srcs}"
     INCLUDE_DIRS "${mbedtls_include_dirs}"
     PRIV_REQUIRES "${priv_requires}"
+    REQUIRES "${requires}"
     )
 
 # Determine the type of mbedtls component library
@@ -60,10 +62,20 @@ if(CONFIG_MBEDTLS_CERTIFICATE_BUNDLE)
     set(GENERATE_CERT_BUNDLEPY ${python} ${COMPONENT_DIR}/esp_crt_bundle/gen_crt_bundle.py)
 
     if(CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL)
-        list(APPEND crt_paths ${DEFAULT_CRT_DIR}/cacrt_all.pem ${DEFAULT_CRT_DIR}/cacrt_local.pem)
+        list(APPEND crt_paths ${DEFAULT_CRT_DIR}/cacrt_all.pem)
     elseif(CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN)
-        list(APPEND crt_paths ${DEFAULT_CRT_DIR}/cacrt_all.pem ${DEFAULT_CRT_DIR}/cacrt_local.pem)
+        list(APPEND crt_paths ${DEFAULT_CRT_DIR}/cacrt_all.pem)
         list(APPEND args --filter ${DEFAULT_CRT_DIR}/cmn_crt_authorities.csv)
+    endif()
+
+    # Currently cacrt_local.pem contains deprecated certificates that are still required for certain certificate chains.
+    # These chains may include cross-signed certificates, but the final certificate in the chain is deprecated.
+    # When cross-signed verification is enabled (CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_CROSS_SIGNED_VERIFY),
+    # the cross-signed certificate should be sufficient for verification, and the deprecated root is not needed.
+    # Therefore, cacrt_local.pem is only appended if cross-signed verification is not enabled.
+    if((CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL OR CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_CMN)
+        AND NOT CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_CROSS_SIGNED_VERIFY)
+        list(APPEND crt_paths ${DEFAULT_CRT_DIR}/cacrt_local.pem)
     endif()
 
     # Add deprecated root certs if enabled. This config is not visible if the default cert
@@ -261,9 +273,11 @@ if(CONFIG_SOC_SHA_SUPPORTED)
     )
 endif()
 
-# CONFIG_ESP_TLS_USE_DS_PERIPHERAL can be enabled only for the supported targets.
-if(CONFIG_ESP_TLS_USE_DS_PERIPHERAL)
-    target_sources(mbedcrypto PRIVATE "${COMPONENT_DIR}/port/esp_ds/esp_rsa_sign_alt.c")
+if(CONFIG_SOC_DIG_SIGN_SUPPORTED)
+target_sources(mbedcrypto PRIVATE
+                "${COMPONENT_DIR}/port/esp_ds/esp_rsa_sign_alt.c"
+                "${COMPONENT_DIR}/port/esp_ds/esp_rsa_dec_alt.c"
+                "${COMPONENT_DIR}/port/esp_ds/esp_ds_common.c")
 endif()
 
 # Note: some mbedTLS hardware acceleration can be enabled/disabled by config.
@@ -345,7 +359,18 @@ foreach(target ${mbedtls_targets})
     if(CONFIG_COMPILER_STATIC_ANALYZER AND CMAKE_C_COMPILER_ID STREQUAL "GNU") # TODO IDF-10087
         target_compile_options(${target} PRIVATE "-fno-analyzer")
     endif()
+    if(CONFIG_MBEDTLS_COMPILER_OPTIMIZATION_SIZE)
+        target_compile_options(${target} PRIVATE "-Os")
+    elseif(CONFIG_MBEDTLS_COMPILER_OPTIMIZATION_SPEED)
+        target_compile_options(${target} PRIVATE "-O2")
+    endif()
 endforeach()
+
+if(CONFIG_MBEDTLS_COMPILER_OPTIMIZATION_SIZE)
+    target_compile_options(${COMPONENT_LIB} PRIVATE "-Os")
+elseif(CONFIG_MBEDTLS_COMPILER_OPTIMIZATION_SPEED)
+    target_compile_options(${COMPONENT_LIB} PRIVATE "-O2")
+endif()
 
 if(CONFIG_MBEDTLS_DYNAMIC_BUFFER)
     set(WRAP_FUNCTIONS
@@ -355,7 +380,6 @@ if(CONFIG_MBEDTLS_DYNAMIC_BUFFER)
         mbedtls_ssl_handshake_server_step
         mbedtls_ssl_read
         mbedtls_ssl_write
-        mbedtls_ssl_session_reset
         mbedtls_ssl_free
         mbedtls_ssl_setup
         mbedtls_ssl_send_alert_message

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -25,7 +25,7 @@
 #include "soc/usb_struct.h"
 #include "soc/usb_reg.h"
 #include "hal/soc_hal.h"
-#include "esp_rom_uart.h"
+#include "esp_rom_serial_output.h"
 #include "esp_rom_sys.h"
 #include "esp_rom_caps.h"
 #ifdef CONFIG_IDF_TARGET_ESP32S2
@@ -494,11 +494,13 @@ void esp_usb_console_write_char(char c)
         esp_usb_console_write_buf(&c, 1);
     }
 }
-static inline void write_lock_acquire(void)
+
+static inline __attribute__((always_inline)) void write_lock_acquire(void)
 {
     portENTER_CRITICAL_SAFE(&s_lock);
 }
-static inline void write_lock_release(void)
+
+static inline __attribute__((always_inline)) void write_lock_release(void)
 {
     portEXIT_CRITICAL_SAFE(&s_lock);
 }

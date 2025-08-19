@@ -47,6 +47,7 @@
 
 #include "driver/gpio.h"
 #include "esp_private/gpio.h"
+#include "esp_private/i2s_sync.h"
 #include "driver/i2s_common.h"
 #include "i2s_private.h"
 
@@ -573,12 +574,8 @@ uint32_t i2s_get_source_clk_freq(i2s_clock_src_t clk_src, uint32_t mclk_freq_hz)
     return clk_freq;
 }
 
-/* Temporary ignore the deprecated warning of i2s_event_data_t::data */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
 #if SOC_GDMA_SUPPORTED
-static bool IRAM_ATTR i2s_dma_rx_callback(gdma_channel_handle_t dma_chan, gdma_event_data_t *event_data, void *user_data)
+static bool i2s_dma_rx_callback(gdma_channel_handle_t dma_chan, gdma_event_data_t *event_data, void *user_data)
 {
     i2s_chan_handle_t handle = (i2s_chan_handle_t)user_data;
     BaseType_t need_yield1 = 0;
@@ -592,7 +589,6 @@ static bool IRAM_ATTR i2s_dma_rx_callback(gdma_channel_handle_t dma_chan, gdma_e
     esp_cache_msync((void *)finish_desc->buf, handle->dma.buf_size, ESP_CACHE_MSYNC_FLAG_INVALIDATE);
 #endif
     i2s_event_data_t evt = {
-        .data = &(finish_desc->buf),
         .dma_buf = (void *)finish_desc->buf,
         .size = handle->dma.buf_size,
     };
@@ -602,7 +598,6 @@ static bool IRAM_ATTR i2s_dma_rx_callback(gdma_channel_handle_t dma_chan, gdma_e
     if (xQueueIsQueueFullFromISR(handle->msg_queue)) {
         xQueueReceiveFromISR(handle->msg_queue, &dummy, &need_yield1);
         if (handle->callbacks.on_recv_q_ovf) {
-            evt.data = NULL;
             user_need_yield |= handle->callbacks.on_recv_q_ovf(handle, &evt, handle->user_data);
         }
     }
@@ -611,7 +606,7 @@ static bool IRAM_ATTR i2s_dma_rx_callback(gdma_channel_handle_t dma_chan, gdma_e
     return need_yield1 | need_yield2 | user_need_yield;
 }
 
-static bool IRAM_ATTR i2s_dma_tx_callback(gdma_channel_handle_t dma_chan, gdma_event_data_t *event_data, void *user_data)
+static bool i2s_dma_tx_callback(gdma_channel_handle_t dma_chan, gdma_event_data_t *event_data, void *user_data)
 {
     i2s_chan_handle_t handle = (i2s_chan_handle_t)user_data;
     BaseType_t need_yield1 = 0;
@@ -623,7 +618,6 @@ static bool IRAM_ATTR i2s_dma_tx_callback(gdma_channel_handle_t dma_chan, gdma_e
     finish_desc = (lldesc_t *)event_data->tx_eof_desc_addr;
     void *curr_buf = (void *)finish_desc->buf;
     i2s_event_data_t evt = {
-        .data = &(finish_desc->buf),
         .dma_buf = curr_buf,
         .size = handle->dma.buf_size,
     };
@@ -642,7 +636,6 @@ static bool IRAM_ATTR i2s_dma_tx_callback(gdma_channel_handle_t dma_chan, gdma_e
     if (xQueueIsQueueFullFromISR(handle->msg_queue)) {
         xQueueReceiveFromISR(handle->msg_queue, &dummy, &need_yield1);
         if (handle->callbacks.on_send_q_ovf) {
-            evt.data = NULL;
             evt.dma_buf = NULL;
             user_need_yield |= handle->callbacks.on_send_q_ovf(handle, &evt, handle->user_data);
         }
@@ -660,7 +653,7 @@ static bool IRAM_ATTR i2s_dma_tx_callback(gdma_channel_handle_t dma_chan, gdma_e
 
 #else
 
-static void IRAM_ATTR i2s_dma_rx_callback(void *arg)
+static void i2s_dma_rx_callback(void *arg)
 {
     BaseType_t need_yield1 = 0;
     BaseType_t need_yield2 = 0;
@@ -678,7 +671,6 @@ static void IRAM_ATTR i2s_dma_rx_callback(void *arg)
 
     if (handle && (status & I2S_LL_EVENT_RX_EOF)) {
         i2s_hal_get_in_eof_des_addr(&(handle->controller->hal), (uint32_t *)&finish_desc);
-        evt.data = &(finish_desc->buf);
         evt.dma_buf = (void *)finish_desc->buf;
         evt.size = handle->dma.buf_size;
         if (handle->callbacks.on_recv) {
@@ -687,7 +679,6 @@ static void IRAM_ATTR i2s_dma_rx_callback(void *arg)
         if (xQueueIsQueueFullFromISR(handle->msg_queue)) {
             xQueueReceiveFromISR(handle->msg_queue, &dummy, &need_yield1);
             if (handle->callbacks.on_recv_q_ovf) {
-                evt.data = NULL;
                 evt.dma_buf = NULL;
                 user_need_yield |= handle->callbacks.on_recv_q_ovf(handle, &evt, handle->user_data);
             }
@@ -700,7 +691,7 @@ static void IRAM_ATTR i2s_dma_rx_callback(void *arg)
     }
 }
 
-static void IRAM_ATTR i2s_dma_tx_callback(void *arg)
+static void i2s_dma_tx_callback(void *arg)
 {
     BaseType_t need_yield1 = 0;
     BaseType_t need_yield2 = 0;
@@ -719,7 +710,6 @@ static void IRAM_ATTR i2s_dma_tx_callback(void *arg)
     if (handle && (status & I2S_LL_EVENT_TX_EOF)) {
         i2s_hal_get_out_eof_des_addr(&(handle->controller->hal), (uint32_t *)&finish_desc);
         void *curr_buf = (void *)finish_desc->buf;
-        evt.data = &(finish_desc->buf);
         evt.dma_buf = curr_buf;
         evt.size = handle->dma.buf_size;
         // Auto clear the dma buffer before data sent
@@ -732,7 +722,6 @@ static void IRAM_ATTR i2s_dma_tx_callback(void *arg)
         if (xQueueIsQueueFullFromISR(handle->msg_queue)) {
             xQueueReceiveFromISR(handle->msg_queue, &dummy, &need_yield1);
             if (handle->callbacks.on_send_q_ovf) {
-                evt.data = NULL;
                 user_need_yield |= handle->callbacks.on_send_q_ovf(handle, &evt, handle->user_data);
             }
         }
@@ -748,8 +737,6 @@ static void IRAM_ATTR i2s_dma_tx_callback(void *arg)
     }
 }
 #endif
-
-#pragma GCC diagnostic pop
 
 #if SOC_GDMA_SUPPORTED
 /**
@@ -1497,3 +1484,46 @@ void i2s_sync_reset_fifo_count(i2s_chan_handle_t tx_handle)
     i2s_ll_tx_reset_fifo_sync_counter(tx_handle->controller->hal.dev);
 }
 #endif  // SOC_I2S_SUPPORTS_TX_SYNC_CNT
+
+#if SOC_I2S_SUPPORTS_TX_FIFO_SYNC
+uint32_t i2s_sync_get_fifo_sync_diff_count(i2s_chan_handle_t tx_handle)
+{
+    return i2s_ll_tx_get_fifo_sync_diff_count(tx_handle->controller->hal.dev);
+}
+
+void i2s_sync_reset_fifo_sync_diff_count(i2s_chan_handle_t tx_handle)
+{
+    i2s_ll_tx_reset_fifo_sync_diff_counter(tx_handle->controller->hal.dev);
+}
+
+esp_err_t i2s_sync_enable_hw_fifo_sync(i2s_chan_handle_t tx_handle, bool enable)
+{
+    if (tx_handle->dir == I2S_DIR_RX) {
+        return ESP_ERR_NOT_SUPPORTED;
+    }
+    i2s_ll_tx_enable_hw_fifo_sync(tx_handle->controller->hal.dev, enable);
+    return ESP_OK;
+}
+
+esp_err_t i2s_sync_config_hw_fifo_sync(i2s_chan_handle_t tx_handle, const i2s_sync_fifo_sync_config_t *config)
+{
+    if (!(tx_handle && config)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (tx_handle->dir == I2S_DIR_RX) {
+        return ESP_ERR_NOT_SUPPORTED;
+    }
+    if (config->sw_high_thresh < config->hw_low_thresh) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    i2s_ll_tx_set_etm_sync_ideal_cnt(tx_handle->controller->hal.dev, config->ideal_cnt);
+    i2s_ll_tx_set_fifo_sync_diff_conter_sw_threshold(tx_handle->controller->hal.dev, config->sw_high_thresh);
+    i2s_ll_tx_set_fifo_sync_diff_conter_hw_threshold(tx_handle->controller->hal.dev, config->hw_low_thresh);
+    i2s_ll_tx_set_hw_fifo_sync_suppl_mode(tx_handle->controller->hal.dev, (uint32_t)config->suppl_mode);
+    if (config->suppl_mode == I2S_SYNC_SUPPL_MODE_STATIC_DATA) {
+        i2s_ll_tx_set_hw_fifo_sync_static_suppl_data(tx_handle->controller->hal.dev, config->suppl_data);
+    }
+    return ESP_OK;
+}
+#endif

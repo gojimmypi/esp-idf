@@ -29,8 +29,6 @@ if(BOOTLOADER_BUILD)
         if(CMAKE_C_COMPILER_ID MATCHES "GNU" AND NOT CONFIG_IDF_TARGET_LINUX)
             list(APPEND compile_options "-fno-shrink-wrap")  # Disable shrink-wrapping to reduce binary size
         endif()
-    elseif(CONFIG_BOOTLOADER_COMPILER_OPTIMIZATION_NONE)
-        list(APPEND compile_options "-O0")
     elseif(CONFIG_BOOTLOADER_COMPILER_OPTIMIZATION_PERF)
         list(APPEND compile_options "-O2")
     endif()
@@ -105,8 +103,6 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
     list(APPEND compile_options "-Wno-char-subscripts")
     # Clang seems to notice format string issues which GCC doesn't.
     list(APPEND compile_options "-Wno-format-security")
-    # Logic bug in essl component
-    list(APPEND compile_options "-Wno-tautological-overlap-compare")
     # Some pointer checks in mDNS component check addresses which can't be NULL
     list(APPEND compile_options "-Wno-tautological-pointer-compare")
     # Similar to the above, in tcp_transport
@@ -169,6 +165,10 @@ if(CONFIG_COMPILER_DUMP_RTL_FILES)
     list(APPEND compile_options "-fdump-rtl-expand")
 endif()
 
+if(CMAKE_C_COMPILER_ID MATCHES "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER 15.0)
+    list(APPEND c_compile_options "-fzero-init-padding-bits=all" "-fno-malloc-dce")
+endif()
+
 __generate_prefix_map(prefix_map_compile_options)
 list(APPEND compile_options ${prefix_map_compile_options})
 
@@ -186,6 +186,15 @@ endif()
 
 if(CONFIG_COMPILER_DISABLE_GCC14_WARNINGS)
     list(APPEND compile_options "-Wno-calloc-transposed-args")
+endif()
+
+if(CONFIG_COMPILER_DISABLE_GCC15_WARNINGS)
+    list(APPEND c_compile_options "-Wno-unterminated-string-initialization")
+    list(APPEND c_compile_options "-Wno-header-guard")
+    list(APPEND cxx_compile_options "-Wno-self-move")
+    list(APPEND cxx_compile_options "-Wno-template-body")
+    list(APPEND cxx_compile_options "-Wno-dangling-reference")
+    list(APPEND cxx_compile_options "-Wno-defaulted-function-deleted")
 endif()
 
 if(CONFIG_COMPILER_DISABLE_DEFAULT_ERRORS)

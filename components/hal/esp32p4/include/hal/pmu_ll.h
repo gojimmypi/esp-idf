@@ -638,9 +638,9 @@ FORCE_INLINE_ATTR uint32_t pmu_ll_hp_get_analog_wait_target_cycle(pmu_dev_t *hw)
     return HAL_FORCE_READ_U32_REG_FIELD(hw->wakeup.cntl7, ana_wait_target);
 }
 
-FORCE_INLINE_ATTR uint32_t pmu_ll_hp_set_lite_wakeup_enable(pmu_dev_t *hw, bool wakeup_en)
+FORCE_INLINE_ATTR void pmu_ll_hp_set_lite_wakeup_enable(pmu_dev_t *hw, bool wakeup_en)
 {
-    return hw->wakeup.cntl8.lp_lite_wakeup_ena = wakeup_en;
+    hw->wakeup.cntl8.lp_lite_wakeup_ena = wakeup_en;
 }
 
 FORCE_INLINE_ATTR void pmu_ll_hp_set_digital_power_supply_wait_cycle(pmu_dev_t *hw, uint32_t cycle)
@@ -702,6 +702,7 @@ static inline  uint32_t pmu_ll_ext1_get_wakeup_status(void)
 static inline void pmu_ll_ext1_clear_wakeup_status(void)
 {
     REG_SET_BIT(PMU_EXT_WAKEUP_CNTL_REG, PMU_EXT_WAKEUP_STATUS_CLR);
+    REG_CLR_BIT(PMU_EXT_WAKEUP_CNTL_REG, PMU_EXT_WAKEUP_STATUS_CLR);
 }
 
 /**

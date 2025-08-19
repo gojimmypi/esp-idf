@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,6 +10,12 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/stat.h>
+#include "esp_attr.h"
+
+#if CONFIG_IDF_TOOLCHAIN_GCC
+#include <sys/statvfs.h>
+#endif
 
 #if CONFIG_LIBC_PICOLIBC
 int open(const char *pathname, int flags, ...)
@@ -116,15 +122,37 @@ int fstat(int fd, struct stat *st)
     return _fstat_r(__getreent(), fd, st);
 }
 
+#if CONFIG_SPIRAM_CACHE_LIBMISC_IN_IRAM
+IRAM_ATTR
+#endif
 int raise(int sig)
 {
     return _raise_r(__getreent(), sig);
 }
 
+#if CONFIG_SPIRAM_CACHE_LIBMISC_IN_IRAM
+IRAM_ATTR
+#endif
 int system(const char* str)
 {
     return _system_r(__getreent(), str);
 }
+
+#if CONFIG_IDF_TOOLCHAIN_GCC
+int statvfs(const char *restrict path, struct statvfs *restrict buf)
+{
+    /* TODO IDF-9879 */
+    errno = ENOSYS;
+    return -1;
+}
+
+int fstatvfs(int fd, struct statvfs *buf)
+{
+    /* TODO IDF-9879 */
+    errno = ENOSYS;
+    return -1;
+}
+#endif
 
 void esp_libc_include_syscalls_impl(void)
 {

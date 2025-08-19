@@ -82,12 +82,13 @@ static void check_spi_pre_n_for(int clk, int pre, int n)
  */
 #define TEST_CLK_TIMES     8
 uint32_t clk_param_80m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 16, 50}, {333333, 4, 60}, {800000, 2, 50}, {900000, 2, 44}, {8000000, 1, 10}, {20000000, 1, 4}, {26000000, 1, 3} };
-uint32_t clk_param_48m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 8, 60}, {333333, 3, 48}, {800000, 1, 60}, {5000000, 1, 10}, {12000000, 1, 4}, {18000000, 1, 3}, {26000000, 1, 2} };
 uint32_t clk_param_160m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 16, 50}, {333333, 4, 60}, {800000, 2, 50}, {900000, 2, 44}, {8000000, 1, 10}, {20000000, 1, 4}, {26000000, 1, 3} };
 #if SPI_LL_SUPPORT_CLK_SRC_PRE_DIV
 uint32_t clk_param_40m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 4, 50}, {333333, 1, 60}, {800000, 1, 25}, {2000000, 1, 10}, {5000000, 1,  4}, {12000000, 1, 2}, {18000000, 1, 1} };
+uint32_t clk_param_48m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 4, 60}, {333333, 2, 36}, {800000, 1, 30}, {5000000, 1, 5}, {12000000, 1, 2}, {18000000, 1, 2}, {24000000, 1, 1} };
 #else
 uint32_t clk_param_40m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 8, 50}, {333333, 2, 60}, {800000, 1, 50}, {2000000, 1, 20}, {5000000, 1,  8}, {12000000, 1, 3}, {18000000, 1, 2} };
+uint32_t clk_param_48m[TEST_CLK_TIMES][3] = {{1, SOC_SPI_MAX_PRE_DIVIDER, 64}, {100000, 8, 60}, {333333, 3, 48}, {800000, 1, 60}, {5000000, 1, 10}, {12000000, 1, 4}, {18000000, 1, 3}, {26000000, 1, 2} };
 #endif
 
 TEST_CASE("SPI Master clockdiv calculation routines", "[spi]")
@@ -150,7 +151,9 @@ TEST_CASE("SPI Master clk_source and divider accuracy", "[spi]")
             spi_device_interface_config_t devcfg = SPI_DEVICE_TEST_DEFAULT_CONFIG();
             devcfg.clock_source = spi_clk_sour[sour_idx];
             devcfg.clock_speed_hz = MIN(IDF_TARGET_MAX_SPI_CLK_FREQ, clock_source_hz) >> test_time;
+#if CONFIG_IDF_TARGET_ESP32
             devcfg.flags |= SPI_DEVICE_HALFDUPLEX;  //esp32 half duplex to work on high freq
+#endif
 #if SOC_SPI_SUPPORT_CLK_RC_FAST
             if (devcfg.clock_source == SPI_CLK_SRC_RC_FAST) {
                 devcfg.clock_speed_hz /= 2; //rc_fast have bad accuracy, test at low speed
@@ -160,11 +163,18 @@ TEST_CASE("SPI Master clk_source and divider accuracy", "[spi]")
             // one trans first to trigger lazy load
             TEST_ESP_OK(spi_device_polling_transmit(handle, &trans));
 
+            // test single tx/rx under full duplex mode, refer to `TEST_CASE_MULTIPLE_DEVICES("SPI Master: FD, DMA, Master Single Direction Test"...`
+            if (!(devcfg.flags && SPI_DEVICE_HALFDUPLEX)) {
+                trans.tx_buffer = NULL;
+                trans.rxlength = trans.length;
+                trans.rx_buffer = sendbuf;
+            }
+
             // calculate theoretical transaction time by actual freq and trans length
             int real_freq_khz;
             spi_device_get_actual_freq(handle, &real_freq_khz);
             // (byte_len * 8 / real_freq_hz) * 1000 000, (unit)us
-            int trans_cost_us_predict = (float)TEST_CLK_BYTE_LEN * 8 * 1000 / real_freq_khz + IDF_TARGET_MAX_TRANS_TIME_POLL_DMA;
+            int trans_cost_us_predict = (float)TEST_CLK_BYTE_LEN * 8 * 1000 / real_freq_khz;
 
             // transaction and measure time
             start = esp_timer_get_time();
@@ -175,7 +185,7 @@ TEST_CASE("SPI Master clk_source and divider accuracy", "[spi]")
 #if !SOC_CLK_TREE_SUPPORTED
             time_tolerance *= 2;    //cpu is executing too slow before clock supported
 #endif
-            printf("real_freq %dk predict_cost %d real_cost_us %d diff %d tolerance %d us\n", real_freq_khz, trans_cost_us_predict, trans_cost, (trans_cost - trans_cost_us_predict), time_tolerance);
+            printf("exp_freq %dk real_freq %dk predict_cost %d real_cost_us %d diff %d tolerance %d us\n", devcfg.clock_speed_hz / 1000, real_freq_khz, trans_cost_us_predict, trans_cost, (trans_cost - trans_cost_us_predict), time_tolerance);
 
             TEST_ASSERT_LESS_THAN_UINT32(time_tolerance, abs(trans_cost - trans_cost_us_predict));
             TEST_ESP_OK(spi_bus_remove_device(handle));
@@ -346,8 +356,8 @@ TEST_CASE("SPI Master test", "[spi]")
     master_free_device_bus(handle);
     TEST_ASSERT(success);
 
-    printf("Testing bus at 20MHz\n");
-    handle = setup_spi_bus_loopback(20000000, true);
+    printf("Testing bus at %dMHz\n", IDF_TARGET_MAX_SPI_CLK_FREQ / 1000000);
+    handle = setup_spi_bus_loopback(IDF_TARGET_MAX_SPI_CLK_FREQ, true);
     success &= spi_test(handle, 128); //DMA, aligned
     success &= spi_test(handle, 4096 * 3); //DMA, multiple descs
     master_free_device_bus(handle);
@@ -1461,7 +1471,7 @@ TEST_CASE("spi_speed", "[spi]")
         ESP_LOGI(TAG, "%.2lf", GET_US_BY_CCOUNT(t_flight_sorted[i]));
     }
 #ifndef CONFIG_SPIRAM
-    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_NO_POLLING", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_INTR_DMA", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
     TEST_ASSERT_LESS_THAN_INT(IDF_TARGET_MAX_TRANS_TIME_INTR_DMA, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
 #endif
 
@@ -1479,7 +1489,7 @@ TEST_CASE("spi_speed", "[spi]")
         ESP_LOGI(TAG, "%.2lf", GET_US_BY_CCOUNT(t_flight_sorted[i]));
     }
 #ifndef CONFIG_SPIRAM
-    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_POLLING", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_POLL_DMA", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
     TEST_ASSERT_LESS_THAN_INT(IDF_TARGET_MAX_TRANS_TIME_POLL_DMA, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
 #endif
 
@@ -1499,7 +1509,7 @@ TEST_CASE("spi_speed", "[spi]")
         ESP_LOGI(TAG, "%.2lf", GET_US_BY_CCOUNT(t_flight_sorted[i]));
     }
 #ifndef CONFIG_SPIRAM
-    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_NO_POLLING_NO_DMA", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_INTR_CPU", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
     TEST_ASSERT_LESS_THAN_INT(IDF_TARGET_MAX_TRANS_TIME_INTR_CPU, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
 #endif
 
@@ -1517,7 +1527,7 @@ TEST_CASE("spi_speed", "[spi]")
         ESP_LOGI(TAG, "%.2lf", GET_US_BY_CCOUNT(t_flight_sorted[i]));
     }
 #ifndef CONFIG_SPIRAM
-    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_POLLING_NO_DMA", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
+    printf("[Performance][%s]: %d us\n", "SPI_PER_TRANS_POLL_CPU", (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
     TEST_ASSERT_LESS_THAN_INT(IDF_TARGET_MAX_TRANS_TIME_POLL_CPU, (int)GET_US_BY_CCOUNT(t_flight_sorted[(TEST_TIMES + 1) / 2]));
 #endif
 

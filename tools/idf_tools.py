@@ -1089,17 +1089,37 @@ class IDFTool(object):
 
     def get_preferred_installed_version(self) -> Optional[str]:
         """
-        Get the preferred installed version of the tool. If more versions installed, return the highest.
+        Get the preferred installed version of the tool.
+        If more versions installed, return recommended version if exists, otherwise return the highest supported version
         """
-        recommended_versions = [
+
+        try:
+            self.find_installed_versions()
+        except ToolBinaryError:
+            pass
+
+        if self.get_recommended_version() in self.versions_installed:
+            return self.get_recommended_version()
+
+        supported_installed_versions = [
             k
             for k in self.versions_installed
-            if self.versions[k].status == IDFToolVersion.STATUS_RECOMMENDED
+            if self.versions[k].status == IDFToolVersion.STATUS_SUPPORTED
             and self.versions[k].compatible_with_platform(self._platform)
         ]
-        assert len(recommended_versions) <= 1
-        if recommended_versions:
-            return recommended_versions[0]
+        sorted_supported_installed_versions = sorted(
+            supported_installed_versions, key=lambda x: self.versions[x], reverse=True
+        )
+        if sorted_supported_installed_versions:
+            warn(
+                ''.join(
+                    [
+                        f'Using supported version {sorted_supported_installed_versions[0]} for tool {self.name} ',
+                        f'as recommended version {self.get_recommended_version()} is not installed.',
+                    ]
+                )
+            )
+            return sorted_supported_installed_versions[0]
         return None
 
     def find_installed_versions(self) -> None:
@@ -1152,8 +1172,7 @@ class IDFTool(object):
             else:
                 if ver_str != version:
                     warn(f'tool {self.name} version {version} is installed, but has reported version {ver_str}')
-                else:
-                    self.versions_installed.append(version)
+                self.versions_installed.append(version)
         if tool_error:
             raise ToolBinaryError
 
@@ -1900,6 +1919,9 @@ def expand_tools_arg(tools_spec: List[str], overall_tools: OrderedDict, targets:
 
     # Filtering by ESP_targets
     tools = [k for k in tools if overall_tools[k].is_supported_for_any_of_targets(targets)]
+
+    # Processing specific version of tool - defined with '@'
+    tools.extend([tool_pattern for tool_pattern in tools_spec if '@' in tool_pattern])
     return tools
 
 
@@ -2250,10 +2272,6 @@ def process_tool(
     tool_export_paths: List[str] = []
     tool_export_vars: Dict[str, str] = {}
 
-    try:
-        tool.find_installed_versions()
-    except ToolBinaryError:
-        pass
     recommended_version_to_use = tool.get_preferred_installed_version()
 
     if not tool.is_executable and recommended_version_to_use:
@@ -2704,56 +2722,6 @@ def get_constraints(idf_version: str, online: bool = True) -> str:
         raise SystemExit(1)
 
 
-def install_legacy_python_virtualenv(path: str) -> None:
-    """
-    Checks if pip is installed (and installs it if not),
-    checks whether virtualenv is already installed (and in which version),
-    and finally creates virtual environment with python -m virtualenv <virtualenv_options>.
-    """
-    # Before creating the virtual environment, check if pip is installed.
-    try:
-        subprocess.check_call([sys.executable, '-m', 'pip', '--version'])
-    except subprocess.CalledProcessError:
-        fatal(
-            f"Python interpreter at {sys.executable} doesn't have pip installed. "
-            'Please check the Getting Started Guides for the steps to install prerequisites for your OS.'
-        )
-        raise SystemExit(1)
-
-    virtualenv_installed_via_pip = False
-    try:
-        import virtualenv  # noqa: F401
-    except ImportError:
-        info('Installing virtualenv')
-        subprocess.check_call(
-            [sys.executable, '-m', 'pip', 'install', '--user', 'virtualenv'], stdout=sys.stdout, stderr=sys.stderr
-        )
-        virtualenv_installed_via_pip = True
-        # since we just installed virtualenv via pip, we know that version is recent enough
-        # so the version check below is not necessary.
-
-    with_seeder_option = True
-    if not virtualenv_installed_via_pip:
-        # virtualenv is already present in the system and may have been installed via OS package manager
-        # check the version to determine if we should add --seeder option
-        try:
-            major_ver = int(virtualenv.__version__.split('.')[0])
-            if major_ver < 20:
-                warn(f'Virtualenv version {virtualenv.__version__} is old, please consider upgrading it')
-                with_seeder_option = False
-        except (ValueError, NameError, AttributeError, IndexError):
-            pass
-
-    info(f'Creating a new Python environment using virtualenv in {path}')
-    virtualenv_options = ['--python', sys.executable]
-    if with_seeder_option:
-        virtualenv_options += ['--seeder', 'pip']
-
-    subprocess.check_call(
-        [sys.executable, '-m', 'virtualenv', *virtualenv_options, path], stdout=sys.stdout, stderr=sys.stderr
-    )
-
-
 def action_install_python_env(args):  # type: ignore
     """
     (Re)installs python virtual environment.
@@ -2763,16 +2731,6 @@ def action_install_python_env(args):  # type: ignore
     use_constraints = not args.no_constraints
     reinstall = args.reinstall
     idf_python_env_path, _, virtualenv_python, idf_version = get_python_env_path()
-
-    nix_store = os.environ.get('NIX_STORE')
-    is_nix = nix_store is not None and sys.base_prefix.startswith(nix_store) and sys.prefix.startswith(nix_store)
-
-    is_virtualenv = not is_nix and (
-        hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)
-    )
-    if is_virtualenv and (not os.path.exists(idf_python_env_path) or reinstall):
-        fatal('This script was called from a virtual environment, can not create a virtual environment again')
-        raise SystemExit(1)
 
     if os.path.exists(virtualenv_python):
         try:
@@ -2803,77 +2761,57 @@ def action_install_python_env(args):  # type: ignore
     if os.path.exists(virtualenv_python):
         check_python_venv_compatibility(idf_python_env_path, idf_version)
     else:
-        if (
-            subprocess.run(
-                [sys.executable, '-m', 'venv', '-h'], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            ).returncode
-            == 0
-        ):
-            # venv available
-            virtualenv_options = []
-
-            info(f'Creating a new Python environment in {idf_python_env_path}')
-
-            try:
-                environ_idf_python_env_path = os.environ['IDF_PYTHON_ENV_PATH']
-                correct_env_path = environ_idf_python_env_path.endswith(
-                    PYTHON_VENV_DIR_TEMPLATE.format(idf_version, PYTHON_VER_MAJOR_MINOR)
+        virtualenv_options = []
+        info(f'Creating a new Python environment in {idf_python_env_path}')
+        try:
+            environ_idf_python_env_path = os.environ['IDF_PYTHON_ENV_PATH']
+            correct_env_path = environ_idf_python_env_path.endswith(
+                PYTHON_VENV_DIR_TEMPLATE.format(idf_version, PYTHON_VER_MAJOR_MINOR)
+            )
+            if not correct_env_path and re.search(
+                PYTHON_VENV_DIR_TEMPLATE.format(r'\d+\.\d+', r'\d+\.\d+'), environ_idf_python_env_path
+            ):
+                warn(
+                    f'IDF_PYTHON_ENV_PATH is set to {environ_idf_python_env_path} but it does not match '
+                    f'the detected {idf_version} ESP-IDF version and/or the used {PYTHON_VER_MAJOR_MINOR} '
+                    'version of Python. If you have not set IDF_PYTHON_ENV_PATH intentionally then it is '
+                    'recommended to re-run this script from a clean shell where an ESP-IDF environment is '
+                    'not active.'
                 )
-                if not correct_env_path and re.search(
-                    PYTHON_VENV_DIR_TEMPLATE.format(r'\d+\.\d+', r'\d+\.\d+'), environ_idf_python_env_path
-                ):
-                    warn(
-                        f'IDF_PYTHON_ENV_PATH is set to {environ_idf_python_env_path} but it does not match '
-                        f'the detected {idf_version} ESP-IDF version and/or the used {PYTHON_VER_MAJOR_MINOR} '
-                        'version of Python. If you have not set IDF_PYTHON_ENV_PATH intentionally then it is '
-                        'recommended to re-run this script from a clean shell where an ESP-IDF environment is '
-                        'not active.'
-                    )
+            # Verify if IDF_PYTHON_ENV_PATH is a valid ESP-IDF Python virtual environment directory
+            # to decide if content should be removed
+            if os.path.exists(os.path.join(environ_idf_python_env_path, VENV_VER_FILE)) or re.search(
+                PYTHON_VENV_DIR_TEMPLATE.format(r'\d+\.\d+', r'\d+\.\d+'), environ_idf_python_env_path
+            ):
+                virtualenv_options.append('--clear')  # delete environment if already exists
+            elif os.listdir(environ_idf_python_env_path):  # show the message only if the directory is not empty
+                info(
+                    f'IDF_PYTHON_ENV_PATH is set to {environ_idf_python_env_path}, '
+                    'but it does not appear to be an ESP-IDF Python virtual environment directory. '
+                    'Existing data in this folder will be preserved to prevent unintentional data loss.'
+                )
 
-                # Verify if IDF_PYTHON_ENV_PATH is a valid ESP-IDF Python virtual environment directory
-                # to decide if content should be removed
-                if os.path.exists(os.path.join(environ_idf_python_env_path, VENV_VER_FILE)) or re.search(
-                    PYTHON_VENV_DIR_TEMPLATE.format(r'\d+\.\d+', r'\d+\.\d+'), environ_idf_python_env_path
-                ):
-                    virtualenv_options.append('--clear')  # delete environment if already exists
-                elif os.listdir(environ_idf_python_env_path):  # show the message only if the directory is not empty
-                    info(
-                        f'IDF_PYTHON_ENV_PATH is set to {environ_idf_python_env_path}, '
-                        'but it does not appear to be an ESP-IDF Python virtual environment directory. '
-                        'Existing data in this folder will be preserved to prevent unintentional data loss.'
-                    )
-
-            except KeyError:
-                # if IDF_PYTHON_ENV_PATH not defined then the above checks can be skipped
-                pass
-
-            subprocess.check_call(
-                [sys.executable, '-m', 'venv', *virtualenv_options, idf_python_env_path],
-                stdout=sys.stdout,
-                stderr=sys.stderr,
+        except KeyError:
+            # if IDF_PYTHON_ENV_PATH not defined then the above checks can be skipped
+            pass
+        subprocess.check_call(
+            [sys.executable, '-m', 'venv', *virtualenv_options, idf_python_env_path],
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+        )
+        try:
+            with open(os.path.join(idf_python_env_path, VENV_VER_FILE), 'w', encoding='utf-8') as f:
+                f.write(idf_version)
+        except OSError:
+            warn(
+                'The following issue occurred while generating the '
+                'ESP-IDF version file in the Python environment: {e}. '
+                '(Diagnostic information. It can be ignored.)'
             )
 
-            try:
-                with open(os.path.join(idf_python_env_path, VENV_VER_FILE), 'w', encoding='utf-8') as f:
-                    f.write(idf_version)
-            except OSError:
-                warn(
-                    'The following issue occurred while generating the '
-                    'ESP-IDF version file in the Python environment: {e}. '
-                    '(Diagnostic information. It can be ignored.)'
-                )
-
-        else:
-            # The embeddable Python for Windows doesn't have the built-in venv module
-            install_legacy_python_virtualenv(idf_python_env_path)
-
     env_copy = os.environ.copy()
-    if env_copy.get('PIP_USER') == 'yes':
-        warn(
-            'Found PIP_USER="yes" in the environment. '
-            'Disabling PIP_USER in this shell to install packages into a virtual environment.'
-        )
-        env_copy['PIP_USER'] = 'no'
+    # Enforce disabling possible pip 'user' option to prevent installation error with virtual environment
+    env_copy['PIP_USER'] = 'no'
 
     constraint_file = get_constraints(idf_version) if use_constraints else None
 
@@ -3132,7 +3070,7 @@ def action_uninstall(args: Any) -> None:
             os.listdir(os.path.join(tools_path, tool)) if os.path.isdir(os.path.join(tools_path, tool)) else []
         )
         try:
-            unused_versions = [x for x in tool_versions if x != tools_info[tool].get_recommended_version()]
+            unused_versions = [x for x in tool_versions if x != tools_info[tool].get_preferred_installed_version()]
         except (
             KeyError
         ):  # When tool that is not supported by tools_info (tools.json) anymore, remove the whole tool file
@@ -3188,7 +3126,7 @@ def action_uninstall(args: Any) -> None:
                 tool_name, tool_version = tool_spec.split('@', 1)
             tool_obj = tools_info_for_platform[tool_name]
             if tool_version is None:
-                tool_version = tool_obj.get_recommended_version()
+                tool_version = tool_obj.get_preferred_installed_version()
             # mypy-checks
             if tool_version is not None:
                 archive_version = tool_obj.versions[tool_version].get_download_for_platform(CURRENT_PLATFORM)
@@ -3458,7 +3396,12 @@ def main(argv: List[str]) -> None:
             )
 
     install_python_env = subparsers.add_parser(
-        'install-python-env', help=('Create Python virtual environment and install the required Python packages')
+        'install-python-env',
+        help=(
+            'Create a Python virtual environment and install the required Python packages. '
+            'If the virtual environment already exists, update all Python packages to the latest '
+            'versions compatible with the current ESP-IDF version.'
+        ),
     )
     install_python_env.add_argument(
         '--reinstall', help='Discard the previously installed environment', action='store_true'

@@ -19,7 +19,7 @@
 #include "freertos/task.h"
 #include "esp_rom_gpio.h"
 #include "esp_rom_sys.h"
-#include "esp_rom_uart.h"
+#include "esp_rom_serial_output.h"
 #include "test_utils.h"
 #include "esp_random.h"
 #include "esp_sleep.h"
@@ -31,7 +31,7 @@
 
 #define CALIBRATE_ONE(cali_clk) calibrate_one(cali_clk, #cali_clk)
 
-static uint32_t calibrate_one(rtc_cal_sel_t cal_clk, const char* name)
+static uint32_t calibrate_one(soc_clk_freq_calculation_src_t cal_clk, const char* name)
 {
     const uint32_t cal_count = 1000;
     const float factor = (1 << 19) * 1000.0f;
@@ -54,13 +54,13 @@ TEST_CASE("RTC_SLOW_CLK sources calibration", "[rtc_clk]")
 
     // By default Kconfig, RTC_SLOW_CLK source is RC_SLOW
     soc_rtc_slow_clk_src_t default_rtc_slow_clk_src = rtc_clk_slow_src_get();
-    CALIBRATE_ONE(RTC_CAL_RTC_MUX);
+    CALIBRATE_ONE(CLK_CAL_RTC_SLOW);
 #if SOC_CLK_RC_FAST_D256_SUPPORTED
-    CALIBRATE_ONE(RTC_CAL_8MD256);
+    CALIBRATE_ONE(CLK_CAL_RC_FAST_D256);
 #endif
 
 #if SOC_CLK_XTAL32K_SUPPORTED
-    uint32_t cal_32k = CALIBRATE_ONE(RTC_CAL_32K_XTAL);
+    uint32_t cal_32k = CALIBRATE_ONE(CLK_CAL_32K_XTAL);
     if (cal_32k == 0) {
         printf("32K XTAL OSC has not started up\n");
     } else {
@@ -68,11 +68,11 @@ TEST_CASE("RTC_SLOW_CLK sources calibration", "[rtc_clk]")
         rtc_clk_slow_src_set(SOC_RTC_SLOW_CLK_SRC_XTAL32K);
         printf("done\n");
 
-        CALIBRATE_ONE(RTC_CAL_RTC_MUX);
+        CALIBRATE_ONE(CLK_CAL_RTC_SLOW);
 #if SOC_CLK_RC_FAST_D256_SUPPORTED
-        CALIBRATE_ONE(RTC_CAL_8MD256);
+        CALIBRATE_ONE(CLK_CAL_RC_FAST_D256);
 #endif
-        CALIBRATE_ONE(RTC_CAL_32K_XTAL);
+        CALIBRATE_ONE(CLK_CAL_32K_XTAL);
     }
 #endif
 
@@ -81,16 +81,16 @@ TEST_CASE("RTC_SLOW_CLK sources calibration", "[rtc_clk]")
     rtc_clk_slow_src_set(SOC_RTC_SLOW_CLK_SRC_RC_FAST_D256);
     printf("done\n");
 
-    CALIBRATE_ONE(RTC_CAL_RTC_MUX);
-    CALIBRATE_ONE(RTC_CAL_8MD256);
+    CALIBRATE_ONE(CLK_CAL_RTC_SLOW);
+    CALIBRATE_ONE(CLK_CAL_RC_FAST_D256);
 #if SOC_CLK_XTAL32K_SUPPORTED
-    CALIBRATE_ONE(RTC_CAL_32K_XTAL);
+    CALIBRATE_ONE(CLK_CAL_32K_XTAL);
 #endif
 #endif
 
 #if SOC_CLK_OSC_SLOW_SUPPORTED
     rtc_clk_32k_enable_external();
-    uint32_t cal_ext_slow_clk = CALIBRATE_ONE(RTC_CAL_32K_OSC_SLOW);
+    uint32_t cal_ext_slow_clk = CALIBRATE_ONE(CLK_CAL_32K_OSC_SLOW);
     if (cal_ext_slow_clk == 0) {
         printf("EXT CLOCK by PIN has not started up\n");
     } else {
@@ -98,11 +98,11 @@ TEST_CASE("RTC_SLOW_CLK sources calibration", "[rtc_clk]")
         rtc_clk_slow_src_set(SOC_RTC_SLOW_CLK_SRC_OSC_SLOW);
         printf("done\n");
 
-        CALIBRATE_ONE(RTC_CAL_RTC_MUX);
+        CALIBRATE_ONE(CLK_CAL_RTC_SLOW);
 #if SOC_CLK_RC_FAST_D256_SUPPORTED
-        CALIBRATE_ONE(RTC_CAL_8MD256);
+        CALIBRATE_ONE(CLK_CAL_RC_FAST_D256);
 #endif
-        CALIBRATE_ONE(RTC_CAL_32K_OSC_SLOW);
+        CALIBRATE_ONE(CLK_CAL_32K_OSC_SLOW);
     }
 #endif
 
@@ -244,8 +244,9 @@ static void start_freq(soc_rtc_slow_clk_src_t required_src, uint32_t start_delay
         } else {
             printf("PASS. Time measurement...");
         }
-        uint64_t clk_rtc_time;
         uint32_t fail_measure = 0;
+#if SOC_LP_TIMER_SUPPORTED
+        uint64_t clk_rtc_time;
         for (int j = 0; j < 3; ++j) {
             clk_rtc_time = esp_clk_rtc_time();
             esp_rom_delay_us(1000000);
@@ -257,6 +258,7 @@ static void start_freq(soc_rtc_slow_clk_src_t required_src, uint32_t start_delay
                 break;
             }
         }
+#endif
         if(fail_measure == 0) {
             printf("PASS");
         }
@@ -285,10 +287,10 @@ TEST_CASE("Test starting external RTC quartz", "[rtc_clk][test_env=xtal32k]")
             bootstrap_cycles,
             CONFIG_RTC_CLK_CAL_CYCLES);
 #endif // CONFIG_RTC_CLK_SRC_EXT_CRYS
-    if (CONFIG_RTC_CLK_CAL_CYCLES < 1500){
+    if (CONFIG_RTC_CLK_CAL_CYCLES < 1500) {
         printf("Recommended increase Number of cycles for RTC_SLOW_CLK calibration to 3000!\n");
     }
-    while(i < COUNT_TEST){
+    while (i < COUNT_TEST) {
         start_time = xTaskGetTickCount() * (1000 / configTICK_RATE_HZ);
         i++;
         printf("attempt #%d/%d...", i, COUNT_TEST);
@@ -296,7 +298,7 @@ TEST_CASE("Test starting external RTC quartz", "[rtc_clk][test_env=xtal32k]")
         rtc_clk_select_rtc_slow_clk();
         end_time = xTaskGetTickCount() * (1000 / configTICK_RATE_HZ);
         printf(" [time=%"PRIu32"] ", end_time - start_time);
-        if((end_time - start_time) > TIMEOUT_TEST_MS){
+        if ((end_time - start_time) > TIMEOUT_TEST_MS) {
             printf("FAIL\n");
             fail = 1;
         } else {
@@ -325,13 +327,14 @@ TEST_CASE("Test starting 'External 32kHz XTAL' on the board without it.", "[rtc_
             "will switch to the internal RC circuit. If the switch to the internal RC circuit "
             "was successful then the test succeeded.\n");
 
-    start_freq(SOC_RTC_SLOW_CLK_SRC_RC_SLOW, 200);
-    start_freq(SOC_RTC_SLOW_CLK_SRC_RC_SLOW, 0);
+    start_freq(SOC_RTC_SLOW_CLK_SRC_DEFAULT, 200);
+    start_freq(SOC_RTC_SLOW_CLK_SRC_DEFAULT, 0);
 }
 
 #endif // !defined(CONFIG_IDF_CI_BUILD) || !CONFIG_SPIRAM_BANKSWITCH_ENABLE
 #endif // SOC_CLK_XTAL32K_SUPPORTED
 
+#if SOC_LP_TIMER_SUPPORTED
 TEST_CASE("Test rtc clk calibration compensation", "[rtc_clk]")
 {
     int64_t t1 = esp_rtc_get_time_us();
@@ -358,6 +361,7 @@ TEST_CASE("Test rtc clk calibration compensation", "[rtc_clk]")
 
     TEST_ASSERT_GREATER_THAN(t1, t2);
 }
+#endif
 
 #if SOC_DEEP_SLEEP_SUPPORTED
 static RTC_NOINIT_ATTR int64_t start = 0;

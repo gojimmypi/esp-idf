@@ -235,6 +235,10 @@ config SOC_PMU_SUPPORTED
     bool
     default y
 
+config SOC_PMU_PVT_SUPPORTED
+    bool
+    default y
+
 config SOC_DCDC_SUPPORTED
     bool
     default y
@@ -763,6 +767,10 @@ config SOC_DEDIC_PERIPH_ALWAYS_ENABLE
     bool
     default y
 
+config SOC_SDM_SUPPORT_SLEEP_RETENTION
+    bool
+    default y
+
 config SOC_ANA_CMPR_NUM
     int
     default 2
@@ -1171,10 +1179,6 @@ config SOC_PCNT_SUPPORT_CLEAR_SIGNAL
     bool
     default y
 
-config SOC_PCNT_SUPPORT_SLEEP_RETENTION
-    bool
-    default y
-
 config SOC_RMT_GROUPS
     int
     default 1
@@ -1203,7 +1207,7 @@ config SOC_RMT_SUPPORT_RX_DEMODULATION
     bool
     default y
 
-config SOC_RMT_SUPPORT_TX_ASYNC_STOP
+config SOC_RMT_SUPPORT_ASYNC_STOP
     bool
     default y
 
@@ -1499,22 +1503,6 @@ config SOC_ECDSA_USES_MPI
     bool
     default y
 
-config SOC_SDM_GROUPS
-    int
-    default 1
-
-config SOC_SDM_CHANNELS_PER_GROUP
-    int
-    default 8
-
-config SOC_SDM_CLK_SUPPORT_PLL_F80M
-    bool
-    default y
-
-config SOC_SDM_CLK_SUPPORT_XTAL
-    bool
-    default y
-
 config SOC_SPI_PERIPH_NUM
     int
     default 3
@@ -1559,10 +1547,6 @@ config SOC_SPI_SUPPORT_CLK_RC_FAST
     bool
     default y
 
-config SOC_SPI_SUPPORT_CLK_SPLL
-    bool
-    default y
-
 config SOC_MSPI_HAS_INDEPENT_IOMUX
     bool
     default y
@@ -1574,10 +1558,6 @@ config SOC_MEMSPI_IS_INDEPENDENT
 config SOC_SPI_MAX_PRE_DIVIDER
     int
     default 16
-
-config SOC_LP_SPI_PERIPH_NUM
-    bool
-    default y
 
 config SOC_LP_SPI_MAXIMUM_BUFFER_SIZE
     int
@@ -1647,10 +1627,6 @@ config SOC_MEMSPI_SRC_FREQ_120M_SUPPORTED
     bool
     default y
 
-config SOC_MEMSPI_FLASH_PSRAM_INDEPENDENT
-    bool
-    default y
-
 config SOC_SYSTIMER_COUNTER_NUM
     int
     default 2
@@ -1695,30 +1671,6 @@ config SOC_LP_TIMER_BIT_WIDTH_HI
     int
     default 16
 
-config SOC_TIMER_GROUPS
-    int
-    default 2
-
-config SOC_TIMER_GROUP_TIMERS_PER_GROUP
-    int
-    default 2
-
-config SOC_TIMER_GROUP_COUNTER_BIT_WIDTH
-    int
-    default 54
-
-config SOC_TIMER_GROUP_SUPPORT_XTAL
-    bool
-    default y
-
-config SOC_TIMER_GROUP_SUPPORT_RC_FAST
-    bool
-    default y
-
-config SOC_TIMER_GROUP_TOTAL_TIMERS
-    int
-    default 4
-
 config SOC_TIMER_SUPPORT_ETM
     bool
     default y
@@ -1745,11 +1697,11 @@ config SOC_TOUCH_SENSOR_NUM
 
 config SOC_TOUCH_MIN_CHAN_ID
     int
-    default 0
+    default 1
 
 config SOC_TOUCH_MAX_CHAN_ID
     int
-    default 13
+    default 14
 
 config SOC_TOUCH_SUPPORT_SLEEP_WAKEUP
     bool
@@ -1835,6 +1787,10 @@ config SOC_EFUSE_ECDSA_KEY
     bool
     default y
 
+config SOC_KEY_MANAGER_SUPPORT_KEY_DEPLOYMENT
+    bool
+    default y
+
 config SOC_KEY_MANAGER_ECDSA_KEY_DEPLOY
     bool
     default y
@@ -1906,10 +1862,6 @@ config SOC_LP_UART_FIFO_LEN
 config SOC_UART_BITRATE_MAX
     int
     default 5000000
-
-config SOC_UART_SUPPORT_PLL_F80M_CLK
-    bool
-    default y
 
 config SOC_UART_SUPPORT_RTC_CLK
     bool
@@ -2067,10 +2019,6 @@ config SOC_PM_RETENTION_MODULE_NUM
     int
     default 64
 
-config SOC_PSRAM_VDD_POWER_MPLL
-    bool
-    default y
-
 config SOC_CLK_RC_FAST_SUPPORT_CALIBRATION
     bool
     default y
@@ -2107,10 +2055,6 @@ config SOC_PERIPH_CLK_CTRL_SHARED
     bool
     default y
 
-config SOC_TEMPERATURE_SENSOR_LP_PLL_SUPPORT
-    bool
-    default y
-
 config SOC_TEMPERATURE_SENSOR_INTR_SUPPORT
     bool
     default y
@@ -2131,10 +2075,6 @@ config SOC_MEM_TCM_SUPPORTED
     bool
     default y
 
-config SOC_MEM_NON_CONTIGUOUS_SRAM
-    bool
-    default y
-
 config SOC_ASYNCHRONOUS_BUS_ERROR_MODE
     bool
     default y
@@ -2148,6 +2088,10 @@ config SOC_EMAC_USE_MULTI_IO_MUX
     default y
 
 config SOC_EMAC_MII_USE_GPIO_MATRIX
+    bool
+    default y
+
+config SOC_EMAC_SUPPORT_SLEEP_RETENTION
     bool
     default y
 
@@ -2192,10 +2136,6 @@ config SOC_LP_CORE_SUPPORT_ETM
     default y
 
 config SOC_LP_CORE_SUPPORT_LP_ADC
-    bool
-    default y
-
-config SOC_LP_CORE_SUPPORT_LP_VAD
     bool
     default y
 
