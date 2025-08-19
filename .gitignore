@@ -110,3 +110,9 @@ XUNIT_RESULT*.xml
 
 # Vale
 .vale/styles/*
+
+# Visual Studio Debris
+/**/.vs
+
+/**/*.bak
+

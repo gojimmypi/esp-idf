@@ -49,7 +49,7 @@ typedef enum esp_tls_role {
  */
 typedef struct psk_key_hint {
     const uint8_t* key;                     /*!< key in PSK authentication mode in binary format */
-    size_t   key_size;                      /*!< length of the key */
+    const size_t   key_size;                /*!< length of the key */
     const char* hint;                       /*!< hint in PSK authentication mode in string format */
 } psk_hint_key_t;
 
@@ -207,11 +207,9 @@ typedef struct esp_tls_cfg {
 
     tls_keep_alive_cfg_t *keep_alive_cfg;   /*!< Enable TCP keep-alive timeout for SSL connection */
 
-#if defined(CONFIG_ESP_TLS_PSK_VERIFICATION)
     const psk_hint_key_t* psk_hint_key;     /*!< Pointer to PSK hint and key. if not NULL (and certificates are NULL)
                                                  then PSK authentication is enabled with configured setup.
                                                  Important note: the pointer must be valid for connection */
-#endif /* CONFIG_ESP_TLS_PSK_VERIFICATION */
 
     esp_err_t (*crt_bundle_attach)(void *conf);
                                             /*!< Function pointer to esp_crt_bundle_attach. Enables the use of certification
@@ -788,8 +786,11 @@ int esp_tls_server_session_create(esp_tls_cfg_server_t *cfg, int sockfd, esp_tls
  *
  * @param[in]  tls  pointer to esp_tls_t
  */
+#ifdef CONFIG_ESP_TLS_USING_WOLFSSL
+int esp_tls_server_session_delete(esp_tls_t *tls);
+#else
 void esp_tls_server_session_delete(esp_tls_t *tls);
-
+#endif
 /**
  * @brief Creates a plain TCP connection, returning a valid socket fd on success or an error handle
  *

@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#ifdef CONFIG_ESP_TLS_USING_MBEDTLS
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -1380,3 +1381,4 @@ exit:
     return ret;
 }
 #endif /* CONFIG_ESP_TLS_USE_DS_PERIPHERAL */
+#endif /* #ifdef CONFIG_ESP_TLS_USING_MBEDTLS */

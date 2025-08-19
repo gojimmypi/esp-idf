@@ -16,10 +16,13 @@ __attribute__((unused)) static const char *TAG = "esp_crypto";
 #define _esp_crypto_sha1 esp_crypto_sha1_mbedtls
 #define _esp_crypto_base64_encode esp_crypto_bas64_encode_mbedtls
 #elif  CONFIG_ESP_TLS_USING_WOLFSSL
-#include "wolfssl/ssl.h" /* SHA functions are listed in wolfssl/ssl.h */
-#include "wolfssl/wolfcrypt/coding.h"
-#define _esp_crypto_sha1 esp_crypto_sha1_wolfSSL
-#define _esp_crypto_base64_encode esp_crypto_base64_encode_woflSSL
+    #define OPENSSL_EXTRA
+    #include "wolfssl/wolfcrypt/settings.h"
+    #include "wolfssl/ssl.h" /* some SHA functions are listed in wolfssl/ssl.h */
+    #include "wolfssl/openssl/sha.h" /* old SHA functions only available with OpenSSL */
+    #include "wolfssl/wolfcrypt/coding.h"
+    #define _esp_crypto_sha1 esp_crypto_sha1_wolfSSL
+    #define _esp_crypto_base64_encode esp_crypto_base64_encode_woflSSL
 #endif
 
 #ifdef CONFIG_ESP_TLS_USING_MBEDTLS
