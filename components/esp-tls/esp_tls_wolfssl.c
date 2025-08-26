@@ -644,7 +644,7 @@ int esp_wolfssl_handshake(esp_tls_t *tls, const esp_tls_cfg_t *cfg)
     #ifdef DEBUG_WOLFSSL
         wolfSSL_Debugging_ON();
     #endif
-    ESP_LOGCBI(TAG, "Begin esp-tls esp_wolfssl_handshake");
+    // ESP_LOGCBI(TAG, "Begin esp-tls esp_wolfssl_handshake");
     ret = wolfSSL_connect( (WOLFSSL *)tls->priv_ssl);
 #ifndef WOLFSSL_NO_CONF_COMPATIBILITY
     tls->conf.priv_ssl = tls->priv_ssl;
