@@ -18,8 +18,6 @@
 #include "multi_heap_internal.h"
 #endif
 
-#define TAG "heap_cap_base"
-
 #ifdef CONFIG_HEAP_USE_HOOKS
 #define CALL_HOOK(hook, ...) {      \
     if (hook != NULL) {             \
@@ -115,7 +113,6 @@ HEAP_IRAM_ATTR NOINLINE_ATTR void *heap_caps_aligned_alloc_base(size_t alignment
     if (size == 0 || size > MULTI_HEAP_REMOVE_BLOCK_OWNER_SIZE(HEAP_SIZE_MAX) ) {
         // Avoids int overflow when adding small numbers to size, or
         // calculating 'end' from start+size, by limiting 'size' to the possible range
-        ESP_LOGE(TAG, "heap_caps_aligned_alloc_base 1");
         return NULL;
     }
 
@@ -125,7 +122,6 @@ HEAP_IRAM_ATTR NOINLINE_ATTR void *heap_caps_aligned_alloc_base(size_t alignment
         //NULL directly, even although our heap capabilities (based on soc_memory_tags & soc_memory_regions) would
         //indicate there is a tag for this.
         if ((caps & MALLOC_CAP_8BIT) || (caps & MALLOC_CAP_DMA)) {
-            ESP_LOGE(TAG, "heap_caps_aligned_alloc_base 2");
             return NULL;
         }
         caps |= MALLOC_CAP_32BIT; // IRAM is 32-bit accessible RAM
@@ -174,9 +170,6 @@ HEAP_IRAM_ATTR NOINLINE_ATTR void *heap_caps_aligned_alloc_base(size_t alignment
                             CALL_HOOK(esp_heap_trace_alloc_hook, iptr, size, caps);
                             return iptr;
                         }
-                        else {
-                            ESP_LOGE(TAG, "heap_caps_aligned_alloc_base 3");
-                        }
                     } else {
                         //Just try to alloc, nothing special.
                         ret = aligned_or_unaligned_alloc(heap->heap, MULTI_HEAP_ADD_BLOCK_OWNER_SIZE(size),
@@ -193,9 +186,6 @@ HEAP_IRAM_ATTR NOINLINE_ATTR void *heap_caps_aligned_alloc_base(size_t alignment
                             ret = MULTI_HEAP_ADD_BLOCK_OWNER_OFFSET(ret);
                             CALL_HOOK(esp_heap_trace_alloc_hook, ret, size, caps);
                             return ret;
-                        }
-                        else {
-                            ESP_LOGE(TAG, "heap_caps_aligned_alloc_base 4");
                         }
                     }
                 }
@@ -336,16 +326,12 @@ HEAP_IRAM_ATTR void *heap_caps_calloc_base( size_t n, size_t size, uint32_t caps
     size_t size_bytes;
 
     if (__builtin_mul_overflow(n, size, &size_bytes)) {
-        ESP_LOGE(TAG, "__builtin_mul_overflow");
         return NULL;
     }
 
     result = heap_caps_malloc_base(size_bytes, caps);
     if (result != NULL) {
         memset(result, 0, size_bytes);
-    }
-    else {
-        ESP_LOGE(TAG, "heap_caps_malloc_base failed");
     }
     return result;
 }
