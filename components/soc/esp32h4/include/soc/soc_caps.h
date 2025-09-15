@@ -40,7 +40,7 @@
 #define SOC_GPTIMER_SUPPORTED           1
 // #define SOC_PCNT_SUPPORTED              1    // TODO: [ESP32H4] IDF-12338
 // #define SOC_MCPWM_SUPPORTED             1    // TODO: [ESP32H4] IDF-12380
-// #define SOC_TWAI_SUPPORTED              1    // TODO: [ESP32H4] IDF-12352
+#define SOC_TWAI_SUPPORTED              1
 #define SOC_ETM_SUPPORTED               1
 // #define SOC_PARLIO_SUPPORTED            1    // TODO: [ESP32H4] IDF-12345 IDF-12347
 // #define SOC_BT_SUPPORTED                1
@@ -63,14 +63,11 @@
 #define SOC_SYSTIMER_SUPPORTED          1       // TODO: [ESP32H4] IDF-12375 IDF-12377
 // #define SOC_SUPPORT_COEXISTENCE         1    // TODO: [ESP32H4] IDF-12251 IDF-12252 IDF-12253
 // #define SOC_AES_SUPPORTED               0    // TODO: [ESP32H4] IDF-12266
-// #define SOC_MPI_SUPPORTED               0
 // #define SOC_SHA_SUPPORTED               1    // TODO: [ESP32H4] IDF-12263
 // #define SOC_HMAC_SUPPORTED              0    // TODO: [ESP32H4] IDF-12257
-// #define SOC_DIG_SIGN_SUPPORTED          0    // TODO: [ESP32H4] IDF-12443
 // #define SOC_ECC_SUPPORTED               1    // TODO: [ESP32H4] IDF-12264
 #define SOC_FLASH_ENC_SUPPORTED         1       // TODO: [ESP32H4] IDF-12261
 // #define SOC_SECURE_BOOT_SUPPORTED       1    // TODO: [ESP32H4] IDF-12262
-#define SOC_MODEM_CLOCK_SUPPORTED       1
 
 // #define SOC_BOD_SUPPORTED               1    // TODO: [ESP32H4] IDF-12295
 // #define SOC_APM_SUPPORTED               1    // TODO: [ESP32H4] IDF-12256
@@ -87,7 +84,10 @@
 #define SOC_WDT_SUPPORTED               1
 #define SOC_SPI_FLASH_SUPPORTED         1       // TODO: [ESP32H4] IDF-12388
 #define SOC_SPIRAM_SUPPORTED            1
-
+#define SOC_LIGHT_SLEEP_SUPPORTED       1
+#define SOC_DEEP_SLEEP_SUPPORTED        1
+#define SOC_MODEM_CLOCK_SUPPORTED       1
+#define SOC_PM_SUPPORTED                1
 /*-------------------------- XTAL CAPS ---------------------------------------*/
 #define SOC_XTAL_SUPPORT_32M                        1
 #define SOC_XTAL_CLOCK_PATH_DEPENDS_ON_TOP_DOMAIN   1
@@ -174,17 +174,6 @@
 #define SOC_HP_CPU_HAS_MULTIPLE_CORES   1   // Convenience boolean macro used to determine if a target has multiple cores.
 #define SOC_CPU_HAS_LOCKUP_RESET        1
 
-/*-------------------------- DIGITAL SIGNATURE CAPS ----------------------------------------*/
-/** The maximum length of a Digital Signature in bits. */
-// #define SOC_DS_SIGNATURE_MAX_BIT_LEN (3072)
-
-/** Initialization vector (IV) length for the RSA key parameter message digest (MD) in bytes. */
-// #define SOC_DS_KEY_PARAM_MD_IV_LENGTH (16)
-
-/** Maximum wait time for DS parameter decryption key. If overdue, then key error.
-    See TRM DS chapter for more details */
-// #define SOC_DS_KEY_CHECK_MAX_WAIT_US (1100)
-
 /*-------------------------- DMA Common CAPS ----------------------------------------*/
 #define SOC_DMA_CAN_ACCESS_FLASH 1 /*!< DMA can access Flash memory */
 
@@ -195,11 +184,6 @@
 #define SOC_GDMA_SUPPORT_ETM                1  // Support ETM submodule
 #define SOC_GDMA_SUPPORT_SLEEP_RETENTION    1
 #define SOC_AHB_GDMA_SUPPORT_PSRAM 1
-
-/*-------------------------- ETM CAPS --------------------------------------*/
-#define SOC_ETM_GROUPS                  1U  // Number of ETM groups
-#define SOC_ETM_CHANNELS_PER_GROUP      50  // Number of ETM channels in the group
-#define SOC_ETM_SUPPORT_SLEEP_RETENTION 1
 
 /*-------------------------- GPIO CAPS ---------------------------------------*/
 // ESP32-H4 has 1 GPIO peripheral
@@ -255,6 +239,7 @@
 // #define SOC_DEDIC_PERIPH_ALWAYS_ENABLE  (1) /*!< The dedicated GPIO (a.k.a. fast GPIO) is featured by some customized CPU instructions, which is always enabled */
 
 #define SOC_SDM_SUPPORT_SLEEP_RETENTION 1
+#define SOC_ETM_SUPPORT_SLEEP_RETENTION 1
 
 /*-------------------------- I2C CAPS ----------------------------------------*/
 // ESP32-H4 has 2 I2C
@@ -371,13 +356,6 @@
 // #define SOC_PARLIO_TX_UNIT_MAX_DATA_WIDTH    8   /*!< Number of data lines of the TX unit */
 // #define SOC_PARLIO_RX_UNIT_MAX_DATA_WIDTH    8   /*!< Number of data lines of the RX unit */
 
-/*--------------------------- MPI CAPS ---------------------------------------*/
-// #define SOC_MPI_MEM_BLOCKS_NUM (4)
-// #define SOC_MPI_OPERATIONS_NUM (3)
-
-/*--------------------------- RSA CAPS ---------------------------------------*/
-// #define SOC_RSA_MAX_BIT_LEN    (3072)
-
 /*--------------------------- SHA CAPS ---------------------------------------*/
 
 /* Max amount of bytes in a single DMA operation is 4095,
@@ -452,11 +430,15 @@
 #define SOC_MWDT_SUPPORT_XTAL              (1)
 
 /*-------------------------- TWAI CAPS ---------------------------------------*/
-// #define SOC_TWAI_CONTROLLER_NUM         2
-// #define SOC_TWAI_CLK_SUPPORT_XTAL       1
-// #define SOC_TWAI_BRP_MIN                2
-// #define SOC_TWAI_BRP_MAX                32768
-// #define SOC_TWAI_SUPPORTS_RX_STATUS     1
+#define SOC_TWAI_CONTROLLER_NUM         1U
+#define SOC_TWAI_MASK_FILTER_NUM        3
+#define SOC_TWAI_RANGE_FILTER_NUM       1U
+#define SOC_TWAI_BRP_MIN                1U
+#define SOC_TWAI_BRP_MAX                255
+#define SOC_TWAI_CLK_SUPPORT_XTAL       1
+#define SOC_TWAI_SUPPORTS_RX_STATUS     1
+#define SOC_TWAI_SUPPORT_FD             1
+#define SOC_TWAI_SUPPORT_TIMESTAMP      1
 
 /*-------------------------- eFuse CAPS----------------------------*/
 #define SOC_EFUSE_DIS_DOWNLOAD_ICACHE 0
@@ -499,13 +481,13 @@
 // UART has an extra TX_WAIT_SEND state when the FIFO is not empty and XOFF is enabled
 #define SOC_UART_SUPPORT_FSM_TX_WAIT_SEND   (1)
 
-#define SOC_UART_SUPPORT_SLEEP_RETENTION   (1)         /*!< Support back up registers before sleep */
+// #define SOC_UART_SUPPORT_SLEEP_RETENTION   (1)         /*!< Support back up registers before sleep */
 
-#define SOC_UART_WAKEUP_CHARS_SEQ_MAX_LEN 5
+// #define SOC_UART_WAKEUP_CHARS_SEQ_MAX_LEN 5
 #define SOC_UART_WAKEUP_SUPPORT_ACTIVE_THRESH_MODE (1)
-#define SOC_UART_WAKEUP_SUPPORT_FIFO_THRESH_MODE   (1)
-#define SOC_UART_WAKEUP_SUPPORT_START_BIT_MODE     (1)
-#define SOC_UART_WAKEUP_SUPPORT_CHAR_SEQ_MODE      (1)
+// #define SOC_UART_WAKEUP_SUPPORT_FIFO_THRESH_MODE   (1)      // TODO: [ESP32H4] PM-457
+// #define SOC_UART_WAKEUP_SUPPORT_START_BIT_MODE     (1)
+// #define SOC_UART_WAKEUP_SUPPORT_CHAR_SEQ_MODE      (1)
 
 /*-------------------------- SPIRAM CAPS -------------------------------------*/
 #define SOC_SPIRAM_XIP_SUPPORTED      1
@@ -523,12 +505,12 @@
 
 // TODO: IDF-12286 (inherit from verify code, need check)
 /*-------------------------- Power Management CAPS ----------------------------*/
-#define SOC_PM_SUPPORT_BT_WAKEUP        (1)
+// #define SOC_PM_SUPPORT_BT_WAKEUP        (1)
 // #define SOC_PM_SUPPORT_EXT1_WAKEUP      (1)
-#define SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN   (1) /*!<Supports one bit per pin to configure the EXT1 trigger level */
+// #define SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN   (1) /*!<Supports one bit per pin to configure the EXT1 trigger level */
 #define SOC_PM_SUPPORT_TOUCH_WAKEUP     (1)
 // #define SOC_PM_SUPPORT_CPU_PD           (1)
-#define SOC_PM_SUPPORT_MODEM_PD         (1)
+// #define SOC_PM_SUPPORT_MODEM_PD         (1)
 #define SOC_PM_SUPPORT_XTAL32K_PD       (1)
 #define SOC_PM_SUPPORT_RC32K_PD         (1)
 #define SOC_PM_SUPPORT_RC_FAST_PD       (1)
@@ -536,7 +518,7 @@
 // #define SOC_PM_SUPPORT_TOP_PD           (1)
 #define SOC_PM_SUPPORT_HP_AON_PD        (1)
 #define SOC_PM_SUPPORT_MAC_BB_PD        (1)
-#define SOC_PM_SUPPORT_RTC_PERIPH_PD    (1)
+// #define SOC_PM_SUPPORT_RTC_PERIPH_PD    (1)      // TODO： [ESP32H4] PM-484
 
 // #define SOC_PM_SUPPORT_PMU_MODEM_STATE  (1)
 // /* macro redefine for pass esp_wifi headers md5sum check */

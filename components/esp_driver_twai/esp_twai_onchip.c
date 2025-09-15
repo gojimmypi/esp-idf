@@ -60,6 +60,8 @@ static void _twai_rcc_clock_sel(uint8_t ctrlr_id, twai_clock_source_t clock)
 }
 #endif //SOC_TWAI_SUPPORT_FD
 
+#define TWAI_IDLE_EVENT_BIT BIT0    //event used for tx_wait_all_done
+
 typedef struct {
     struct twai_node_base api_base;
     int ctrlr_id;
@@ -67,6 +69,7 @@ typedef struct {
     twai_hal_context_t *hal;
     intr_handle_t intr_hdl;
     QueueHandle_t tx_mount_queue;
+    EventGroupHandle_t event_group;
     twai_clock_source_t curr_clk_src;
     uint32_t valid_fd_timing;
     twai_event_callbacks_t cbs;
@@ -124,8 +127,10 @@ static esp_err_t _node_config_io(twai_onchip_ctx_t *node, const twai_onchip_node
 {
     ESP_RETURN_ON_FALSE(GPIO_IS_VALID_OUTPUT_GPIO(node_config->io_cfg.tx) || (node_config->flags.enable_listen_only && (node_config->io_cfg.tx == -1)), ESP_ERR_INVALID_ARG, TAG, "Invalid tx gpio num");
     ESP_RETURN_ON_FALSE(GPIO_IS_VALID_GPIO(node_config->io_cfg.rx), ESP_ERR_INVALID_ARG, TAG, "Invalid rx gpio num");
-    uint64_t reserve_mask = 0;
+    ESP_RETURN_ON_FALSE(!(GPIO_IS_VALID_OUTPUT_GPIO(node_config->io_cfg.quanta_clk_out) && (twai_periph_signals[node->ctrlr_id].clk_out_sig < 0)), ESP_ERR_NOT_SUPPORTED, TAG, "quanta_clk_out is not supported");
+    ESP_RETURN_ON_FALSE(!(GPIO_IS_VALID_OUTPUT_GPIO(node_config->io_cfg.bus_off_indicator) && (twai_periph_signals[node->ctrlr_id].bus_off_sig < 0)), ESP_ERR_NOT_SUPPORTED, TAG, "bus_off_indicator is not supported");
 
+    uint64_t reserve_mask = 0;
     // Set RX pin
     gpio_set_pull_mode(node_config->io_cfg.rx, GPIO_PULLUP_ONLY);    // pullup to avoid noise if no connection to transceiver
     gpio_matrix_input(node_config->io_cfg.rx, twai_periph_signals[node->ctrlr_id].rx_sig, false);
@@ -239,6 +244,7 @@ static void _node_isr_main(void *arg)
                 _node_start_trans(twai_ctx);
             } else {
                 atomic_store(&twai_ctx->hw_busy, false);
+                xEventGroupSetBitsFromISR(twai_ctx->event_group, TWAI_IDLE_EVENT_BIT, &do_yield);
             }
         }
     }
@@ -284,6 +290,10 @@ static void _node_isr_main(void *arg)
             _node_start_trans(twai_ctx);
         } else {
             atomic_store(&twai_ctx->hw_busy, false);
+            if (atomic_load(&twai_ctx->state) != TWAI_ERROR_BUS_OFF) {
+                // only when node is not in busoff here, means tx is finished
+                xEventGroupSetBitsFromISR(twai_ctx->event_group, TWAI_IDLE_EVENT_BIT, &do_yield);
+            }
         }
     }
 
@@ -304,6 +314,9 @@ static void _node_destroy(twai_onchip_ctx_t *twai_ctx)
     }
     if (twai_ctx->tx_mount_queue) {
         vQueueDeleteWithCaps(twai_ctx->tx_mount_queue);
+    }
+    if (twai_ctx->event_group) {
+        vEventGroupDeleteWithCaps(twai_ctx->event_group);
     }
     if (twai_ctx->ctrlr_id != -1) {
         _ctrlr_release(twai_ctx->ctrlr_id);
@@ -571,31 +584,73 @@ static esp_err_t _node_queue_tx(twai_node_handle_t node, const twai_frame_t *fra
 {
     twai_onchip_ctx_t *twai_ctx = __containerof(node, twai_onchip_ctx_t, api_base);
     if (frame->header.dlc && frame->buffer_len) {
-        ESP_RETURN_ON_FALSE(frame->header.dlc == twaifd_len2dlc(frame->buffer_len), ESP_ERR_INVALID_ARG, TAG, "unmatched dlc and buffer_len");
+        ESP_RETURN_ON_FALSE_ISR(frame->header.dlc == twaifd_len2dlc(frame->buffer_len), ESP_ERR_INVALID_ARG, TAG, "unmatched dlc and buffer_len");
     }
 #if !SOC_TWAI_SUPPORT_FD
-    ESP_RETURN_ON_FALSE(!frame->header.fdf || frame->buffer_len <= TWAI_FRAME_MAX_LEN, ESP_ERR_INVALID_ARG, TAG, "fdf flag or buffer_len not supported");
+    ESP_RETURN_ON_FALSE_ISR(!frame->header.fdf || frame->buffer_len <= TWAI_FRAME_MAX_LEN, ESP_ERR_INVALID_ARG, TAG, "fdf flag or buffer_len not supported");
 #endif
-    ESP_RETURN_ON_FALSE(frame->buffer_len <= (frame->header.fdf ? TWAIFD_FRAME_MAX_LEN : TWAI_FRAME_MAX_LEN), ESP_ERR_INVALID_ARG, TAG, "illegal transfer length (buffer_len %ld)", frame->buffer_len);
-    ESP_RETURN_ON_FALSE((!frame->header.brs) || (twai_ctx->valid_fd_timing), ESP_ERR_INVALID_ARG, TAG, "brs can't be used without config data_timing");
-    ESP_RETURN_ON_FALSE(!twai_ctx->hal->enable_listen_only, ESP_ERR_NOT_SUPPORTED, TAG, "node is config as listen only");
-    ESP_RETURN_ON_FALSE(atomic_load(&twai_ctx->state) != TWAI_ERROR_BUS_OFF, ESP_ERR_INVALID_STATE, TAG, "node is bus off");
+    ESP_RETURN_ON_FALSE_ISR((frame->header.dlc <= TWAIFD_FRAME_MAX_DLC) && \
+                            (frame->buffer_len <= (frame->header.fdf ? TWAIFD_FRAME_MAX_LEN : TWAI_FRAME_MAX_LEN)), ESP_ERR_INVALID_ARG, TAG, "illegal transfer length (buffer_len %ld)", frame->buffer_len);
+    ESP_RETURN_ON_FALSE_ISR((!frame->header.brs) || (twai_ctx->valid_fd_timing), ESP_ERR_INVALID_ARG, TAG, "brs can't be used without config data_timing");
+    ESP_RETURN_ON_FALSE_ISR(!twai_ctx->hal->enable_listen_only, ESP_ERR_NOT_SUPPORTED, TAG, "node is config as listen only");
+    ESP_RETURN_ON_FALSE_ISR(atomic_load(&twai_ctx->state) != TWAI_ERROR_BUS_OFF, ESP_ERR_INVALID_STATE, TAG, "node is bus off");
     TickType_t ticks_to_wait = (timeout == -1) ? portMAX_DELAY : pdMS_TO_TICKS(timeout);
 
+    xEventGroupClearBits(twai_ctx->event_group, TWAI_IDLE_EVENT_BIT); //going to send, clear the idle event
     bool false_var = false;
     if (atomic_compare_exchange_strong(&twai_ctx->hw_busy, &false_var, true)) {
         twai_ctx->p_curr_tx = frame;
         _node_start_trans(twai_ctx);
     } else {
-        //options in following steps (in_queue->2nd_check->pop_queue) should exec ASAP
-        //within about 50us (minimum time for one msg), to ensure data safe
-        ESP_RETURN_ON_FALSE(xQueueSend(twai_ctx->tx_mount_queue, &frame, ticks_to_wait), ESP_ERR_TIMEOUT, TAG, "tx queue full");
+        // Hardware busy, need to queue the frame
+        BaseType_t is_isr_context = xPortInIsrContext();
+        BaseType_t yield_required = pdFALSE;
+
+        if (is_isr_context) {
+            // In ISR context - use ISR-safe queue operations
+            ESP_RETURN_ON_FALSE_ISR(xQueueSendFromISR(twai_ctx->tx_mount_queue, &frame, &yield_required), ESP_ERR_TIMEOUT, TAG, "tx queue full");
+        } else {
+            // In task context - use normal queue operations
+            ESP_RETURN_ON_FALSE(xQueueSend(twai_ctx->tx_mount_queue, &frame, ticks_to_wait), ESP_ERR_TIMEOUT, TAG, "tx queue full");
+        }
+
+        // Second chance check for hardware availability
         false_var = false;
         if (atomic_compare_exchange_strong(&twai_ctx->hw_busy, &false_var, true)) {
-            if (xQueueReceive(twai_ctx->tx_mount_queue, &twai_ctx->p_curr_tx, 0) != pdTRUE) {
+            BaseType_t dequeue_result;
+            if (is_isr_context) {
+                dequeue_result = xQueueReceiveFromISR(twai_ctx->tx_mount_queue, &twai_ctx->p_curr_tx, &yield_required);
+            } else {
+                dequeue_result = xQueueReceive(twai_ctx->tx_mount_queue, &twai_ctx->p_curr_tx, 0);
+            }
+
+            if (dequeue_result == pdTRUE) {
+                _node_start_trans(twai_ctx);
+            } else {
                 assert(false && "should always get frame at this moment");
             }
-            _node_start_trans(twai_ctx);
+        }
+
+        // Handle ISR yield if required
+        if (is_isr_context && yield_required) {
+            portYIELD_FROM_ISR();
+        }
+    }
+    return ESP_OK;
+}
+
+static esp_err_t _node_wait_tx_all_done(twai_node_handle_t node, int timeout)
+{
+    twai_onchip_ctx_t *twai_ctx = __containerof(node, twai_onchip_ctx_t, api_base);
+    TickType_t ticks_to_wait = (timeout == -1) ? portMAX_DELAY : pdMS_TO_TICKS(timeout);
+    ESP_RETURN_ON_FALSE(atomic_load(&twai_ctx->state) != TWAI_ERROR_BUS_OFF, ESP_ERR_INVALID_STATE, TAG, "node is bus off");
+
+    // either hw_busy or tx_mount_queue is not empty, means tx is not finished
+    // otherwise, hardware is idle, return immediately
+    if (atomic_load(&twai_ctx->hw_busy) || uxQueueMessagesWaiting(twai_ctx->tx_mount_queue)) {
+        //wait for idle event bit but without clear it, every tasks block here can be waked up
+        if (TWAI_IDLE_EVENT_BIT != xEventGroupWaitBits(twai_ctx->event_group, TWAI_IDLE_EVENT_BIT, pdFALSE, pdFALSE, ticks_to_wait)) {
+            return ESP_ERR_TIMEOUT;
         }
     }
     return ESP_OK;
@@ -605,6 +660,7 @@ static esp_err_t _node_parse_rx(twai_node_handle_t node, twai_frame_t *rx_frame)
 {
     twai_onchip_ctx_t *twai_ctx = __containerof(node, twai_onchip_ctx_t, api_base);
     ESP_RETURN_ON_FALSE_ISR(atomic_load(&twai_ctx->rx_isr), ESP_ERR_INVALID_STATE, TAG, "rx can only called in `rx_done` callback");
+    assert(xPortInIsrContext() && "should always in rx_done callback");
 
     twai_hal_parse_frame(&twai_ctx->rcv_buff, &rx_frame->header, rx_frame->buffer, rx_frame->buffer_len);
     return ESP_OK;
@@ -630,7 +686,8 @@ esp_err_t twai_new_node_onchip(const twai_onchip_node_config_t *node_config, twa
     // state is in bus_off before enabled
     atomic_store(&node->state, TWAI_ERROR_BUS_OFF);
     node->tx_mount_queue = xQueueCreateWithCaps(node_config->tx_queue_depth, sizeof(twai_frame_t *), TWAI_MALLOC_CAPS);
-    ESP_GOTO_ON_FALSE(node->tx_mount_queue || node_config->flags.enable_listen_only, ESP_ERR_NO_MEM, err, TAG, "no_mem");
+    node->event_group = xEventGroupCreateWithCaps(TWAI_MALLOC_CAPS);
+    ESP_GOTO_ON_FALSE((node->tx_mount_queue && node->event_group) || node_config->flags.enable_listen_only, ESP_ERR_NO_MEM, err, TAG, "no_mem");
     uint32_t intr_flags = TWAI_INTR_ALLOC_FLAGS;
     intr_flags |= (node_config->intr_priority > 0) ? BIT(node_config->intr_priority) : ESP_INTR_FLAG_LOWMED;
     ESP_GOTO_ON_ERROR(esp_intr_alloc(twai_periph_signals[ctrlr_id].irq_id, intr_flags, _node_isr_main, (void *)node, &node->intr_hdl),
@@ -683,6 +740,7 @@ esp_err_t twai_new_node_onchip(const twai_onchip_node_config_t *node_config, twa
     node->api_base.reconfig_timing = _node_set_bit_timing;
     node->api_base.register_cbs = _node_register_callbacks;
     node->api_base.transmit = _node_queue_tx;
+    node->api_base.transmit_wait_done = _node_wait_tx_all_done;
     node->api_base.receive_isr = _node_parse_rx;
     node->api_base.get_info = _node_get_status;
 

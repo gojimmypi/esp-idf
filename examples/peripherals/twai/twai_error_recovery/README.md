@@ -1,5 +1,5 @@
-| Supported Targets | ESP32 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-H2 | ESP32-H21 | ESP32-P4 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | --------- | -------- | -------- | -------- |
+| Supported Targets | ESP32 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-H2 | ESP32-H21 | ESP32-H4 | ESP32-P4 | ESP32-S2 | ESP32-S3 |
+| ----------------- | ----- | -------- | -------- | -------- | -------- | --------- | -------- | -------- | -------- | -------- |
 
 # TWAI Bus-Off Recovery Example
 This example demonstrates how to recover a TWAI node from a Bus-Off error condition and resume communication. The recovery is triggered by physically inducing bus errors and handled using the ESP TWAI on-chip driver with callback support.
@@ -45,17 +45,17 @@ idf.py -p PORT flash monitor
 install twai success
 node started
 
-sending frame 0
-sending frame 1
+sending frame 0, please trigger error during sending
+sending frame 1, please trigger error during sending
 
 ...
-sending frame 4
+sending frame 4, please trigger error during sending
 // Manually trigger error here (disconnect TX/RX or short H/L)
 bus error: 0x2
 state changed: error_active -> error_warning
 
 ...
-sending frame 9
+sending frame 9, please trigger error during sending
 // Trigger error again
 bus error: 0x2
 state changed: error_passive -> bus_off
@@ -66,7 +66,7 @@ waiting ... 0
 state changed: bus_off -> error_active
 node recovered! continue
 
-sending frame 0
+sending frame 0, please trigger error during sending
 ```
 
 ## Troubleshooting
