@@ -56,6 +56,15 @@ Xtensa 特殊寄存器头文件已更新，使用新的命名约定。旧的 ``s
 
 已弃用的头文件 ``soc_memory_types.h`` 已被移除，请改用替代头文件 ``esp_memory_utils.h``。
 
+已弃用的头文件 ``intr_types.h`` 已被移除，请改用替代头文件 ``esp_intr_types.h``。
+
+已弃用的头文件 ``esp_private/interrupt_deprecated.h`` 已被移除，已弃用的函数不再可用，请改用非弃用版本。
+
+ROM 头文件
+-----------
+
+已从 ``ets_sys.h`` ROM 头文件中移除了已弃用的 ``STATUS`` 类型。请改用 ``ETS_STATUS``。
+
 App 追踪
 ----------
 
@@ -81,6 +90,28 @@ App 追踪
         return res;
     }
 
+UART 目标配置已简化：
+
+- 移除：通过 ``CONFIG_APPTRACE_DEST_UARTx=y`` 选择单个 UART
+- 新增：通过 ``CONFIG_APPTRACE_DEST_UART_NUM`` 选择 UART 端口
+
+迁移方法，更新你的 sdkconfig 配置：
+
+旧配置：
+
+.. code-block:: none
+
+    CONFIG_APPTRACE_DEST_UART0=y
+    # 或
+    CONFIG_APPTRACE_DEST_UART1=y
+
+新配置：
+
+.. code-block:: none
+
+    CONFIG_APPTRACE_DEST_UART=y
+    CONFIG_APPTRACE_DEST_UART_NUM=0  # 或 1、2，具体取决于目标芯片
+
 FreeRTOS
 --------
 
@@ -103,13 +134,25 @@ FreeRTOS
 
 函数 :cpp:func:`pxTaskGetStackStart` 已弃用。请使用 :cpp:func:`xTaskGetStackStart` 替代以提高类型安全性。
 
+**新增 API**
+
+由于 ESP Insights 等外部框架的使用需求，任务快照 API 已重新设为公开。这些 API 现在通过 ``freertos/freertos_debug.h`` 提供，而不是已弃用的 ``freertos/task_snapshot.h``。
+为了在调度器运行时安全使用，请在调用快照函数前使用 ``vTaskSuspendAll()``，调用后使用 ``xTaskResumeAll()``。
+
 **内存布局**
 
-为了减少 IRAM 的使用，大多数 FreeRTOS 函数的默认位置已从 IRAM 更改为 flash。因此，``CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH`` 选项已被移除。这项变更可显著节省 IRAM 空间，但可能会对性能造成轻微影响。如果应用对性能有严苛要求，可通过启用新增的 :ref:`CONFIG_FREERTOS_IN_IRAM` 选项来恢复原先配置。
+- 为了减少 IRAM 的使用，大多数 FreeRTOS 函数的默认位置已从 IRAM 更改为 flash。因此，``CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH`` 选项已被移除。这项变更可显著节省 IRAM 空间，但可能会对性能造成轻微影响。如果应用对性能有严苛要求，可通过启用新增的 :ref:`CONFIG_FREERTOS_IN_IRAM` 选项来恢复原先配置。
+- 在决定是否启用 ``CONFIG_FREERTOS_IN_IRAM`` 时，建议进行性能测试以评估对具体应用场景的实际影响。flash 和 IRAM 配置的性能差异会受 flash 缓存效率、API 调用模式和系统负载等因素影响。
+- ``components/freertos/test_apps/freertos/performance/test_freertos_api_performance.c`` 中提供了基准性能测试，可测量常用 FreeRTOS API 的执行时间。该测试有助于根据目标硬件和应用需求评估内存布局调整带来的性能影响。
+- 当启用 ``CONFIG_ESP_PANIC_HANDLER_IRAM`` 时，任务快照函数会自动放置在 IRAM 中，确保在恐慌处理期间仍可访问
+- ``vTaskGetSnapshot`` 会保持在 IRAM 中，除非启用了 ``CONFIG_FREERTOS_PLACE_ISR_FUNCTIONS_INTO_FLASH``，因为它被任务看门狗中断处理程序使用。
 
-在决定是否启用 ``CONFIG_FREERTOS_IN_IRAM`` 时，建议进行性能测试以评估对具体应用场景的实际影响。flash 和 IRAM 配置的性能差异会受 flash 缓存效率、API 调用模式和系统负载等因素影响。
+**已移除的配置选项：**
 
-``components/freertos/test_apps/freertos/performance/test_freertos_api_performance.c`` 中提供了基准性能测试，可测量常用 FreeRTOS API 的执行时间。该测试有助于根据目标硬件和应用需求评估内存布局调整带来的性能影响。
+以下隐藏（且始终为真）的配置选项已被移除：
+
+- ``CONFIG_FREERTOS_ENABLE_TASK_SNAPSHOT``
+- ``CONFIG_FREERTOS_PLACE_SNAPSHOT_FUNS_INTO_FLASH``
 
 环形缓冲区
 ----------
@@ -131,6 +174,11 @@ Log
 **已移除的头文件**
 
 - ``esp_log_internal.h`` – 请使用 ``esp_log_buffer.h`` 替代。
+
+ESP-Event
+---------
+
+不必要的 FreeRTOS 头文件已从 ``esp_event.h`` 中移除。此前依赖这些隐式包含的代码，现在必须显式添加以下头文件：``#include "freertos/queue.h"`` 和 ``#include "freertos/semphr.h"``。
 
 核心转储
 --------

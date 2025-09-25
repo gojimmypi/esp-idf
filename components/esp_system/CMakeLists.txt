@@ -77,6 +77,9 @@ else()
                                     # should be removable once using component init functions
                                     # link-time registration is used.
                                     bootloader_support esp_pm esp_usb_cdc_rom_console
+                                    # [REFACTOR-TODO] Provide system hook to release dependency reversion.
+                                    # IDF-13980
+                                    esp_hal_i2c
                         LDFRAGMENTS "linker.lf" "app.lf")
     add_subdirectory(port)
 
@@ -152,7 +155,7 @@ if(NOT BOOTLOADER_BUILD)
 endif()
 
 # For P4, since P4 REV2, the SRAM is contiguous
-if(CONFIG_ESP32P4_SELECTS_REV_LESS_V2)
+if(CONFIG_ESP32P4_SELECTS_REV_LESS_V3)
     target_link_options(${COMPONENT_LIB} INTERFACE "-Wl,--enable-non-contiguous-regions")
 endif()
 
