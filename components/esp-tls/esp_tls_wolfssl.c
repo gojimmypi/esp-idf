@@ -365,14 +365,12 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
     #endif
 
 #else /* CONFIG_WOLFSSL_CERTIFICATE_BUNDLE */
-        ESP_LOGE(TAG,
-            "use_crt_bundle configured but not enabled in menuconfig:"
+        ESP_LOGE(TAG, "use_crt_bundle configured but not enabled in menuconfig:"
                       "Please enable CONFIG_WOLFSSL_CERTIFICATE_BUNDLE option");
         return ESP_ERR_INVALID_STATE;
 #endif
         /* cfg->crt_bundle_attach != NULL */
-    }
-    else if (cfg->use_global_ca_store == true) {
+    } else if (cfg->use_global_ca_store == true) {
         WOLFSSL_MSG("Using Global CA Store in esp_tls_wolfssl");
         if ((esp_load_wolfssl_verify_buffer(tls, global_cacert, global_cacert_pem_bytes, FILE_TYPE_CA_CERT, &ret)) != ESP_OK) {
             int err = wolfSSL_get_error((WOLFSSL *)tls->priv_ssl, ret);
@@ -381,8 +379,7 @@ static esp_err_t set_client_config(const char *hostname, size_t hostlen, esp_tls
             return ESP_ERR_WOLFSSL_CERT_VERIFY_SETUP_FAILED;
         } /* esp_load_wolfssl_verify_buffer */
         wolfSSL_CTX_set_verify((WOLFSSL_CTX *)tls->priv_ctx, WOLFSSL_VERIFY_PEER, NULL);
-    }
-    else if (cfg->cacert_buf != NULL) {
+    } else if (cfg->cacert_buf != NULL) {
         WOLFSSL_MSG("set_client_config found cert_buf");
         if ((esp_load_wolfssl_verify_buffer(tls, cfg->cacert_buf, cfg->cacert_bytes, FILE_TYPE_CA_CERT, &ret)) != ESP_OK) {
             int err = wolfSSL_get_error((WOLFSSL *)tls->priv_ssl, ret);
