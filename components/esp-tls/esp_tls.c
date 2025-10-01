@@ -715,6 +715,7 @@ int esp_tls_server_session_create(esp_tls_cfg_server_t *cfg, int sockfd, esp_tls
 {
     return _esp_tls_server_session_create(cfg, sockfd, tls);
 }
+
 /**
  * @brief      Close the server side TLS/SSL connection and free any allocated resources.
  */

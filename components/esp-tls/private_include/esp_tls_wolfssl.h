@@ -85,7 +85,6 @@ void *esp_wolfssl_get_ssl_context(esp_tls_t *tls);
  */
 void esp_wolfssl_net_init(esp_tls_t *tls);
 
-
 /**
  * Function to Create ESP-TLS Server session with wolfssl Stack
  */
